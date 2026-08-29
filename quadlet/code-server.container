@@ -81,22 +81,33 @@ Environment=PI_SKIP_VERSION_CHECK=1
 # to override its ENTRYPOINT/CMD.
 WorkingDir=/workspace
 
-# --- Self-signed HTTPS ---------------------------------------------------
-# VS Code webviews require a secure context (HTTPS or localhost) for
-# crypto.subtle. Under plain HTTP on a LAN IP the ACP Client extension's
-# chat webview silently fails to render — the sidebar tree connects, the
-# status bar shows the adapter, but the chat panel is a blank iframe and
-# the console reports `'crypto.subtle' is not available`. --cert with no
-# path makes code-server generate a self-signed cert on first boot and
-# serve HTTPS on the same bind-addr. Users hit "Advanced → Proceed to
-# 192.168.2.197 (unsafe)" once per browser; after that, webviews work
-# and the chat panel renders as expected. See docs/plans/2026-08-30
-# for the browser-test-caught rationale.
+# --- HTTPS decision (documented, NOT enabled here) -----------------------
+# We tried Exec=--cert to give code-server self-signed HTTPS on first boot.
+# It DIDN'T solve the ACP chat webview:
 #
-# Exec=--cert is passed to code-server AFTER the entrypoint's own
-# --bind-addr 0.0.0.0:8080 . default args, so ordering is:
-#   code-server --bind-addr 0.0.0.0:8080 . --cert
-Exec=--cert
+#   - Browser page load: user clicks "Advanced -> Proceed to <ip> (unsafe)"
+#     once, page loads fine.
+#   - ServiceWorker registration for the webview host: browser uses the OS
+#     trust store, NOT the per-tab "temp accept". SW registration fails
+#     with `SecurityError: An SSL certificate error occurred when fetching
+#     the script`. VS Code webviews are all delivered via that SW, so the
+#     ACP chat panel stays blank.
+#
+# The trust boundary that lets webviews load is either:
+#   (a) A cert the OS already trusts (Let's Encrypt via a public-DNS
+#       domain, or a locally-issued cert added to each user's OS trust
+#       store via `mkcert -install` etc), OR
+#   (b) Access via localhost / 127.0.0.1 — always a secure context.
+#
+# Since (a) is out-of-scope for this addon (and would depend on the site's
+# DNS / cert story), we ship plain HTTP LAN by default and document the
+# trade-off in README.md#security. Sidebar tree + status bar + connection
+# to pi work over plain HTTP; only the chat webview needs trusted TLS.
+#
+# When you're ready to enable HTTPS, front this container with a reverse
+# proxy that has a trusted cert (NPM + Let's Encrypt, nginx + mkcert, etc)
+# and change PublishPort= below to 127.0.0.1:8443:8080 so the plain-HTTP
+# port is not directly reachable.
 
 # --- Sandboxing ----------------------------------------------------------
 NoNewPrivileges=true
