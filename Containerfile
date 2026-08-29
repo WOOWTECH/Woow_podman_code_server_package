@@ -44,10 +44,15 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # definition; installing them together is the standard pattern documented
 # by nodesource itself. We use apt over the "one-liner install script" so
 # there is exactly one place that decides which repo we trust.
+# Python 3 minimal only — Debian Trixie's python3-pip / python3-venv
+# metadeps deadlock under --no-install-recommends inside this base. Users
+# who need pip can `apt install python3-pip` at runtime (sudo works via
+# SUDO_PASSWORD) or, better, install `pipx` per-user. Keeping this RUN
+# minimal keeps the image reproducible.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       ca-certificates curl git gnupg jq openssh-client \
-      python3 python3-pip python3-venv \
+      python3-minimal \
       tzdata \
  && mkdir -p /etc/apt/keyrings \
  && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
