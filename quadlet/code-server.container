@@ -81,6 +81,23 @@ Environment=PI_SKIP_VERSION_CHECK=1
 # to override its ENTRYPOINT/CMD.
 WorkingDir=/workspace
 
+# --- Self-signed HTTPS ---------------------------------------------------
+# VS Code webviews require a secure context (HTTPS or localhost) for
+# crypto.subtle. Under plain HTTP on a LAN IP the ACP Client extension's
+# chat webview silently fails to render — the sidebar tree connects, the
+# status bar shows the adapter, but the chat panel is a blank iframe and
+# the console reports `'crypto.subtle' is not available`. --cert with no
+# path makes code-server generate a self-signed cert on first boot and
+# serve HTTPS on the same bind-addr. Users hit "Advanced → Proceed to
+# 192.168.2.197 (unsafe)" once per browser; after that, webviews work
+# and the chat panel renders as expected. See docs/plans/2026-08-30
+# for the browser-test-caught rationale.
+#
+# Exec=--cert is passed to code-server AFTER the entrypoint's own
+# --bind-addr 0.0.0.0:8080 . default args, so ordering is:
+#   code-server --bind-addr 0.0.0.0:8080 . --cert
+Exec=--cert
+
 # --- Sandboxing ----------------------------------------------------------
 NoNewPrivileges=true
 
