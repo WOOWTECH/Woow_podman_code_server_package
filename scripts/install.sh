@@ -41,6 +41,26 @@ if ! podman volume exists pi-agent-data 2>/dev/null; then
     podman volume create pi-agent-data >/dev/null
 fi
 
+# Pre-flight: bind-mount sources on the host. Podman errors out with
+# `statfs: no such file or directory` when a bind mount source is
+# missing (rather than silently creating a directory in its place, which
+# is the default for older podman versions — either failure mode is
+# worse than pre-creating the files here). Only touch what could
+# plausibly be absent; ~/Desktop existence is on the operator.
+[ -e "${HOME}/.gitconfig" ] || {
+    say "Creating empty ~/.gitconfig (bind mount source)"
+    touch "${HOME}/.gitconfig"
+}
+[ -e "${HOME}/.ssh" ] || {
+    say "Creating ~/.ssh (bind mount source)"
+    mkdir -m 0700 "${HOME}/.ssh"
+}
+[ -e "${HOME}/.local/bin" ] || {
+    say "Creating ~/.local/bin (bind mount source)"
+    mkdir -p "${HOME}/.local/bin"
+}
+[ -e "${HOME}/Desktop" ] || die "\${HOME}/Desktop is missing — the workspace mount points at it. Create it or edit quadlet/code-server.container to point elsewhere."
+
 if [ "${OD_SKIP_BUILD:-0}" != "1" ]; then
     say "Building localhost/woow-code-server:latest from Containerfile"
     podman build --format=docker -t localhost/woow-code-server:latest \
