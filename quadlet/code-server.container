@@ -52,9 +52,14 @@ Volume=/home/woowtechopenclaw/.gitconfig:/home/coder/.gitconfig:ro
 # `npm install -g`'d on the host (claude, aider, ...) is on PATH here.
 Volume=/home/woowtechopenclaw/.local/bin:/mnt/host-local-bin:ro
 
-# Rootless podman: the container's uid inside the namespace maps to the
-# invoking user's uid (1000) on the host, which is why the bind-mounts
-# above round-trip readable/writable without a chown dance.
+# Rootless podman + userns keep-id: without this, `coder` (uid 1000 inside)
+# maps to a subuid on the host (~100999) and cannot read/write anything
+# owned by the invoking host user (uid 1000). The pi-agent-data volume
+# above is created and populated by the sibling pi-agent-package running
+# as host uid 1000, so pi-code writes to /data/pi-agent/settings.json.lock
+# fail with EACCES until we tell the userns to keep the mapping identical.
+# OD's compose does the same for its `open-design` user (uid 1001).
+UserNS=keep-id:uid=1000,gid=1000
 
 # --- Environment ---------------------------------------------------------
 Environment=PASSWORD=woowtech
