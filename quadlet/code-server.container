@@ -71,13 +71,11 @@ Environment=PI_TELEMETRY=0
 Environment=PI_SKIP_VERSION_CHECK=1
 
 # --- CMD override --------------------------------------------------------
-# code-server does not honour DEFAULT_WORKSPACE as an environment variable
-# (that variable is documented in some downstream setups but is not part of
-# code-server's own env schema). --default-workspace is a real CLI arg and
-# is what actually makes the first login land in /workspace instead of
-# /home/coder. Passed here rather than in Containerfile so overriding it
-# for a different workspace path is a one-liner in the quadlet.
-Exec=--default-workspace /workspace
+# code-server takes the initial folder as a positional CLI arg (there is
+# no --default-workspace flag; that was a plausible-sounding guess that
+# died with "Unknown option" on the first attempt). Passing /workspace
+# here makes first login land there instead of /home/coder.
+Exec=/workspace
 
 # --- Sandboxing ----------------------------------------------------------
 NoNewPrivileges=true
