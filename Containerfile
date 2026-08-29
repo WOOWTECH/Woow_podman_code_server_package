@@ -120,6 +120,16 @@ RUN mkdir -p /home/coder/.local/share/code-server/User \
 # code-server's own ENTRYPOINT expects to run as coder.
 USER coder
 
+# --- Healthcheck ---------------------------------------------------------
+# code-server exposes /healthz on its internal port (8080). Pointing at
+# 127.0.0.1 inside the container is the correct target — the host publish
+# maps 8443:8080 externally, but internally the server always binds 8080.
+# The systemd timer in ../systemd/code-server-health.timer just re-triggers
+# this check every 30s so `podman ps` STATUS is fresh between the built-in
+# interval ticks.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD curl -sf http://127.0.0.1:8080/healthz || exit 1
+
 # --- OCI labels ----------------------------------------------------------
 ARG BUILD_VERSION=dev
 ARG BUILD_DATE=unknown

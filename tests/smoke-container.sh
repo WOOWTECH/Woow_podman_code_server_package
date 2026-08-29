@@ -33,12 +33,19 @@ case "${CODE}" in
     *)       bad "/ -> ${CODE}" ;;
 esac
 
-# Wrong password gets a 401 back from /login POST. This is the check that
-# tells "auth is on" from "auth accepted anything".
-CODE="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 -X POST \
+# code-server re-renders the login page (HTTP 200) with an error banner
+# rather than returning 401. So we assert on the body containing an error
+# string, which is the actually-testable behavior — a "silently accept
+# anything" regression would render the workspace HTML instead.
+BODY="$(curl -sS --max-time 5 -X POST \
     --data-urlencode "password=deliberately-wrong-$$" \
     "${BASE}/login")"
-[ "${CODE}" = "401" ] && ok "wrong password -> 401" || bad "wrong password -> ${CODE}"
+if echo "${BODY}" | grep -qiE 'incorrect password|missing password|invalid password'; then
+    ok "wrong password rejected (login page re-rendered with error)"
+else
+    bad "wrong password NOT rejected — body did not carry an error banner"
+    echo "${BODY}" | head -c 300 | sed 's/^/       /'
+fi
 
 # Right password redirects (302) to the workbench.
 CODE="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 -X POST \
