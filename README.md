@@ -179,6 +179,25 @@ this past the trusted LAN:
 - Or change `PublishPort=` to `127.0.0.1:8443:8080` and force everyone
   through the reverse proxy.
 
+**Trusted HTTPS needed for the ACP chat webview.** The sidebar tree,
+status bar, and pi-adapter connection work fine over plain HTTP. The
+**chat webview panel** does not — VS Code delivers webview content via
+ServiceWorker, which fails to register unless the origin is
+"secure" (`localhost`, or a certificate the OS trusts). Self-signed
+certificates users click through at the page level still fail at the
+SW level. To get the chat panel rendering:
+- Recommended: front this container with NPM / nginx / Cloudflare
+  Access carrying a Let's Encrypt (or comparable OS-trusted) cert.
+  This is the same pattern [`Woow_podman_pi_agent_package`](https://github.com/WOOWTECH/Woow_podman_pi_agent_package)
+  uses to expose pi-web.
+- Alternative: use [`mkcert`](https://github.com/FiloSottile/mkcert)
+  on each user machine (`mkcert -install` once, `mkcert 192.168.2.197`
+  to issue), point code-server at the resulting cert, and the browser
+  will trust it locally without a warning.
+- Not enough: `code-server --cert` on its own. Confirmed on
+  2026-08-30 live test — page loads with a warning-clickthrough, but
+  the webview SW refuses to register on the self-signed cert.
+
 **What the container can do.** `code-server` runs as `coder` (uid 1000)
 inside a rootless user namespace mapped to the invoking host user.
 `sudo` inside the container is enabled via `SUDO_PASSWORD` (also
