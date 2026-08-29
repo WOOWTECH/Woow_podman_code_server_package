@@ -13,5 +13,10 @@
         "**/.DS_Store": true,
         "**/node_modules": true
     },
-    "extensions.autoUpdate": false
+    "extensions.autoUpdate": false,
+    "//workspace-trust-note": "The ACP Client extension declares no untrustedWorkspaces.supported capability, so under Restricted Mode its view container never activates and the sidebar icon never appears. Users on this addon land in /workspace which is the user's own ~/Desktop — code they wrote themselves — so gating extension activation behind a trust prompt is pure friction. Disable the whole trust subsystem; the security boundary is HA login + LAN, not code-server's per-folder trust.",
+    "security.workspace.trust.enabled": false,
+    "security.workspace.trust.startupPrompt": "never",
+    "security.workspace.trust.banner": "never",
+    "security.workspace.trust.emptyWindow": false
 }
