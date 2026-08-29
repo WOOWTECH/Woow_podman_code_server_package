@@ -1,0 +1,76 @@
+# code-server — browser-based VS Code with pi coding agent + ACP client wired in.
+#
+# Publishes on 0.0.0.0:8443 with a shared PASSWORD (set below). The trust
+# boundary is "anything on this LAN with the password"; do not expose this
+# port past a trusted network without an authenticating proxy in front.
+#
+# Runs alongside Woow_podman_pi_agent_package: both containers mount the
+# same external `pi-agent-data` podman volume, so a session started under
+# pi-web is visible in code-server's ACP panel and vice versa. That volume
+# is created by the pi-agent-package quadlet — if pi-agent-package is not
+# installed on this host, `podman volume create pi-agent-data` before
+# starting this unit.
+[Unit]
+Description=code-server — browser IDE with pi ACP adapter
+Documentation=https://github.com/WOOWTECH/Woow_podman_code_server_package
+After=network-online.target podman.socket
+Wants=network-online.target
+Requires=podman.socket
+
+[Container]
+ContainerName=code-server
+Image=localhost/woow-code-server:latest
+
+# Locally-built image; a Quadlet default of `Pull=missing` would send it
+# looking for the tag on a registry that never got a push and fail every
+# start after a rebuild pattern change. AutoUpdate=local pairs the two:
+# tracks the local image tag rather than a registry digest.
+Pull=never
+AutoUpdate=local
+
+# LAN-published on 8443. code-server internally binds 8080 (its default);
+# the mapping is fixed here so healthchecks + docs don't split-brain on
+# which port to talk to.
+PublishPort=0.0.0.0:8443:8080
+
+# Workspace: the invoking user's ~/Desktop. Files edited in code-server
+# land back on the host owned by uid 1000, so a git push from the host
+# terminal against the same repo works without permission gymnastics.
+Volume=/home/woowtechopenclaw/Desktop:/workspace:rw
+
+# Shared pi-agent state: external volume from Woow_podman_pi_agent_package.
+# When pi-code runs, it re-scopes HOME to /data/pi-agent/home so pi's
+# sessions/skills/models all land here and are seen by pi-web and OD too.
+Volume=pi-agent-data.volume:/data/pi-agent
+
+# Host git identity, read-only. Enough for `git commit` to attribute
+# correctly and `git push` over SSH to find the deploy key.
+Volume=/home/woowtechopenclaw/.ssh:/home/coder/.ssh:ro
+Volume=/home/woowtechopenclaw/.gitconfig:/home/coder/.gitconfig:ro
+
+# Host CLI tools — same trick OD uses. Anything the invoking user
+# `npm install -g`'d on the host (claude, aider, ...) is on PATH here.
+Volume=/home/woowtechopenclaw/.local/bin:/mnt/host-local-bin:ro
+
+# Rootless podman: the container's uid inside the namespace maps to the
+# invoking user's uid (1000) on the host, which is why the bind-mounts
+# above round-trip readable/writable without a chown dance.
+
+# --- Environment ---------------------------------------------------------
+Environment=PASSWORD=woowtech
+Environment=SUDO_PASSWORD=woowtech
+Environment=TZ=Asia/Taipei
+Environment=DEFAULT_WORKSPACE=/workspace
+Environment=PATH=/mnt/host-local-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PI_TELEMETRY=0
+Environment=PI_SKIP_VERSION_CHECK=1
+
+# --- Sandboxing ----------------------------------------------------------
+NoNewPrivileges=true
+
+[Service]
+Restart=always
+TimeoutStartSec=180
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,17 @@
+{
+    "acp.agents": {
+        "pi": {
+            "command": "pi-code",
+            "args": [],
+            "env": {}
+        }
+    },
+    "workbench.colorTheme": "Default Dark Modern",
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "files.exclude": {
+        "**/.git": true,
+        "**/.DS_Store": true,
+        "**/node_modules": true
+    },
+    "extensions.autoUpdate": false
+}

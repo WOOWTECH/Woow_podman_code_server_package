@@ -1,0 +1,38 @@
+#!/bin/sh
+# pi-code — the wrapper the ACP Client extension invokes as the pi adapter.
+#
+# It exists because the ACP flow is:
+#     VS Code extension  ─→ pi-code  ─→ pi-acp  ─→ pi --mode rpc
+#
+# and only this wrapper has permission to reshape HOME before pi (via
+# pi-acp) gets called. If we let the extension invoke pi-acp directly,
+# pi's sessions land in /home/coder/.pi/agent/... — invisible to the
+# sibling pi-agent-package deployment on the same podman host and reset
+# on every container recreation. Moving HOME here (and NOT in code-server's
+# own environment) is what keeps the IDE side unaffected while giving pi
+# subprocesses the shared, persistent state directory.
+#
+# This is the same pattern OD's Dockerfile.full uses at /usr/local/bin/pi-od
+# on the .197 podman host; the two wrappers differ only in whether they
+# exec `pi` (OD's daemon speaks pi's RPC directly) or `pi-acp` (the VS
+# Code extension speaks ACP, needs the bridge). See
+# docs/plans/2026-08-30-initial-package.md for the full rationale.
+set -eu
+
+: "${PI_AGENT_DATA_DIR:=/data/pi-agent}"
+
+if [ ! -d "${PI_AGENT_DATA_DIR}" ]; then
+    echo "pi-code: ${PI_AGENT_DATA_DIR} is not mounted." >&2
+    echo "pi-code: mount the pi-agent-data podman volume (or an equivalent" >&2
+    echo "pi-code: bind mount) at that path — see README.md."               >&2
+    exit 78
+fi
+
+export HOME="${PI_AGENT_DATA_DIR}/home"
+export PI_CODING_AGENT_DIR="${PI_AGENT_DATA_DIR}"
+export PI_TELEMETRY="${PI_TELEMETRY:-0}"
+export PI_SKIP_VERSION_CHECK="${PI_SKIP_VERSION_CHECK:-1}"
+
+# pi-acp finds pi via PATH. That's the plain /usr/local/bin/pi symlink
+# npm installed for us — nothing else on PATH is called `pi`.
+exec pi-acp "$@"

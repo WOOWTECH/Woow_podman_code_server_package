@@ -1,0 +1,13 @@
+[Unit]
+Description=Refresh code-server container health state
+After=code-server.service
+Documentation=https://github.com/WOOWTECH/Woow_podman_code_server_package
+
+[Service]
+Type=oneshot
+# Silent no-op if the container was manually stopped. This unit does not
+# start the container itself; it only re-runs the container's built-in
+# healthcheck so `podman ps` STATUS reflects the latest reality between
+# HEALTHCHECK interval ticks.
+ExecCondition=/usr/bin/podman container exists code-server
+ExecStart=/usr/bin/podman healthcheck run code-server

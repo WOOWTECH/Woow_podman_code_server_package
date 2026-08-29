@@ -1,0 +1,17 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Local overrides
+docker-compose.override.yml
+*.local.env
+
+# Backups
+*.bak.*
+
+# IDE
+.vscode/
+.idea/
+
+# Node
+node_modules/

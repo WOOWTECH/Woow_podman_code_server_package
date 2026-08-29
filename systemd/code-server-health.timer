@@ -1,0 +1,12 @@
+[Unit]
+Description=Run code-server health check every 30 seconds
+Documentation=https://github.com/WOOWTECH/Woow_podman_code_server_package
+
+[Timer]
+OnActiveSec=90s
+OnUnitActiveSec=30s
+AccuracySec=5s
+Unit=code-server-health.service
+
+[Install]
+WantedBy=timers.target
