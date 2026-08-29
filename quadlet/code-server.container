@@ -70,12 +70,16 @@ Environment=PATH=/mnt/host-local-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/u
 Environment=PI_TELEMETRY=0
 Environment=PI_SKIP_VERSION_CHECK=1
 
-# --- CMD override --------------------------------------------------------
-# code-server takes the initial folder as a positional CLI arg (there is
-# no --default-workspace flag; that was a plausible-sounding guess that
-# died with "Unknown option" on the first attempt). Passing /workspace
-# here makes first login land there instead of /home/coder.
-Exec=/workspace
+# --- Working directory ---------------------------------------------------
+# The upstream entrypoint hardcodes `code-server --bind-addr 0.0.0.0:8080
+# . "$@"` — the `.` is a positional folder arg that code-server prefers
+# over subsequent ones, so passing /workspace after it via Exec= is
+# silently ignored (took a live browser test to catch this; the CLI
+# accepts multiple folders and picks the first one). Setting WORKDIR to
+# /workspace makes `.` resolve to /workspace inside the container, so
+# the entrypoint's own arg pins the default folder without us needing
+# to override its ENTRYPOINT/CMD.
+WorkingDir=/workspace
 
 # --- Sandboxing ----------------------------------------------------------
 NoNewPrivileges=true
