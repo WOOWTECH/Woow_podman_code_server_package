@@ -91,6 +91,27 @@ RUN npm install -g --omit=dev --no-fund --no-audit \
 COPY rootfs/ /
 RUN chmod +x /usr/local/bin/pi-code
 
+# --- Terminal pi shares state with chat panel + pi-web --------------------
+# code-server's default HOME is /home/coder, but the ACP chat panel + the
+# sibling pi-web addon both scope their pi processes to /data/pi-agent/home
+# via wrappers. When a user opens the code-server terminal and types plain
+# `pi`, the CLI runs under HOME=/home/coder and looks for auth at
+# /home/coder/.pi/agent/auth.json — which never exists, so the TUI prompts
+# for login even though the ACP panel and pi-web are both signed in.
+#
+# Two-layer fix:
+#   1. /etc/profile.d/pi.sh (shipped via rootfs/) exports
+#      PI_CODING_AGENT_DIR=/data/pi-agent so pi reads state from there
+#      regardless of HOME. Works for pi versions that respect the env.
+#   2. Symlink /home/coder/.pi → /data/pi-agent/home/.pi so pi versions
+#      that fall back to $HOME/.pi still resolve to the shared volume.
+#
+# The symlink target does not need to exist at build time — pi-web (or the
+# first pi-code invocation) will create /data/pi-agent/home/.pi at runtime,
+# and the dangling-then-resolved symlink follows fine.
+RUN ln -sfn /data/pi-agent/home/.pi /home/coder/.pi \
+ && chown -h coder:coder /home/coder/.pi
+
 # --- ACP Client extension ------------------------------------------------
 # Pinned version so a background upstream refresh cannot silently change
 # the sidebar behaviour or the settings.json schema out from under a
