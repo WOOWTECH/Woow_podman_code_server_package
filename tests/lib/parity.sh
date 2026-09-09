@@ -38,7 +38,17 @@ ha)
     PORT="1337"
     BASE="${CODE_SERVER_BASE:-}"
     SETTINGS="/data/vscode/User/settings.json"
-    CX()       { "${SSHHA}" "docker exec ${HA_ADDON_CONTAINER} $*"; }
+    # SSHHA takes ONE opaque string, run remotely as `sh -c "<string>"` — so
+    # each of our own arguments must be individually shell-quoted before
+    # joining, or an argument containing a space or a redirect (e.g.
+    # `sh -c 'ls ... 2>/dev/null'`) silently loses its quoting and gets
+    # re-split as separate words on the remote end. `printf %q` round-trips
+    # correctly through that remote re-parse. (Caught by actually building
+    # and running this image against a mock Supervisor and exercising every
+    # CX_ROOT call — the naive `$*` join below passed every check that
+    # didn't involve a space or a redirect, which is exactly the bug class
+    # that ships silently.)
+    CX()       { "${SSHHA}" "docker exec ${HA_ADDON_CONTAINER} $(printf '%q ' "$@")"; }
     CX_ROOT()  { CX "$@"; }
     LIVENESS() { "${SSHHA}" "docker inspect --format '{{.State.Status}}' ${HA_ADDON_CONTAINER}" 2>/dev/null | tr -d '\r'; }
     EXT_INSTALLED() { CX_ROOT sh -c 'ls /usr/local/lib/code-server/lib/vscode/extensions/ 2>/dev/null' | grep -qi '^formulahendry\.acp-client-'; }
