@@ -103,7 +103,14 @@ done
 say "Reloading systemd + starting"
 systemctl --user daemon-reload
 systemctl --user enable --now podman.socket
-systemctl --user start code-server.service
+# `restart`, not `start`: on an upgrade the unit is already active, and
+# `systemctl start` on an already-running unit is a silent no-op — the
+# quadlet-generated ExecStart is re-read from the reloaded unit file only
+# on a restart. Caught live: a real upgrade left a container from over a
+# week earlier running, with none of this release's mounts, while the
+# script printed a clean "Done" banner as if it had redeployed. `restart`
+# is safe on a fresh install too (nothing is running yet to stop).
+systemctl --user restart code-server.service
 systemctl --user enable --now code-server-health.timer
 
 say "Waiting for code-server to answer /healthz"
