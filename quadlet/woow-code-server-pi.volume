@@ -1,0 +1,7 @@
+# Internal, deployment-private pi-agent state. Not shared with any sibling
+# package. VolumeName= is set explicitly so uninstall.sh and
+# migrate-pi-state.sh can address it by a predictable name instead of
+# Quadlet's auto-generated `systemd-*` prefix.
+[Volume]
+VolumeName=woow-code-server-pi-data
+Label=app=woow-code-server

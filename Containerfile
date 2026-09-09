@@ -7,17 +7,20 @@
 #     needs a >=22 runtime, so we install a system Node next to the bundled one.
 #   - Python 3, git, openssh-client, curl, jq — the "what you always end up
 #     apt-get installing on the first day" minimum set for a dev sandbox.
-#   - @earendil-works/pi-coding-agent (pi CLI, pinned to the same version the
-#     sibling Woow_podman_pi_agent_package deployment uses so a session started
-#     under pi-web is readable here and vice versa).
+#   - @earendil-works/pi-coding-agent (pi CLI), pinned to the version this
+#     org aligns across all three code-server deployments (podman, the HA
+#     add-on, the k3s chart) — see PARITY_CONTRACT.md. pi's state here is
+#     private to THIS deployment; it is not shared with any other package.
 #   - pi-acp: the community bridge that translates ACP JSON-RPC (what the ACP
 #     Client VS Code extension speaks) to pi's own `--mode rpc` protocol.
 #   - The ACP Client extension itself, from open-vsx (code-server's default
 #     registry — the Microsoft Marketplace ToS forbids code-server users).
 #
 # The pi-code wrapper in rootfs/ scopes HOME to /data/pi-agent/home for the
-# pi subprocess only, without moving code-server's own HOME. That is what
-# makes the sibling deployment's sessions/skills/models visible here.
+# pi subprocess only, without moving code-server's own HOME. /data/pi-agent
+# is an internal, deployment-private volume (see quadlet/woow-code-server-pi.volume)
+# seeded from /opt/pi-agent-skel at build time — first run needs one
+# `pi login` inside this container (see README "First run").
 
 ARG CODE_SERVER_VERSION=4.135.0
 FROM codercom/code-server:${CODE_SERVER_VERSION}
@@ -65,9 +68,10 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # --- pi CLI + ACP adapter ------------------------------------------------
-# pi is pinned to 0.83.0 to match Woow_podman_pi_agent_package v0.13.2 —
-# the two must agree on session/skill/model schema because both write to
-# the shared pi-agent-data volume. Bump both together.
+# pi is pinned to 0.83.0 — this is the version PARITY_CONTRACT.md locks
+# across all three code-server deployments (podman/HA/k3s). It is the only
+# version verified end-to-end with pi-acp 0.0.33 + acp-client 0.2.0. Bump
+# all three repos together; see PARITY_CONTRACT.md §2.1 before changing.
 #
 # pi-acp is on 0.0.33 (current head; the package is 0.0.x, expect churn).
 # It spawns `pi --mode rpc` internally and bridges to ACP JSON-RPC over
@@ -82,33 +86,58 @@ RUN npm install -g --omit=dev --no-fund --no-audit \
 # --- Rootfs overlay ------------------------------------------------------
 # Contains:
 #   - /usr/local/bin/pi-code — the HOME-scoping wrapper used as the ACP
-#     command in settings.json. Everything about how OD reaches pi-agent
-#     on 197 collapses to this one wrapper.
+#     command in settings.json.
+#   - /usr/local/bin/pi-seed — idempotent pi-state-store seeder. Byte-
+#     identical across all three deployments (see rootfs/opt/SHA256SUMS);
+#     the HA add-on and k3s chart vendor these same three files.
+#   - /etc/profile.d/pi.sh — scopes terminal `pi` invocations to the same
+#     state directory the ACP chat panel uses.
 #   - /etc/skel/.local/share/code-server/User/settings.json — first-boot
 #     default VS Code settings pre-wiring the ACP Client extension to
 #     the pi adapter. code-server copies /etc/skel into the coder user's
 #     $HOME on first run.
 COPY rootfs/ /
-RUN chmod +x /usr/local/bin/pi-code
+RUN chmod +x /usr/local/bin/pi-code /usr/local/bin/pi-seed \
+ && sha256sum -c /opt/SHA256SUMS
 
-# --- Terminal pi shares state with chat panel + pi-web --------------------
-# code-server's default HOME is /home/coder, but the ACP chat panel + the
-# sibling pi-web addon both scope their pi processes to /data/pi-agent/home
-# via wrappers. When a user opens the code-server terminal and types plain
-# `pi`, the CLI runs under HOME=/home/coder and looks for auth at
-# /home/coder/.pi/agent/auth.json — which never exists, so the TUI prompts
-# for login even though the ACP panel and pi-web are both signed in.
+# --- pi state skeleton -----------------------------------------------------
+# /opt/pi-agent-skel is the canonical empty store, copied into the image at
+# /data/pi-agent too: podman populates an empty NAMED volume from the
+# image's own content the first time it is mounted, so the internal
+# woow-code-server-pi-data volume comes up pre-seeded with no runtime hook
+# needed. The HA add-on and the k3s chart instead run pi-seed at startup
+# (an s6 oneshot / an initContainer, respectively) to copy the identical
+# skeleton onto their own storage substrate — same skeleton, three ways of
+# getting it onto disk.
+RUN mkdir -p /opt/pi-agent-skel/home/.pi/agent \
+             /opt/pi-agent-skel/sessions \
+             /opt/pi-agent-skel/skills \
+ && touch /opt/pi-agent-skel/.woow-pi-store \
+ && mkdir -p /data \
+ && cp -a /opt/pi-agent-skel /data/pi-agent \
+ && ln -sfn /data/pi-agent/skills /data/pi-agent/home/.pi/agent/skills \
+ && chown -R coder:coder /opt/pi-agent-skel /data/pi-agent \
+ && chmod 700 /data/pi-agent
+
+# --- Terminal pi shares state with the ACP chat panel ---------------------
+# code-server's default HOME is /home/coder, but the ACP chat panel scopes
+# its pi process to /data/pi-agent/home via the pi-code wrapper. When a
+# user opens the code-server terminal and types plain `pi`, the CLI runs
+# under HOME=/home/coder and looks for auth at /home/coder/.pi/agent/auth.json
+# — which never exists, so the TUI would prompt for login even though the
+# ACP panel is already signed in.
 #
 # Two-layer fix:
 #   1. /etc/profile.d/pi.sh (shipped via rootfs/) exports
 #      PI_CODING_AGENT_DIR=/data/pi-agent so pi reads state from there
 #      regardless of HOME. Works for pi versions that respect the env.
 #   2. Symlink /home/coder/.pi → /data/pi-agent/home/.pi so pi versions
-#      that fall back to $HOME/.pi still resolve to the shared volume.
+#      that fall back to $HOME/.pi still resolve to the same store.
 #
-# The symlink target does not need to exist at build time — pi-web (or the
-# first pi-code invocation) will create /data/pi-agent/home/.pi at runtime,
-# and the dangling-then-resolved symlink follows fine.
+# The symlink target already exists at build time now (the skeleton step
+# above populates /data/pi-agent/home/.pi), but the link is created
+# unconditionally so it also self-heals if a future image build ever
+# changes that.
 RUN ln -sfn /data/pi-agent/home/.pi /home/coder/.pi \
  && chown -h coder:coder /home/coder/.pi
 
@@ -155,7 +184,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 ARG BUILD_VERSION=dev
 ARG BUILD_DATE=unknown
 LABEL org.opencontainers.image.title="Woow Podman code-server" \
-      org.opencontainers.image.description="code-server + pi coding agent + ACP client, rootless-podman-friendly, sibling of Woow_podman_pi_agent_package" \
+      org.opencontainers.image.description="code-server + pi coding agent + ACP client, rootless-podman-friendly; pi state aligned with the WOOWTECH HA add-on and k3s chart per PARITY_CONTRACT.md" \
       org.opencontainers.image.source="https://github.com/WOOWTECH/Woow_podman_code_server_package" \
       org.opencontainers.image.vendor="WOOWTECH" \
       org.opencontainers.image.licenses="MIT" \

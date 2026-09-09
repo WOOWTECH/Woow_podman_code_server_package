@@ -31,15 +31,9 @@ say "  Quadlet generator: ${GEN}"
 say "Enabling lingering so the container survives logout"
 loginctl enable-linger "$(id -un)" || warn "enable-linger failed"
 
-# Pre-flight: the external pi-agent-data volume from the sibling package.
-# Create empty if missing so the container starts standalone; if the sibling
-# is installed it already owns the volume and we do nothing.
-if ! podman volume exists pi-agent-data 2>/dev/null; then
-    warn "External volume pi-agent-data missing — creating an empty one."
-    warn "Install Woow_podman_pi_agent_package too if you want a shared"
-    warn "pi state (sessions, models, skills) with pi-web."
-    podman volume create pi-agent-data >/dev/null
-fi
+# pi state is an internal named volume now (woow-code-server-pi-data),
+# declared by quadlet/woow-code-server-pi.volume and installed below —
+# systemd creates it the first time the unit starts, no pre-flight needed.
 
 # Pre-flight: bind-mount sources on the host. Podman errors out with
 # `statfs: no such file or directory` when a bind mount source is
@@ -61,6 +55,36 @@ fi
 }
 [ -e "${HOME}/Desktop" ] || die "\${HOME}/Desktop is missing — the workspace mount points at it. Create it or edit quadlet/code-server.container to point elsewhere."
 
+# Honest warnings about the four host mounts kept from the original design.
+# These are non-fatal: the container starts fine either way, but git
+# operations inside it will not work until the operator fixes them.
+[ -s "${HOME}/.gitconfig" ] || warn "~/.gitconfig is empty — 'git commit' inside the container will fail with \"Please tell me who you are\" until you run 'git config --global user.name/user.email' on the host."
+if [ -d "${HOME}/.ssh" ] && ! ls "${HOME}/.ssh"/id_* >/dev/null 2>&1 && ! ls "${HOME}/.ssh"/*.pem >/dev/null 2>&1; then
+    warn "~/.ssh has no private key — 'git push' over SSH from inside the container will not authenticate until you add one."
+fi
+for f in "${HOME}/.local/bin"/*; do
+    [ -e "$f" ] || continue
+    [ -L "$f" ] && [ ! -e "$f" ] && warn "~/.local/bin/$(basename "$f") is a dangling symlink — it will not work inside the container either."
+done
+
+EnvFile="${HOME}/.config/woow-code-server/env"
+if [ ! -e "${EnvFile}" ]; then
+    say "Creating ${EnvFile} (mode 600) — PASSWORD/SUDO_PASSWORD live here, not in git"
+    mkdir -p "$(dirname "${EnvFile}")"
+    GenPassword="${PASSWORD:-$(head -c 12 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 16)}"
+    umask 077
+    cat > "${EnvFile}" <<ENVEOF
+PASSWORD=${GenPassword}
+SUDO_PASSWORD=${GenPassword}
+PI_DEFAULT_PROVIDER=openai-codex
+PI_DEFAULT_MODEL=gpt-5.6-sol
+ENVEOF
+    chmod 600 "${EnvFile}"
+    say "  Generated PASSWORD — see the closing banner below, or: cat ${EnvFile}"
+else
+    say "Reusing existing ${EnvFile}"
+fi
+
 if [ "${OD_SKIP_BUILD:-0}" != "1" ]; then
     say "Building localhost/woow-code-server:latest from Containerfile"
     podman build --format=docker -t localhost/woow-code-server:latest \
@@ -69,8 +93,9 @@ fi
 
 say "Installing units"
 mkdir -p "${QUADLET_DIR}" "${USER_UNIT_DIR}"
-install -m 0644 "${REPO_DIR}/quadlet/code-server.container" \
-        "${QUADLET_DIR}/code-server.container"
+for f in code-server.container woow-code-server-pi.volume woow-code-server-ide.volume; do
+    install -m 0644 "${REPO_DIR}/quadlet/${f}" "${QUADLET_DIR}/${f}"
+done
 for unit in code-server-health.service code-server-health.timer; do
     install -m 0644 "${REPO_DIR}/systemd/${unit}" "${USER_UNIT_DIR}/${unit}"
 done
@@ -78,7 +103,14 @@ done
 say "Reloading systemd + starting"
 systemctl --user daemon-reload
 systemctl --user enable --now podman.socket
-systemctl --user start code-server.service
+# `restart`, not `start`: on an upgrade the unit is already active, and
+# `systemctl start` on an already-running unit is a silent no-op — the
+# quadlet-generated ExecStart is re-read from the reloaded unit file only
+# on a restart. Caught live: a real upgrade left a container from over a
+# week earlier running, with none of this release's mounts, while the
+# script printed a clean "Done" banner as if it had redeployed. `restart`
+# is safe on a fresh install too (nothing is running yet to stop).
+systemctl --user restart code-server.service
 systemctl --user enable --now code-server-health.timer
 
 say "Waiting for code-server to answer /healthz"
@@ -95,18 +127,25 @@ cat <<EOF
 
 $(say "Done")
 
-  UI          http://$(hostname -I | awk '{print $1}'):8443   password: (see quadlet)
+  UI          http://$(hostname -I | awk '{print $1}'):8443   password: $(awk -F= '/^PASSWORD=/{print $2}' "${EnvFile}")
   Logs        podman logs -f code-server
   Shell       podman exec -it code-server bash
   Stop        systemctl --user stop code-server
   Status      podman ps --format '{{.Names}}\t{{.Status}}'
               systemctl --user status code-server-health.timer
 
-  In the IDE: bottom-left status bar → ACP: pi ACP adapter (should be green)
-  Right-side chat panel → send a message → uses pi with your existing
-  provider from /data/pi-agent/models.json (shared with the pi-web addon).
+  First run — pi has no credentials yet in this deployment's internal
+  store (it is no longer shared with any sibling package). Sign in once:
+
+    podman exec -it -u coder code-server sh -lc 'pi login'
+
+  Then in the IDE: bottom-left status bar → ACP: pi ACP adapter (should
+  be green); the right-side chat panel now uses that login.
+
+  NOTE: the ACP chat webview only renders from a browser-trusted secure
+  context. Over this LAN's plain HTTP it will stay blank in most browsers
+  — use http://localhost:8443 (via an SSH port-forward to this host) or
+  front the container with a trusted-cert reverse proxy. See
+  README.md#security.
 
 EOF
-
-warn "PASSWORD=woowtech is baked into the quadlet. Change it in"
-warn "~/.config/containers/systemd/code-server.container then restart."

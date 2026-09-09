@@ -39,6 +39,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verify shared-file hashes (source of truth for HA/k3s repos)
+        # rootfs/opt/SHA256SUMS records absolute in-image paths (checked
+        # again inside the Containerfile build itself, where those paths
+        # are real). Here, before the image build, we check the same
+        # hashes against the source files in rootfs/ on the runner, so a
+        # PR that edits pi-code/pi.sh/pi-seed without updating the
+        # published SHA256SUMS fails fast — this file is what the HA and
+        # k3s repos vendor to assert they carry byte-identical copies.
+        run: |
+          set -e
+          while read -r hash path; do
+            [ -n "${hash}" ] || continue
+            actual="$(sha256sum "rootfs${path}" | cut -d' ' -f1)"
+            if [ "${actual}" != "${hash}" ]; then
+              echo "MISMATCH: rootfs${path} expected ${hash} got ${actual}" >&2
+              exit 1
+            fi
+            echo "OK: rootfs${path}"
+          done < rootfs/opt/SHA256SUMS
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
@@ -82,3 +102,9 @@ jobs:
             BUILD_DATE=${{ github.event.repository.updated_at }}
           cache-from: type=gha,scope=${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
+
+      - name: Publish SHA256SUMS as a release asset
+        if: github.event_name == 'release' && matrix.arch == 'amd64'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.event.release.tag_name }}" rootfs/opt/SHA256SUMS --clobber

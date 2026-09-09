@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
-# Smoke test: pi CLI is on PATH, right version, HOME-scoped wrapper works,
-# and the shared /data/pi-agent volume is mounted with the sibling package's
-# state visible from inside the container.
+# Smoke test: pi CLI is on PATH at the pinned version, pi-acp is present,
+# the pi-code wrapper is installed, and this deployment's OWN internal
+# /data/pi-agent store exists and is correctly seeded. No sibling-package
+# assertions any more — pi state is private per PARITY_CONTRACT.md.
 set -uo pipefail
+
+. "$(dirname "$0")/lib/parity.sh"
 
 EXPECTED_PI_VERSION="${EXPECTED_PI_VERSION:-0.83.0}"
 PASS_N=0; FAIL_N=0
 
-ok()  { printf '  \033[32mPASS\033[0m  %s\n' "$*"; PASS_N=$((PASS_N+1)); }
-bad() { printf '  \033[31mFAIL\033[0m  %s\n' "$*"; FAIL_N=$((FAIL_N+1)); }
-skip(){ printf '  \033[90mSKIP\033[0m  %s\n' "$*"; }
+ok()   { printf '  \033[32mPASS\033[0m  %s\n' "$*"; PASS_N=$((PASS_N+1)); }
+bad()  { printf '  \033[31mFAIL\033[0m  %s\n' "$*"; FAIL_N=$((FAIL_N+1)); }
+skip() { printf '  \033[90mSKIP\033[0m  %s\n' "$*"; }
 
-CX() { podman exec code-server "$@"; }
-
-echo "== pi CLI =="
+echo "== pi CLI (PARITY_TARGET=${PARITY_TARGET}) =="
 if V="$(CX pi --version 2>&1)"; then
     [ "${V}" = "${EXPECTED_PI_VERSION}" ] \
         && ok "pi --version = ${V}" \
@@ -34,34 +35,48 @@ else
     bad "pi-code wrapper missing"
 fi
 
-echo
-echo "== Shared volume =="
-if CX test -d /data/pi-agent; then
-    ok "/data/pi-agent mounted"
-    # A live sibling deployment writes these; presence proves the volume
-    # is really the one pi-web/OD share, not a fresh empty create.
-    for f in models-store.json home sessions; do
-        if CX test -e "/data/pi-agent/${f}"; then
-            ok "  sees sibling artefact /data/pi-agent/${f}"
-        else
-            skip "  /data/pi-agent/${f} absent (sibling package not deployed here?)"
-        fi
-    done
+if CX test -x /usr/local/bin/pi-seed; then
+    ok "pi-seed installed + executable"
 else
-    bad "/data/pi-agent NOT mounted — pi state will be lost on container restart"
+    bad "pi-seed missing"
+fi
+
+echo
+echo "== Internal pi state store (/data/pi-agent) =="
+if CX test -d /data/pi-agent; then
+    ok "/data/pi-agent exists"
+    if CX test -f /data/pi-agent/.woow-pi-store; then
+        ok "  .woow-pi-store marker present — store was seeded from the skeleton, not a bare empty dir"
+    else
+        bad "  .woow-pi-store marker MISSING — /data/pi-agent may be an unseeded volume or the container's writable layer"
+    fi
+    if CX test -f /data/pi-agent/auth.json; then
+        PERM="$(CX_ROOT stat -c '%a' /data/pi-agent/auth.json 2>/dev/null || echo '?')"
+        [ "${PERM}" = "600" ] && ok "  auth.json present, mode 600" || bad "  auth.json present but mode ${PERM} (expected 600)"
+    else
+        skip "  auth.json absent — run 'pi login' inside this deployment (see README First run)"
+    fi
+else
+    bad "/data/pi-agent NOT present — pi state will be lost on container restart"
+fi
+
+echo
+echo "== Shared-file integrity (rootfs/opt/SHA256SUMS) =="
+if CX_ROOT test -f /opt/SHA256SUMS; then
+    if CX_ROOT sh -c 'sha256sum -c /opt/SHA256SUMS' >/tmp/parity-sha256-$$ 2>&1; then
+        ok "pi-code / pi.sh / pi-seed match the pinned SHA256SUMS"
+    else
+        bad "SHA256SUMS mismatch — a shared file drifted from the pinned hash"
+    fi
+else
+    skip "/opt/SHA256SUMS not present on this target (only shipped by the image build)"
 fi
 
 echo
 echo "== pi-code HOME re-scoping =="
-# Run pi-code with a no-op arg and check it exports the right HOME.
-# We use `--help` so no session/auth is required.
-if OUT="$(CX env -i PATH=/usr/local/bin:/usr/bin:/bin PI_AGENT_DATA_DIR=/data/pi-agent \
-             sh -c 'HOME=/nope /usr/local/bin/pi-code --help >/dev/null 2>&1 || true; \
-                    # spawn a probe that logs whatever HOME pi-code exported
-                    HOME=/nope /usr/local/bin/pi-code </dev/null >/dev/null 2>&1 & \
-                    sleep 0.2; kill -0 $! 2>/dev/null && kill $! 2>/dev/null; \
-                    # simpler: just source the export lines
-                    grep -E "^export HOME" /usr/local/bin/pi-code' 2>&1)"; then
+# Static check: pi-code must export HOME=\${PI_AGENT_DATA_DIR}/home. This
+# does not require auth or a running pi subprocess.
+if OUT="$(CX_ROOT grep -E '^export HOME' /usr/local/bin/pi-code 2>&1)"; then
     if echo "${OUT}" | grep -q 'PI_AGENT_DATA_DIR}/home'; then
         ok "pi-code exports HOME=\${PI_AGENT_DATA_DIR}/home"
     else

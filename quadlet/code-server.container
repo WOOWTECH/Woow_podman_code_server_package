@@ -4,12 +4,11 @@
 # boundary is "anything on this LAN with the password"; do not expose this
 # port past a trusted network without an authenticating proxy in front.
 #
-# Runs alongside Woow_podman_pi_agent_package: both containers mount the
-# same external `pi-agent-data` podman volume, so a session started under
-# pi-web is visible in code-server's ACP panel and vice versa. That volume
-# is created by the pi-agent-package quadlet — if pi-agent-package is not
-# installed on this host, `podman volume create pi-agent-data` before
-# starting this unit.
+# pi state is INTERNAL to this deployment. Nothing is shared with the
+# pi-web or open-design containers: this deployment authenticates its own
+# pi (see README "First run" — one `pi login` inside this container), and
+# its sessions are private to it. See PARITY_CONTRACT.md for why: the pi
+# agent is aligned across podman/HA/k3s to each keep its own state.
 [Unit]
 Description=code-server — browser IDE with pi ACP adapter
 Documentation=https://github.com/WOOWTECH/Woow_podman_code_server_package
@@ -38,10 +37,17 @@ PublishPort=0.0.0.0:8443:8080
 # terminal against the same repo works without permission gymnastics.
 Volume=/home/woowtechopenclaw/Desktop:/workspace:rw
 
-# Shared pi-agent state: external volume from Woow_podman_pi_agent_package.
-# When pi-code runs, it re-scopes HOME to /data/pi-agent/home so pi's
-# sessions/skills/models all land here and are seen by pi-web and OD too.
-Volume=pi-agent-data.volume:/data/pi-agent
+# pi state: internal, deployment-private named volume. Seeded from
+# /opt/pi-agent-skel at image-build time (podman populates an empty named
+# volume from the image content at first mount, so this comes up
+# pre-seeded with no runtime hook needed). See rootfs/usr/local/bin/pi-seed
+# for the HA/k3s equivalents of this seeding step.
+Volume=woow-code-server-pi.volume:/data/pi-agent
+
+# IDE user data (settings.json edits, globalStorage, History). Nothing was
+# mounted here before this change, so a container recreate silently
+# discarded any in-IDE settings changes and extension state.
+Volume=woow-code-server-ide.volume:/home/coder/.local/share/code-server/User
 
 # Host git identity, read-only. Enough for `git commit` to attribute
 # correctly and `git push` over SSH to find the deploy key.
@@ -54,21 +60,29 @@ Volume=/home/woowtechopenclaw/.local/bin:/mnt/host-local-bin:ro
 
 # Rootless podman + userns keep-id: without this, `coder` (uid 1000 inside)
 # maps to a subuid on the host (~100999) and cannot read/write anything
-# owned by the invoking host user (uid 1000). The pi-agent-data volume
-# above is created and populated by the sibling pi-agent-package running
-# as host uid 1000, so pi-code writes to /data/pi-agent/settings.json.lock
-# fail with EACCES until we tell the userns to keep the mapping identical.
+# owned by the invoking host user (uid 1000). The four host binds above
+# still need identical uid mapping, and pi itself writes
+# /data/pi-agent/settings.json.lock as uid 1000, so this stays required
+# even though the pi volume is no longer sibling-owned.
 # OD's compose does the same for its `open-design` user (uid 1001).
 UserNS=keep-id:uid=1000,gid=1000
 
 # --- Environment ---------------------------------------------------------
-Environment=PASSWORD=woowtech
-Environment=SUDO_PASSWORD=woowtech
+# PASSWORD / SUDO_PASSWORD / PI_DEFAULT_PROVIDER / PI_DEFAULT_MODEL live in
+# an EnvironmentFile, not committed here, so a real credential is never in
+# git. install.sh creates ~/.config/woow-code-server/env (mode 600) with a
+# generated PASSWORD on first install.
+EnvironmentFile=%h/.config/woow-code-server/env
 Environment=TZ=Asia/Taipei
-Environment=DEFAULT_WORKSPACE=/workspace
 Environment=PATH=/mnt/host-local-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PI_AGENT_DATA_DIR=/data/pi-agent
+Environment=PI_CODING_AGENT_DIR=/data/pi-agent
 Environment=PI_TELEMETRY=0
 Environment=PI_SKIP_VERSION_CHECK=1
+# DEFAULT_WORKSPACE is deliberately NOT set — proven a no-op (commit
+# 1e7c35d); WorkingDir= below is the only thing that actually selects the
+# default folder. PATH= above keeps /usr/local/bin, which is where
+# acp.agents.pi.command ("pi-code", a bare name) is resolved from.
 
 # --- Working directory ---------------------------------------------------
 # The upstream entrypoint hardcodes `code-server --bind-addr 0.0.0.0:8080
@@ -108,6 +122,15 @@ WorkingDir=/workspace
 # proxy that has a trusted cert (NPM + Let's Encrypt, nginx + mkcert, etc)
 # and change PublishPort= below to 127.0.0.1:8443:8080 so the plain-HTTP
 # port is not directly reachable.
+#
+# Parity note (PARITY_CONTRACT.md): the sibling HA add-on and the k3s chart
+# both DO get a browser-trusted origin (HA ingress; a Cloudflare Tunnel
+# hostname at path root) and their ACP chat webview is confirmed working
+# there. podman is deliberately left as-is in this pass — it is the one
+# target where the webview only renders from http://127.0.0.1:8443 on the
+# host itself (or via an SSH port-forward to that same localhost port,
+# since localhost is unconditionally a secure context). That is accepted,
+# not a bug to chase here; see README.md#security.
 
 # --- Sandboxing ----------------------------------------------------------
 NoNewPrivileges=true
