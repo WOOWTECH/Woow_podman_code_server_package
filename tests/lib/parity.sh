@@ -8,8 +8,16 @@
 #
 # Select the target with PARITY_TARGET=podman|ha|k3s (default: podman).
 # Every row in PARITY_CONTRACT.md's checklist is written against these
-# four names (CX, SETTINGS, PORT, BASE) plus LIVENESS — the same
+# names (CX, SETTINGS, PORT, BASE, LIVENESS, EXT_INSTALLED) — the same
 # assertion text in smoke-*.sh runs unmodified against all three targets.
+#
+# EXT_INSTALLED exists because `code-server --list-extensions` only lists
+# the USER extensions-dir, not the builtin scan directory — and the HA
+# add-on deliberately installs the ACP Client extension into the builtin
+# dir (upstream's init-code-server purges /data/vscode/extensions/<id>*
+# on every boot, which would self-delete a /data install). Confirmed by
+# building and running the HA image: `--list-extensions` returns empty
+# there even for upstream's own pre-installed marketplace extensions.
 
 : "${PARITY_TARGET:=podman}"
 
@@ -22,6 +30,7 @@ podman)
     CX()       { podman exec -u coder code-server "$@"; }
     CX_ROOT()  { podman exec code-server "$@"; }
     LIVENESS() { podman inspect --format '{{.State.Health.Status}}' code-server 2>/dev/null; }
+    EXT_INSTALLED() { CX code-server --list-extensions 2>/dev/null | grep -qi '^formulahendry\.acp-client$'; }
     ;;
 ha)
     : "${SSHHA:?set SSHHA to the ssh helper, e.g. /path/to/sshha.sh}"
@@ -32,6 +41,7 @@ ha)
     CX()       { "${SSHHA}" "docker exec ${HA_ADDON_CONTAINER} $*"; }
     CX_ROOT()  { CX "$@"; }
     LIVENESS() { "${SSHHA}" "docker inspect --format '{{.State.Status}}' ${HA_ADDON_CONTAINER}" 2>/dev/null | tr -d '\r'; }
+    EXT_INSTALLED() { CX_ROOT sh -c 'ls /usr/local/lib/code-server/lib/vscode/extensions/ 2>/dev/null' | grep -qi '^formulahendry\.acp-client-'; }
     ;;
 k3s)
     : "${KUBECTL_CONTEXT:=woow-k3s}"
@@ -42,6 +52,7 @@ k3s)
     CX()       { kubectl --context "${KUBECTL_CONTEXT}" -n "${K3S_NAMESPACE}" exec deploy/code-server -c code-server -- "$@"; }
     CX_ROOT()  { CX "$@"; }
     LIVENESS() { kubectl --context "${KUBECTL_CONTEXT}" -n "${K3S_NAMESPACE}" get deploy/code-server -o jsonpath='{.status.readyReplicas}' 2>/dev/null; }
+    EXT_INSTALLED() { CX code-server --list-extensions 2>/dev/null | grep -qi '^formulahendry\.acp-client$'; }
     ;;
 *)
     echo "Unknown PARITY_TARGET=${PARITY_TARGET} (want podman|ha|k3s)" >&2

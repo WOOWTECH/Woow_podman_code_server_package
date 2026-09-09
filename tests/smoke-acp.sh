@@ -14,12 +14,10 @@ ok()  { printf '  \033[32mPASS\033[0m  %s\n' "$*"; PASS_N=$((PASS_N+1)); }
 bad() { printf '  \033[31mFAIL\033[0m  %s\n' "$*"; FAIL_N=$((FAIL_N+1)); }
 
 echo "== ACP Client extension (PARITY_TARGET=${PARITY_TARGET}) =="
-EXT_LIST="$(CX code-server --list-extensions 2>/dev/null || true)"
-if echo "${EXT_LIST}" | grep -qi "^${EXPECTED_EXT}$"; then
+if EXT_INSTALLED; then
     ok "extension installed: ${EXPECTED_EXT}"
 else
-    bad "extension NOT installed. Got:"
-    echo "${EXT_LIST}" | sed 's/^/       /'
+    bad "extension NOT installed (checked via EXT_INSTALLED for PARITY_TARGET=${PARITY_TARGET})"
 fi
 
 echo
