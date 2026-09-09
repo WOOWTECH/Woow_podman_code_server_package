@@ -1,0 +1,34 @@
+#!/bin/sh
+# pi-seed — idempotently materialise the pi state store at PI_AGENT_DATA_DIR.
+#
+# Shared byte-for-byte across all three WOOWTECH code-server deployments
+# (podman, HA add-on, k3s chart) — see PARITY_CONTRACT.md. On podman it
+# runs implicitly at build time (a named volume is seeded from image
+# content on first mount); the HA add-on runs it from an s6 oneshot and
+# the k3s chart runs it from an initContainer, both at every start, which
+# is why every step below must be safe to repeat and must never overwrite
+# state a real pi login has already written.
+set -eu
+
+: "${PI_AGENT_DATA_DIR:=/data/pi-agent}"
+
+mkdir -p "${PI_AGENT_DATA_DIR}"
+cp -an /opt/pi-agent-skel/. "${PI_AGENT_DATA_DIR}/" 2>/dev/null || true
+mkdir -p "${PI_AGENT_DATA_DIR}/home/.pi/agent"
+ln -sfn "${PI_AGENT_DATA_DIR}/skills" "${PI_AGENT_DATA_DIR}/home/.pi/agent/skills"
+chmod 700 "${PI_AGENT_DATA_DIR}"
+
+# Seed the model choice only on a store that has none. pi rewrites this
+# file itself once the user logs in, so we must not fight it.
+if [ ! -f "${PI_AGENT_DATA_DIR}/settings.json" ] && [ -n "${PI_DEFAULT_MODEL:-}" ]; then
+    printf '{"defaultProvider":"%s","defaultModel":"%s"}\n' \
+        "${PI_DEFAULT_PROVIDER:-openai-codex}" "${PI_DEFAULT_MODEL}" \
+        > "${PI_AGENT_DATA_DIR}/settings.json"
+    chmod 600 "${PI_AGENT_DATA_DIR}/settings.json"
+fi
+
+# Optional API-key providers (none in use today; models.json is {"providers":{}}).
+if [ -n "${PI_PROVIDER_KEYS_JSON:-}" ] && [ ! -f "${PI_AGENT_DATA_DIR}/models.json" ]; then
+    printf '%s\n' "${PI_PROVIDER_KEYS_JSON}" > "${PI_AGENT_DATA_DIR}/models.json"
+    chmod 600 "${PI_AGENT_DATA_DIR}/models.json"
+fi

@@ -1,0 +1,6 @@
+# code-server's own IDE user data (settings.json, globalStorage, History).
+# Nothing was mounted here before this volume existed, so a container
+# recreate silently discarded in-IDE settings edits and extension state.
+[Volume]
+VolumeName=woow-code-server-ide
+Label=app=woow-code-server
