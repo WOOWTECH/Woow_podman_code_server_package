@@ -55,10 +55,35 @@ loginctl enable-linger "$(id -un)" || warn "enable-linger failed"
 }
 [ -e "${HOME}/Desktop" ] || die "\${HOME}/Desktop is missing — the workspace mount points at it. Create it or edit quadlet/code-server.container to point elsewhere."
 
-# Honest warnings about the four host mounts kept from the original design.
-# These are non-fatal: the container starts fine either way, but git
-# operations inside it will not work until the operator fixes them.
-[ -s "${HOME}/.gitconfig" ] || warn "~/.gitconfig is empty — 'git commit' inside the container will fail with \"Please tell me who you are\" until you run 'git config --global user.name/user.email' on the host."
+# The four host mounts, checked before the container needs them. Nothing
+# here is fatal: the container starts fine either way, but git operations
+# inside it will not work until the operator fixes them.
+#
+# git identity: seed it rather than warn about it. The old behaviour was a
+# warning telling the operator to run `git config --global` on the host —
+# which is right, but nobody read it, and the failure only surfaces later as
+# an opaque `git commit` exit 128 inside the container. GIT_USER_NAME /
+# GIT_USER_EMAIL make it scriptable; otherwise ask, and fall back to the
+# warning when there is no TTY to ask on.
+if [ ! -s "${HOME}/.gitconfig" ] \
+   || ! git config --file "${HOME}/.gitconfig" user.email >/dev/null 2>&1; then
+    GitName="${GIT_USER_NAME:-}"
+    GitEmail="${GIT_USER_EMAIL:-}"
+    if [ -z "${GitName}" ] || [ -z "${GitEmail}" ]; then
+        if [ -t 0 ]; then
+            say "~/.gitconfig has no git identity — 'git commit' inside the container would fail."
+            [ -n "${GitName}" ]  || { printf '  git user.name  (blank to skip): '; read -r GitName; }
+            [ -n "${GitEmail}" ] || { printf '  git user.email (blank to skip): '; read -r GitEmail; }
+        fi
+    fi
+    if [ -n "${GitName}" ] && [ -n "${GitEmail}" ]; then
+        git config --file "${HOME}/.gitconfig" user.name  "${GitName}"
+        git config --file "${HOME}/.gitconfig" user.email "${GitEmail}"
+        say "Seeded git identity into ~/.gitconfig (${GitName} <${GitEmail}>)"
+    else
+        warn "~/.gitconfig has no git identity — 'git commit' inside the container will fail with \"Please tell me who you are\". Fix with: git config --global user.name '...'; git config --global user.email '...'  (or re-run with GIT_USER_NAME/GIT_USER_EMAIL set)."
+    fi
+fi
 if [ -d "${HOME}/.ssh" ] && ! ls "${HOME}/.ssh"/id_* >/dev/null 2>&1 && ! ls "${HOME}/.ssh"/*.pem >/dev/null 2>&1; then
     warn "~/.ssh has no private key — 'git push' over SSH from inside the container will not authenticate until you add one."
 fi
@@ -69,13 +94,12 @@ done
 
 EnvFile="${HOME}/.config/woow-code-server/env"
 if [ ! -e "${EnvFile}" ]; then
-    say "Creating ${EnvFile} (mode 600) — PASSWORD/SUDO_PASSWORD live here, not in git"
+    say "Creating ${EnvFile} (mode 600) — PASSWORD lives here, not in git"
     mkdir -p "$(dirname "${EnvFile}")"
     GenPassword="${PASSWORD:-$(head -c 12 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 16)}"
     umask 077
     cat > "${EnvFile}" <<ENVEOF
 PASSWORD=${GenPassword}
-SUDO_PASSWORD=${GenPassword}
 PI_DEFAULT_PROVIDER=openai-codex
 PI_DEFAULT_MODEL=gpt-5.6-sol
 ENVEOF

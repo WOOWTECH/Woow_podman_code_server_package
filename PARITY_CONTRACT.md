@@ -83,11 +83,11 @@ Image also ships `/opt/pi-agent-skel/` — the canonical empty skeleton (`home/.
 
 Each repo vendors these at the same paths. CI in every repo asserts the sha256 against `rootfs/SHA256SUMS` published by **`Woow_podman_code_server_package` (source of truth)**. A change lands in all three repos in the same PR set.
 
-| Path | sha256 (current, unchanged by this work) | Role |
+| Path | sha256 (current) | Role |
 |---|---|---|
-| `/usr/local/bin/pi-code` | `b78c19b43bbd16d44aa4ff64cd5a2cb4aa2db58989a632a971d1a3d7def8d1e8` | the **only** ACP entrypoint. exits `78` if `$PI_AGENT_DATA_DIR` is not a dir; exports `HOME`, `PI_CODING_AGENT_DIR`, `PI_TELEMETRY`, `PI_SKIP_VERSION_CHECK`; `exec pi-acp "$@"`. |
-| `/etc/profile.d/pi.sh` | `5ccfed652084349dae723336bee1c79ba281b4553b8e49b8d3959869c6dcbc82` | terminal-pi env. Exports the three PI_* vars, deliberately **not** `HOME`. |
-| `/usr/local/bin/pi-seed` | *(new file; hash recorded in `SHA256SUMS` at implementation)* | idempotent `cp -an /opt/pi-agent-skel/. "$PI_AGENT_DATA_DIR"/` + `chmod 700` + optional `settings.json` defaults from `PI_DEFAULT_PROVIDER`/`PI_DEFAULT_MODEL`. Never overwrites. |
+| `/usr/local/bin/pi-code` | `3c39a8ad4934210fb34fffdf5a6fb9640994c843845f4ed5c48cce508ec64e73` | the **only** ACP entrypoint. exits `78` if `$PI_AGENT_DATA_DIR` is not a dir; exports `HOME`, `PI_CODING_AGENT_DIR`, `PI_TELEMETRY`, `PI_SKIP_VERSION_CHECK`, and `GIT_CONFIG_GLOBAL` (pointed at the **login** HOME's `.gitconfig`, captured before `HOME` is overwritten — see P45); `exec pi-acp "$@"`. |
+| `/etc/profile.d/pi.sh` | `8be97cdabbf7998db582b64382e5e4c5bc01ef494b967d6131c35772c60d4116` | terminal-pi env. Exports the three PI_* vars, deliberately **not** `HOME`. |
+| `/usr/local/bin/pi-seed` | `bbba98a7a123b76950c9f9f6ebd1250e01dcfa098b8353574722d4867ea5b18a` | idempotent `cp -an /opt/pi-agent-skel/. "$PI_AGENT_DATA_DIR"/` + `chmod 700` + optional `settings.json` defaults from `PI_DEFAULT_PROVIDER`/`PI_DEFAULT_MODEL`. Never overwrites. |
 | `settings.json` seed | `20ff503a3210bc891575a57ff5c4ba7457ea3b6355b2eb3280338459a19d2e9a` (podman/k3s form) | see §2.5. |
 
 ### 2.5 Required VS Code settings keys
@@ -178,7 +178,7 @@ BASE=https://code-server-woow-k3s.woowtech.io
 | P04 | pi-acp version | `CX sh -c 'pi-acp --version 2>/dev/null \|\| npm ls -g --depth 0 pi-acp'` | contains `0.0.33` |
 | P05 | Node ≥ 22 | `CX node --version` | `v22.` prefix |
 | P06 | Timezone | `CX sh -c 'echo $TZ; date +%Z'` | `Asia/Taipei` / `CST` |
-| P07 | Base tooling | `CX sh -c 'for b in git ssh jq curl python3 node pi pi-acp pi-code pi-seed; do command -v $b >/dev/null \|\| echo MISSING:$b; done'` | empty output |
+| P07 | Base tooling | `CX sh -c 'for b in git ssh jq curl python3 python pip3 node npm pi pi-acp pi-code pi-seed; do command -v $b >/dev/null \|\| echo MISSING:$b; done'` | empty output |
 
 ### B. Extension + ACP wiring
 
@@ -190,7 +190,7 @@ BASE=https://code-server-woow-k3s.woowtech.io
 | P11 | Workspace Trust fully off (4 keys) | `CX jq -e '.["security.workspace.trust.enabled"]==false and .["security.workspace.trust.startupPrompt"]=="never" and .["security.workspace.trust.banner"]=="never" and .["security.workspace.trust.emptyWindow"]==false' "$SETTINGS"` | exit 0 |
 | P12 | Extension auto-update off | `CX jq -e '.["extensions.autoUpdate"]==false' "$SETTINGS"` | exit 0 |
 | P13 | `pi-code` present + executable | `CX test -x /usr/local/bin/pi-code` | exit 0 |
-| P14 | `pi-code` is byte-identical everywhere | `CX sha256sum /usr/local/bin/pi-code` | `b78c19b43bbd16d44aa4ff64cd5a2cb4aa2db58989a632a971d1a3d7def8d1e8` |
+| P14 | `pi-code` is byte-identical everywhere | `CX sha256sum /usr/local/bin/pi-code` | `3c39a8ad4934210fb34fffdf5a6fb9640994c843845f4ed5c48cce508ec64e73` |
 | P15 | `pi-code` re-scopes HOME | `CX grep -c '^export HOME="${PI_AGENT_DATA_DIR}/home"' /usr/local/bin/pi-code` | `1` |
 | P16 | `pi-code` execs the adapter, not pi | `CX grep -c '^exec pi-acp' /usr/local/bin/pi-code` | `1` |
 | P17 | `pi-code` guard fires when the store is gone | `CX sh -c 'PI_AGENT_DATA_DIR=/nonexistent pi-code; echo $?'` | `78` |
@@ -202,11 +202,11 @@ BASE=https://code-server-woow-k3s.woowtech.io
 
 | # | Assertion | Command | Expected |
 |---|---|---|---|
-| P19 | profile.d shipped byte-identical | `CX sha256sum /etc/profile.d/pi.sh` | `5ccfed652084349dae723336bee1c79ba281b4553b8e49b8d3959869c6dcbc82` |
+| P19 | profile.d shipped byte-identical | `CX sha256sum /etc/profile.d/pi.sh` | `8be97cdabbf7998db582b64382e5e4c5bc01ef494b967d6131c35772c60d4116` |
 | P20 | An interactive shell sees the state dir | `CX sh -lc 'echo $PI_CODING_AGENT_DIR'` | `/data/pi-agent` |
 | P21 | Telemetry + version check off in a plain shell | `CX sh -lc 'echo $PI_TELEMETRY $PI_SKIP_VERSION_CHECK'` | `0 1` |
 | P22 | Set at container level, not only in a wrapper | `CX env \| grep -E '^PI_(AGENT_DATA_DIR\|CODING_AGENT_DIR\|TELEMETRY\|SKIP_VERSION_CHECK)='` | 4 lines |
-| P23 | `~/.pi` fallback symlink | `CX sh -c 'readlink -f $HOME/.pi'` | `/data/pi-agent/home/.pi` |
+| P23 | `~/.pi` **skills bridge** symlink (NOT a state fallback — only `agent/skills` lives under it; auth/settings/sessions are one level up and reachable only via `PI_CODING_AGENT_DIR`) | `CX sh -c 'readlink -f $HOME/.pi'` | `/data/pi-agent/home/.pi` |
 | P24 | Session-dir env is **not** set | `CX sh -lc 'test -z "$PI_CODING_AGENT_SESSION_DIR"'` | exit 0 |
 | P25 | Bare `pi` is signed in (no login prompt) | `CX sh -lc 'pi --print "say ok" 2>&1 \| head -3'` | no `login`/`auth` prompt; a model reply |
 
@@ -250,6 +250,23 @@ BASE=https://code-server-woow-k3s.woowtech.io
 - A target may be tagged **PARITY-FULL** only when P31–P37 also pass.
 - podman is expected to be **PARITY-A** and PARITY-FULL only from `127.0.0.1` until a trusted-cert front door is decided (§7, open fork).
 - HA ships **PARITY-A** in `0.1.0`; `0.2.0` claims PARITY-FULL only after P32/P33 are observed in a browser, otherwise the §5.2 fallback ladder applies.
+- **P45–P51 (§H below) are part of PARITY-A.** Every one of them exists because something shipped broken and no existing check caught it.
+
+### H. Regressions found by the 2026-09 field test
+
+Every assertion here exists because something shipped broken and no existing
+check caught it. They are part of **PARITY-A**.
+
+| # | Assertion | Command | Expected |
+|---|---|---|---|
+| P45 | Terminal pi and panel pi agree on git identity — the check P15 could not make, because it only greps the wrapper's source | `CX sh -lc 'git config --global --list \| grep ^user.'` **and** `CX sh -lc 'PI_AGENT_DATA_DIR=/data/pi-agent HOME=/data/pi-agent/home GIT_CONFIG_GLOBAL="$HOME_ORIG/.gitconfig" git config --global --list \| grep ^user.'` | identical `user.name` / `user.email`, or both empty |
+| P46 | `git commit` works out of the box in a fresh repo | `CX sh -lc 'cd $(mktemp -d) && git init -q . && git commit -q --allow-empty -m t; echo $?'` | `0` (was `128`: git's identity auto-detect needs a hostname containing a dot, which podman and k3s hostnames do not have) |
+| P47 | Unicode-space paths resolve exactly — the shipped verifier, not a source grep | `CX node /opt/patches/f1-verify.mjs` | exit 0, `F1 OK` |
+| P48 | The Unicode patch is actually present in every copy | `CX sh -c 'grep -lr "PATCHED (Woow pi-agent image)" $(dirname $(dirname $(readlink -f $(command -v pi)))) \| wc -l'` | `>= 2` (the original incident was a patch script that was never invoked — a build-time assertion cannot catch that) |
+| P49 | pip and venv work for the run user | `CX sh -lc 'python3 -m pip --version && python3 -m venv /tmp/p49 && echo ok'` | `ok` |
+| P50 | `npm install -g` works as the run user, and the result is on PATH in a **login** shell | `CX sh -lc 'npm install -g --silent cowsay@1.6.0 && command -v cowsay'` | a path under the npm prefix |
+| P51 | `pi` is on PATH in a login shell, not only via the image ENV | `CX sh -lc 'command -v pi'` and `CX sh -c 'command -v pi'` | same path from both |
+
 
 ---
 
@@ -302,7 +319,7 @@ Consequences, binding on all three targets:
 2. **Default provisioning = one interactive `pi login` per deployment**, run once in that deployment's own terminal. Three deployments, three logins. This is the only design that is safe under rotating refresh tokens.
 3. **Copying `auth.json` between deployments is opt-in and warned.** A refresh in one copy may invalidate the others. `scripts/migrate-pi-state.sh` exists for the podman cut-over but defaults to *not* copying `auth.json`.
 4. **API-key providers are supported but not required.** If a key-based provider is ever adopted, it is injected as `models.json` `providers.*` by `pi-seed` from `PI_PROVIDER_KEYS_JSON` (k3s Secret / HA option / podman `EnvironmentFile`). Nothing to do today.
-5. **Model/provider defaults are seeded, not copied.** `pi-seed` writes `settings.json` `{defaultProvider, defaultModel}` only if the file is absent, from `PI_DEFAULT_PROVIDER` / `PI_DEFAULT_MODEL` (recorded live values: `openai-codex` / `gpt-5.6-sol`).
+5. **Model/provider defaults are seeded, not copied.** `pi-seed` writes `settings.json` `{defaultProvider, defaultModel}` only if the file is absent, from `PI_DEFAULT_PROVIDER` / `PI_DEFAULT_MODEL` (all three packages seed `openai-codex` / `gpt-5.6-sol`). **Do not expect the live machines to match that.** Because the seed is write-if-absent and `pi login` writes `settings.json` itself about a second after `auth.json`, whoever ran the login picked the live value: as of the 2026-09 field test k3s was on `gpt-5.6-terra` and podman/HA on `gpt-5.5`, i.e. none of the three ran the seeded value. That is by design, not drift — but it means **any cross-platform comparison must pin the model explicitly** (`pi --model <m>`), or differences get misattributed to packaging.
 6. **The `woowtech-odoo-mcp` package** referenced by the live `settings.json` `packages[]` is pi-web state that code-server inherited by accident. It is **not** part of the parity set. If it is wanted later, it is added as an explicit `pi-seed` input, not by copying a `pi-cwd-*` worktree.
 
 ---

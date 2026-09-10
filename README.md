@@ -31,7 +31,7 @@ cross-platform contract.
 | **IDE** | VS Code (via code-server 4.135.0), OpenVSX extensions |
 | **Agent** | pi 0.83.0 available in the ACP right-side chat panel, and as `pi` on the terminal PATH |
 | **Workspace** | Host `~/Desktop` bind-mounted at `/workspace` — edit files and they land back on the host owned by you |
-| **Persistence** | pi state lives in the internal `woow-code-server-pi-data` volume; IDE settings live in `woow-code-server-ide`; both survive container recreate + reboots |
+| **Persistence** | pi state lives in the internal `woow-code-server-pi-data` volume; IDE settings live in `woow-code-server-ide`; both survive container recreate + reboots. **VS Code extensions and runtime `npm install -g` do not** — they live in the container's writable layer and are lost on recreate. For a package that must survive, install it with an explicit prefix on the state volume: `npm install -g --prefix /data/pi-agent/npm-global <pkg>` (that bin dir is already on `PATH`). |
 | **Supervision** | `systemd --user` via Quadlet, 30s healthcheck timer |
 
 ---
@@ -77,12 +77,15 @@ cd Woow_podman_code_server_package
 `install.sh`:
 1. Verifies podman + Quadlet
 2. Enables `loginctl` lingering (so the container survives logout)
-3. Warns (does not fail) if `~/.gitconfig` is empty, `~/.ssh` has no
-   private key, or `~/.local/bin` has dangling symlinks — the four host
+3. Seeds a git identity into `~/.gitconfig` if it has none — from
+   `GIT_USER_NAME`/`GIT_USER_EMAIL`, or by asking, and warns only when
+   neither is available. Still warns (does not fail) if `~/.ssh` has no
+   private key or `~/.local/bin` has dangling symlinks — the four host
    mounts below only work once these are real on the host
 4. Creates `~/.config/woow-code-server/env` (mode 600) with a generated
-   `PASSWORD`/`SUDO_PASSWORD` if one doesn't already exist — this keeps
-   the credential out of git
+   `PASSWORD` if one doesn't already exist — this keeps the credential
+   out of git. No `SUDO_PASSWORD` is generated: the quadlet's
+   `NoNewPrivileges=true` makes it a no-op (see Security below)
 5. `podman build` → `localhost/woow-code-server:latest`
 6. Drops `quadlet/code-server.container`, the two `*.volume` units, and
    the two health units into the right `~/.config/...` directories
@@ -146,6 +149,7 @@ tests/
   smoke-container.sh         container up, /healthz 200, wrong password rejected
   smoke-pi-integration.sh    pi/pi-acp/pi-code present, internal store seeded
   smoke-acp.sh                extension installed, settings.json's 6 required keys wired
+  smoke-toolchain.sh         pip/venv, npm -g, git identity, pi on PATH in a login shell
 docs/plans/                dated design decisions for the changes that shaped this package
 .github/workflows/build.yml    amd64 + arm64 CI, ghcr on push/release
 ```
@@ -159,10 +163,21 @@ docs/plans/                dated design decisions for the changes that shaped th
 bash tests/smoke-container.sh          # /healthz + password gate
 bash tests/smoke-pi-integration.sh     # pi + pi-acp + pi-code + internal store
 bash tests/smoke-acp.sh                # extension + settings.json
+bash tests/smoke-toolchain.sh          # pip/venv, npm -g, git identity, pi on PATH
 ```
 
-Expect **all three green** on a healthy deployment. `smoke-pi-integration.sh`
-skips (not fails) the `auth.json` check until you run `pi login`.
+Expect **all four green** on a healthy deployment. `smoke-pi-integration.sh`
+skips (not fails) the `auth.json` check until you run `pi login`, and
+`smoke-toolchain.sh` skips the git checks until a git identity is available
+(mounted at `/etc/gitconfig` by the quadlet, or seeded by `install.sh`).
+
+`smoke-toolchain.sh` is new in this revision and every check in it exists
+because the 2026-09 field test found it broken on a deployment that passed all
+the other suites: pi could write a pytest suite it had no pip to run, could not
+`npm install -g`, and could not `git commit`. `smoke-pi-integration.sh`
+likewise gained a Unicode-path check — pi silently folded U+3000 to an ASCII
+space on every read and write, so `Q1　報告.txt` resolved to `Q1 報告.txt`. See
+`PARITY_CONTRACT.md` §H.
 
 ---
 
@@ -236,17 +251,36 @@ dead sidebar/terminal despite a valid cert.
 
 **What the container can do.** `code-server` runs as `coder` (uid 1000)
 inside a rootless user namespace mapped to the invoking host user.
-`sudo` inside the container is enabled via `SUDO_PASSWORD` — turn it off
-(unset the env in `~/.config/woow-code-server/env`) if you don't want
-users apt-installing things at runtime.
+
+**There is no root escalation inside the container, and `SUDO_PASSWORD`
+does not give you one.** The quadlet sets `NoNewPrivileges=true`, so
+`sudo` fails with *"The 'no new privileges' flag is set, which prevents
+sudo from running as root"* no matter what password is set — verified.
+An earlier revision of this README said the opposite, and the Containerfile
+told you to `apt install` missing tools at runtime on that basis; both were
+wrong, and one of them was the reason the image shipped without pip. Install
+what the image needs **in the Containerfile**. `install.sh` no longer
+generates a `SUDO_PASSWORD`: a credential that grants nothing is pure
+liability. If you genuinely need root in there, drop `NoNewPrivileges` from
+the quadlet yourself and understand what you are trading away.
 
 **Bind mounts.** `~/Desktop`, `~/.ssh`, `~/.gitconfig`, `~/.local/bin`
 are all mounted from your host uid 1000. Anything with code-server
 shell access can read those. `.ssh` is `:ro` on purpose — no worse than
 what the invoking user already has. Note: on a fresh host these may not
-actually be usable until you populate them — `install.sh` warns about
-this explicitly (empty `.gitconfig`, no SSH private key, dangling
-symlinks in `.local/bin`).
+actually be usable until you populate them — `install.sh` seeds the git
+identity and warns about the rest (no SSH private key, dangling symlinks
+in `.local/bin`).
+
+`~/.gitconfig` lands at **`/etc/gitconfig`** inside the container, not at
+`/home/coder/.gitconfig`. Two reasons, both found the hard way: the ACP
+panel's pi runs with `HOME` re-pointed at the pi state volume, so a
+`~/.gitconfig` was invisible to it and the panel committed as nobody while
+the terminal committed as you; and a read-only single-file bind over
+`~/.gitconfig` made `git config --global ...` — the exact command git's own
+error message tells you to run — fail with `Device or resource busy`. At the
+system path the identity applies whatever `HOME` is, and `~/.gitconfig`
+stays an ordinary writable file that overrides it.
 
 **pi's credential.** The only credential pi holds is an OAuth pair
 (`auth.json`, mode 600) written by `pi login` — access token, refresh

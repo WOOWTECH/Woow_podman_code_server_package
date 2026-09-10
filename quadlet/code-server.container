@@ -49,10 +49,20 @@ Volume=woow-code-server-pi.volume:/data/pi-agent
 # discarded any in-IDE settings changes and extension state.
 Volume=woow-code-server-ide.volume:/home/coder/.local/share/code-server/User
 
-# Host git identity, read-only. Enough for `git commit` to attribute
-# correctly and `git push` over SSH to find the deploy key.
+# Host git identity, read-only.
+#
+# .gitconfig lands at git's SYSTEM path, not ~/.gitconfig, and that is
+# deliberate. Mounting it at /home/coder/.gitconfig broke two things at
+# once: (a) pi never saw it, because pi-code re-points HOME at the state
+# volume, so the ACP panel committed as nobody while the terminal committed
+# as the host user; and (b) it made ~/.gitconfig a read-only single-file
+# bind, so `git config --global ...` inside the container — the exact
+# command git's own error message tells you to run — died with
+# "Device or resource busy". At /etc/gitconfig the host identity applies to
+# every process regardless of HOME, and ~/.gitconfig goes back to being an
+# ordinary writable file that overrides it.
 Volume=/home/woowtechopenclaw/.ssh:/home/coder/.ssh:ro
-Volume=/home/woowtechopenclaw/.gitconfig:/home/coder/.gitconfig:ro
+Volume=/home/woowtechopenclaw/.gitconfig:/etc/gitconfig:ro
 
 # Host CLI tools — same trick OD uses. Anything the invoking user
 # `npm install -g`'d on the host (claude, aider, ...) is on PATH here.
@@ -68,7 +78,10 @@ Volume=/home/woowtechopenclaw/.local/bin:/mnt/host-local-bin:ro
 UserNS=keep-id:uid=1000,gid=1000
 
 # --- Environment ---------------------------------------------------------
-# PASSWORD / SUDO_PASSWORD / PI_DEFAULT_PROVIDER / PI_DEFAULT_MODEL live in
+# NOTE: SUDO_PASSWORD is deliberately NOT set. NoNewPrivileges=true below
+# makes it a no-op — sudo refuses to run as root regardless of the password
+# — so setting one would only put a credential on disk that buys nothing.
+# PASSWORD / PI_DEFAULT_PROVIDER / PI_DEFAULT_MODEL live in
 # an EnvironmentFile, not committed here, so a real credential is never in
 # git. install.sh creates ~/.config/woow-code-server/env (mode 600) with a
 # generated PASSWORD on first install.

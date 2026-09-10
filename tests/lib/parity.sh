@@ -27,9 +27,12 @@ podman)
     PORT="${CODE_SERVER_PORT:-8443}"
     BASE="${CODE_SERVER_BASE:-http://${CODE_SERVER_HOST}:${PORT}}"
     SETTINGS="/home/coder/.local/share/code-server/User/settings.json"
-    CX()       { podman exec -u coder code-server "$@"; }
-    CX_ROOT()  { podman exec code-server "$@"; }
-    LIVENESS() { podman inspect --format '{{.State.Health.Status}}' code-server 2>/dev/null; }
+    # Overridable so a freshly built image can be smoke-tested in a throwaway
+    # container without disturbing the live `code-server` unit.
+    : "${PODMAN_CONTAINER:=code-server}"
+    CX()       { podman exec -u coder "${PODMAN_CONTAINER}" "$@"; }
+    CX_ROOT()  { podman exec "${PODMAN_CONTAINER}" "$@"; }
+    LIVENESS() { podman inspect --format '{{.State.Health.Status}}' "${PODMAN_CONTAINER}" 2>/dev/null; }
     EXT_INSTALLED() { CX code-server --list-extensions 2>/dev/null | grep -qi '^formulahendry\.acp-client$'; }
     ;;
 ha)
