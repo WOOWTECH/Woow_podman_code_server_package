@@ -88,7 +88,7 @@ Each repo vendors these at the same paths. CI in every repo asserts the sha256 a
 | `/usr/local/bin/pi-code` | `3c39a8ad4934210fb34fffdf5a6fb9640994c843845f4ed5c48cce508ec64e73` | the **only** ACP entrypoint. exits `78` if `$PI_AGENT_DATA_DIR` is not a dir; exports `HOME`, `PI_CODING_AGENT_DIR`, `PI_TELEMETRY`, `PI_SKIP_VERSION_CHECK`, and `GIT_CONFIG_GLOBAL` (pointed at the **login** HOME's `.gitconfig`, captured before `HOME` is overwritten — see P45); `exec pi-acp "$@"`. |
 | `/etc/profile.d/pi.sh` | `8be97cdabbf7998db582b64382e5e4c5bc01ef494b967d6131c35772c60d4116` | terminal-pi env. Exports the three PI_* vars, deliberately **not** `HOME`. |
 | `/usr/local/bin/pi-seed` | `bbba98a7a123b76950c9f9f6ebd1250e01dcfa098b8353574722d4867ea5b18a` | idempotent `cp -an /opt/pi-agent-skel/. "$PI_AGENT_DATA_DIR"/` + `chmod 700` + optional `settings.json` defaults from `PI_DEFAULT_PROVIDER`/`PI_DEFAULT_MODEL`. Never overwrites. |
-| `settings.json` seed | `20ff503a3210bc891575a57ff5c4ba7457ea3b6355b2eb3280338459a19d2e9a` (podman/k3s form) | see §2.5. |
+| `settings.json` seed | `399023d568a078ec528f74c0bd3a872a1b50cc6a8b5c00126da9209f836775c6` (podman/k3s form) | see §2.5. |
 
 ### 2.5 Required VS Code settings keys
 
@@ -101,7 +101,7 @@ Seven keys are load-bearing and must be present with these exact values, whateve
   "security.workspace.trust.startupPrompt": "never",
   "security.workspace.trust.banner": "never",
   "security.workspace.trust.emptyWindow": false,
-  "extensions.autoUpdate": false
+  "extensions.autoUpdate": "off"
 }
 ```
 
@@ -188,7 +188,7 @@ BASE=https://code-server-woow-k3s.woowtech.io
 | P09 | Only one ACP adapter configured | `CX jq -r '.["acp.agents"] \| keys \| join(",")' "$SETTINGS"` | `pi` |
 | P10 | ACP command is `pi-code` | `CX jq -e '.["acp.agents"].pi.command=="pi-code"' "$SETTINGS"` | exit 0 |
 | P11 | Workspace Trust fully off (4 keys) | `CX jq -e '.["security.workspace.trust.enabled"]==false and .["security.workspace.trust.startupPrompt"]=="never" and .["security.workspace.trust.banner"]=="never" and .["security.workspace.trust.emptyWindow"]==false' "$SETTINGS"` | exit 0 |
-| P12 | Extension auto-update off | `CX jq -e '.["extensions.autoUpdate"]==false' "$SETTINGS"` | exit 0 |
+| P12 | Extension auto-update off | `CX jq -e '.["extensions.autoUpdate"]=="off"' "$SETTINGS"` | exit 0 — **the string `"off"`, not `false`**. code-server 4.135.0 declares this setting as `{type:"string", enum:["on","off"], default:"on"}` and decides with `getAutoUpdateValue() !== "off"`, so a boolean leaves auto-update ON. |
 | P13 | `pi-code` present + executable | `CX test -x /usr/local/bin/pi-code` | exit 0 |
 | P14 | `pi-code` is byte-identical everywhere | `CX sha256sum /usr/local/bin/pi-code` | `3c39a8ad4934210fb34fffdf5a6fb9640994c843845f4ed5c48cce508ec64e73` |
 | P15 | `pi-code` re-scopes HOME | `CX grep -c '^export HOME="${PI_AGENT_DATA_DIR}/home"' /usr/local/bin/pi-code` | `1` |
@@ -298,7 +298,7 @@ No image build in this repo: it consumes `ghcr.io/woowtech/woow-code-server-amd6
 | `~/.ssh` and `~/.gitconfig` host mounts | podman only | HA's analogue is `/data/.ssh` + `/data/git/.gitconfig` (created by upstream `init-user`); k3s uses projected Secrets. Also non-functional on the podman host today: `.gitconfig` is 0 bytes (so `git commit` fails with "Please tell me who you are") and `.ssh` has no private key. Both READMEs currently claim otherwise and must be corrected. |
 | `SUDO_PASSWORD` / in-IDE `sudo` | podman only | HA runs as root (moot); k3s drops all capabilities and runs non-root by design. |
 | Default terminal shell | podman/k3s `bash`; HA keeps upstream `zsh` + oh-my-zsh | On HA the PI_* env comes from `/run/s6/container_environment`, inherited by every shell, so shell choice no longer affects agent state. Forcing bash would throw away upstream's nicer terminal for no parity gain. |
-| Runtime-installed extensions surviving recreation | HA yes (upstream persists `/data/vscode/extensions`); podman/k3s no | On podman/k3s only `User/` is persisted; extensions stay image-owned so the pinned set is deterministic. Matches `extensions.autoUpdate: false`. |
+| Runtime-installed extensions surviving recreation | HA yes (upstream persists `/data/vscode/extensions`); podman/k3s no | On podman/k3s only `User/` is persisted; extensions stay image-owned so the pinned set is deterministic. Matches `extensions.autoUpdate: "off"`. |
 | Cross-deployment session visibility | **removed everywhere** | This was the point of the shared volume. After the cut, code-server's `sessions/--workspace--/` is private. pi-web and open-design keep their own; nothing else regresses (they each declare the mount independently). |
 | `models-store.json` | never migrated, never backed up | Refetchable provider catalogue cache. |
 | Shared pi credential across the three deployments | **not aligned, by design** | `auth.json` is an OAuth pair whose refresh token is rewritten by whichever pi refreshes first. One `pi login` per deployment (§7). "The user does not have to log in again" is explicitly **out of scope**. |

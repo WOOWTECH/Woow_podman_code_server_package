@@ -38,7 +38,15 @@ if CX test -f "${SETTINGS}"; then
     check_jq 'security.workspace.trust.startupPrompt == "never"' '.["security.workspace.trust.startupPrompt"] == "never"'
     check_jq 'security.workspace.trust.banner == "never"'      '.["security.workspace.trust.banner"] == "never"'
     check_jq 'security.workspace.trust.emptyWindow == false'   '.["security.workspace.trust.emptyWindow"] == false'
-    check_jq 'extensions.autoUpdate == false'                  '.["extensions.autoUpdate"] == false'
+    # NOT `== false`. In code-server 4.135.0 this setting is
+    #     {type:"string", enum:["on","off"], default:"on"}
+    # — it stopped being a boolean. The workbench decides with
+    # `getAutoUpdateValue() !== "off"`, so a boolean `false` fails schema
+    # validation, falls back to the default, and leaves auto-update ON. We
+    # shipped `false` in all three seeds and asserted it here, so the check
+    # was green on exactly the configuration it was meant to prevent: the
+    # pinned ACP Client extension free to update itself out from under us.
+    check_jq 'extensions.autoUpdate == "off"'                  '.["extensions.autoUpdate"] == "off"'
 else
     bad "settings.json missing at ${SETTINGS}"
 fi
