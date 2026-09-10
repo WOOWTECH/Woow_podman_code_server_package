@@ -37,7 +37,17 @@ podman)
     ;;
 ha)
     : "${SSHHA:?set SSHHA to the ssh helper, e.g. /path/to/sshha.sh}"
-    : "${HA_ADDON_CONTAINER:=app_woow_ha_code_server}"
+    # The Supervisor prefixes the container name with the REPOSITORY hash
+    # (app_<hash>_<slug>), and that hash differs per HA install — so a
+    # hardcoded default is wrong everywhere except the machine it was written
+    # on. It was: every check reported "No such container" and FAILED, which
+    # reads exactly like a broken deployment. Detect it, and only fall back to
+    # the unprefixed form (what a local `docker run` of the image would be
+    # called) if detection finds nothing.
+    if [ -z "${HA_ADDON_CONTAINER:-}" ]; then
+        HA_ADDON_CONTAINER="$("${SSHHA}" "docker ps --format '{{.Names}}' | grep -m1 'woow_ha_code_server'" 2>/dev/null | tr -d '\r')"
+        : "${HA_ADDON_CONTAINER:=app_woow_ha_code_server}"
+    fi
     PORT="1337"
     BASE="${CODE_SERVER_BASE:-}"
     SETTINGS="/data/vscode/User/settings.json"
