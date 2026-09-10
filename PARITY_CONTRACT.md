@@ -271,9 +271,12 @@ git repositories were built on the same machine, one through each interface:
 ```
 podman  ACP panel pi : WOOWTECH Code Server <woowtech@designsmart.com.tw>
 podman  terminal  pi : WOOWTECH Code Server <woowtech@designsmart.com.tw>
-ha      ACP path  pi : root <root@a020c0ec-woow-ha-code-server.local.hass.io>
+ha      ACP panel pi : root <root@a020c0ec-woow-ha-code-server.local.hass.io>   (through ingress)
 ha      terminal  pi : root <root@a020c0ec-woow-ha-code-server.local.hass.io>
 ```
+
+All three deployments now have the panel side proven with a browser, not
+inferred.
 
 **P31/P32/P33 are now OBSERVED, not just specified** — the first time the chat
 webview has been driven by a browser on this deployment set:
@@ -285,13 +288,30 @@ webview has been driven by a browser on this deployment set:
 - **podman** — over an SSH port-forward to `http://127.0.0.1:18443`. Confirms
   the README's workaround: **localhost is a secure context even on plain
   HTTP**, so the service worker registers and the panel works.
-- **HA** — still unobserved in a browser. The add-on is ingress-only and a
-  session needs an HA login. Mapping port 1338 would *bypass* ingress and so
-  would not test HA's actual risk area. What was verified instead is the whole
-  server-side path the panel drives, by speaking ACP to `pi-code` over stdio:
-  `initialize` → `session/new` → `session/prompt` → `end_turn`, 105 session
-  updates including a `write` tool call, and the file it wrote runs. Only the
-  webview rendering itself remains untested there.
+- **HA** — **verified through real Supervisor ingress**, which is the transport
+  the add-on's own Dockerfile flags as the risky one. Four levels of nesting
+  (HA page → ingress iframe → code-server → webview iframe → chat iframe) and
+  it still works: the panel renders, the agent quick-pick lists `pi`, the
+  adapter reports `pi ACP adapter` on `/share/projects`, and it picked up that
+  workspace's `AGENTS.md` as context on its own.
+
+  P32 is satisfied to the letter — the registered scopes include
+  `…/api/hassio_ingress/<token>/stable-<commit>/static/out/vs/workbench/contrib/webview/browser/pre/`,
+  i.e. the webview service worker registers *under the ingress path*. P33's two
+  named errors are absent: `'crypto.subtle' is not available` × 0,
+  `Could not register service worker` × 0, `SecurityError` × 0.
+
+  Reaching it needs the sidebar panel route (`/<addon-slug>`) driven through
+  the SPA — a hard GET to `/hassio/addon/<slug>/info` returns 404, and the
+  `ingress_url` from `ha addons info` returns 401 on its own because the
+  ingress session cookie has not been created yet.
+
+  Two things that look like faults and are not: the **ACP Client icon hides in
+  the activity bar's "Additional Views" overflow** below roughly 1000 px of
+  viewport width, and the console carries ~108 `Error creating chat editing
+  session content folder` lines. The latter is VS Code's **built-in** chat
+  (no account connected), not the ACP panel, and it is present on all three
+  deployments.
 
 **Two operational gotchas found while doing this, both worth knowing:**
 
