@@ -244,6 +244,70 @@ BASE=https://code-server-woow-k3s.woowtech.io
 | P43 | Credential is not in git | `git -C <repo> grep -nE 'PASSWORD=|SUDO_PASSWORD=' -- . \| grep -v EnvironmentFile` | no literal secret |
 | P44 | Same shared files in every repo | `sha256sum -c rootfs/SHA256SUMS` in each repo | all OK |
 
+### J. Real-coding verification (2026-09-11)
+
+Everything above this section tests plumbing — that pi is installed, that a
+config key exists, that a path resolves. None of it ever made pi write a line
+of code. This section records the first run that did: **5 functional projects
+built on each of the 3 deployments through the real pi TUI, then independently
+re-run by a different agent that was told to trust nothing.**
+
+Result: **15/15 work, 0 overclaimed.** Each project targets a fix from the
+2026-09 field test, so a regression surfaces as a broken project rather than a
+silently-passing grep:
+
+| Project | Targets | Independently verified by |
+|---|---|---|
+| `py-cli` unit converter + pytest | F2 (venv/pip) | `4 passed`, plus CLI values not in the tests |
+| `node-lib` CSV parser + `node --test` | F6 (npm/PATH) | `# pass 3`, plus a quoted-comma assertion |
+| `web-app` tip calculator + HTTP serve | control case | `COMPUTE_OK`, served page returns `200` |
+| `git-flow` branch + `--no-ff` merge | F5 (git identity) | 3 commits, 2-parent merge, one non-empty author |
+| `zhtw-unicode` U+3000 vs ASCII filenames | F1 (space folding) | two distinct inodes, `DISTINCT_OK`, byte-level filenames |
+
+**P52 — the panel and the terminal commit as the same person.** This is the F5
+fix proven end to end rather than asserted from a wrapper's source. Two real
+git repositories were built on the same machine, one through each interface:
+
+```
+podman  ACP panel pi : WOOWTECH Code Server <woowtech@designsmart.com.tw>
+podman  terminal  pi : WOOWTECH Code Server <woowtech@designsmart.com.tw>
+ha      ACP path  pi : root <root@a020c0ec-woow-ha-code-server.local.hass.io>
+ha      terminal  pi : root <root@a020c0ec-woow-ha-code-server.local.hass.io>
+```
+
+**P31/P32/P33 are now OBSERVED, not just specified** — the first time the chat
+webview has been driven by a browser on this deployment set:
+
+- **k3s** — over the public trusted-cert tunnel. `isSecureContext true`, the
+  webview iframe renders at non-zero size, the agent quick-pick lists `pi`,
+  the status bar reaches `ACP: pi`, and a prompt produced a working
+  `to_roman()` that passed 7 independent cases.
+- **podman** — over an SSH port-forward to `http://127.0.0.1:18443`. Confirms
+  the README's workaround: **localhost is a secure context even on plain
+  HTTP**, so the service worker registers and the panel works.
+- **HA** — still unobserved in a browser. The add-on is ingress-only and a
+  session needs an HA login. Mapping port 1338 would *bypass* ingress and so
+  would not test HA's actual risk area. What was verified instead is the whole
+  server-side path the panel drives, by speaking ACP to `pi-code` over stdio:
+  `initialize` → `session/new` → `session/prompt` → `end_turn`, 105 session
+  updates including a `write` tool call, and the file it wrote runs. Only the
+  webview rendering itself remains untested there.
+
+**Two operational gotchas found while doing this, both worth knowing:**
+
+- **`pi --model gpt-5.5` silently picks an unauthenticated provider.** The bare
+  model name resolves to `azure-openai-responses`, and the TUI dies with
+  `No API key found for azure-openai-responses`. Only `openai-codex` is logged
+  in. Always qualify: **`--model openai-codex/gpt-5.5`**. `settings.json` is
+  unaffected because it stores `defaultProvider` separately — which is exactly
+  why this only bites on the command line.
+- **`pip install --user` is blocked by PEP 668** on this Debian base
+  (`externally-managed-environment`), and **pytest is not in the image**. The
+  working route, and the one to put in any Python project's instructions, is a
+  venv on the workspace volume:
+  `python3 -m venv .venv && .venv/bin/pip install pytest`. Verified: pytest
+  9.1.1 installs and runs.
+
 ### G. Ship gates
 
 - A target may be tagged **PARITY-A** when P01–P30 + P38–P44 pass.
