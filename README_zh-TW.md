@@ -75,7 +75,8 @@ cd Woow_podman_code_server_package
    symlink，會警告（不會中止）——下面四個 host mount 要這些東西是真的才
    能用
 4. 若還沒有 `~/.config/woow-code-server/env`（mode 600），建立一份並隨機
-   產生 `PASSWORD`/`SUDO_PASSWORD`——密碼因此不會進 git
+   產生 `PASSWORD`——密碼因此不會進 git。不再產生 `SUDO_PASSWORD`：
+   quadlet 的 `NoNewPrivileges=true` 讓它完全無效（見下方 Security）
 5. `podman build` → `localhost/woow-code-server:latest`
 6. 把 `quadlet/code-server.container`、兩個新的 `*.volume` unit、以及兩個
    健康檢查 unit 放進對應的 `~/.config/...` 目錄
@@ -218,9 +219,16 @@ proxy 之後側邊欄、terminal 整個死掉（即使憑證是對的），在 q
 `Exec=` 裡加上 `--trusted-origins <hostname>` 給 code-server。
 
 **容器能做什麼。** `code-server` 以 `coder` (uid 1000) 執行，rootless user
-namespace 對應到主機你的 uid。容器內 `sudo` 用 `SUDO_PASSWORD` 開啟——
-不想讓用戶 runtime apt-install 東西，就把 `~/.config/woow-code-server/env`
-裡那行拿掉。
+namespace 對應到主機你的 uid。
+
+**容器內沒有任何提權途徑，`SUDO_PASSWORD` 也給不了。** quadlet 設了
+`NoNewPrivileges=true`，不論密碼設成什麼，`sudo` 一律以
+*"The 'no new privileges' flag is set, which prevents sudo from running as
+root"* 失敗——已實測確認。舊版 README 寫的是相反的，而 Containerfile 也
+據此叫你「缺什麼就 runtime `apt install`」；兩者都是錯的，而且這正是映像
+當初沒裝 pip 的原因。要什麼工具就寫進 **Containerfile**。`install.sh` 不再
+產生 `SUDO_PASSWORD`：一個什麼都換不到的憑證只是負債。真的需要容器內 root，
+請自己把 quadlet 的 `NoNewPrivileges` 拿掉，並清楚知道代價。
 
 **Bind mount。** `~/Desktop`、`~/.ssh`、`~/.gitconfig`、`~/.local/bin` 都是從
 你主機的 uid 1000 掛進去。任何拿到 code-server shell 的都讀得到。`.ssh` 刻意

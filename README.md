@@ -83,8 +83,9 @@ cd Woow_podman_code_server_package
    private key or `~/.local/bin` has dangling symlinks — the four host
    mounts below only work once these are real on the host
 4. Creates `~/.config/woow-code-server/env` (mode 600) with a generated
-   `PASSWORD`/`SUDO_PASSWORD` if one doesn't already exist — this keeps
-   the credential out of git
+   `PASSWORD` if one doesn't already exist — this keeps the credential
+   out of git. No `SUDO_PASSWORD` is generated: the quadlet's
+   `NoNewPrivileges=true` makes it a no-op (see Security below)
 5. `podman build` → `localhost/woow-code-server:latest`
 6. Drops `quadlet/code-server.container`, the two `*.volume` units, and
    the two health units into the right `~/.config/...` directories
@@ -250,9 +251,18 @@ dead sidebar/terminal despite a valid cert.
 
 **What the container can do.** `code-server` runs as `coder` (uid 1000)
 inside a rootless user namespace mapped to the invoking host user.
-`sudo` inside the container is enabled via `SUDO_PASSWORD` — turn it off
-(unset the env in `~/.config/woow-code-server/env`) if you don't want
-users apt-installing things at runtime.
+
+**There is no root escalation inside the container, and `SUDO_PASSWORD`
+does not give you one.** The quadlet sets `NoNewPrivileges=true`, so
+`sudo` fails with *"The 'no new privileges' flag is set, which prevents
+sudo from running as root"* no matter what password is set — verified.
+An earlier revision of this README said the opposite, and the Containerfile
+told you to `apt install` missing tools at runtime on that basis; both were
+wrong, and one of them was the reason the image shipped without pip. Install
+what the image needs **in the Containerfile**. `install.sh` no longer
+generates a `SUDO_PASSWORD`: a credential that grants nothing is pure
+liability. If you genuinely need root in there, drop `NoNewPrivileges` from
+the quadlet yourself and understand what you are trading away.
 
 **Bind mounts.** `~/Desktop`, `~/.ssh`, `~/.gitconfig`, `~/.local/bin`
 are all mounted from your host uid 1000. Anything with code-server

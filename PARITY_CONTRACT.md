@@ -178,7 +178,7 @@ BASE=https://code-server-woow-k3s.woowtech.io
 | P04 | pi-acp version | `CX sh -c 'pi-acp --version 2>/dev/null \|\| npm ls -g --depth 0 pi-acp'` | contains `0.0.33` |
 | P05 | Node ≥ 22 | `CX node --version` | `v22.` prefix |
 | P06 | Timezone | `CX sh -c 'echo $TZ; date +%Z'` | `Asia/Taipei` / `CST` |
-| P07 | Base tooling | `CX sh -c 'for b in git ssh jq curl python3 node pi pi-acp pi-code pi-seed; do command -v $b >/dev/null \|\| echo MISSING:$b; done'` | empty output |
+| P07 | Base tooling | `CX sh -c 'for b in git ssh jq curl python3 python pip3 node npm pi pi-acp pi-code pi-seed; do command -v $b >/dev/null \|\| echo MISSING:$b; done'` | empty output |
 
 ### B. Extension + ACP wiring
 

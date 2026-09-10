@@ -78,7 +78,10 @@ Volume=/home/woowtechopenclaw/.local/bin:/mnt/host-local-bin:ro
 UserNS=keep-id:uid=1000,gid=1000
 
 # --- Environment ---------------------------------------------------------
-# PASSWORD / SUDO_PASSWORD / PI_DEFAULT_PROVIDER / PI_DEFAULT_MODEL live in
+# NOTE: SUDO_PASSWORD is deliberately NOT set. NoNewPrivileges=true below
+# makes it a no-op — sudo refuses to run as root regardless of the password
+# — so setting one would only put a credential on disk that buys nothing.
+# PASSWORD / PI_DEFAULT_PROVIDER / PI_DEFAULT_MODEL live in
 # an EnvironmentFile, not committed here, so a real credential is never in
 # git. install.sh creates ~/.config/woow-code-server/env (mode 600) with a
 # generated PASSWORD on first install.
