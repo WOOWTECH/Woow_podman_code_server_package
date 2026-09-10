@@ -313,6 +313,36 @@ webview has been driven by a browser on this deployment set:
   (no account connected), not the ACP panel, and it is present on all three
   deployments.
 
+**P36 — OBSERVED on all three (2026-09-11).** This was the last unverified
+assertion, because it is the only one that needs a genuinely idle wait rather
+than a command. Method: open a file in the editor, leave the tab completely
+untouched for 180+ s (no polling, no scripted interaction), then type and save
+— and confirm the character reached the file **from inside the container**,
+which is the only proof that the round trip actually happened.
+
+| | Path | Idle | Result |
+|---|---|---|---|
+| k3s | Cloudflare tunnel | 180 s | PASS — edit landed |
+| HA | Cloudflare **+ Supervisor ingress** | 185 s | PASS — edit landed |
+| podman | LAN, no Cloudflare (control) | 185 s | PASS — edit landed |
+
+No `Connection lost` / `Reconnecting` / `Disconnected` appeared on any of them,
+and the status bar was unchanged after the wait.
+
+**Why it passes, rather than passing by luck.** Cloudflare really does close
+idle WebSockets at 100 s, so the connection must not be idle — and it is not.
+code-server's `heartbeat` file was watched for 120 s while the tab sat
+untouched:
+
+```
+00:56:46  →  00:57:46  →  00:58:46      (every 60 s, browser never touched)
+```
+
+The client pings roughly once a minute, comfortably inside the 100 s window, so
+the TCP connection never goes quiet long enough for Cloudflare to reap it.
+**This is the thing to re-check if a future proxy shortens its idle timeout
+below ~60 s** — that, not the 100 s figure, is the real margin.
+
 **Two operational gotchas found while doing this, both worth knowing:**
 
 - **`pi --model gpt-5.5` silently picks an unauthenticated provider.** The bare
