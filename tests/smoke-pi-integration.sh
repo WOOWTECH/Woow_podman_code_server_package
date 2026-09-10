@@ -87,5 +87,27 @@ else
 fi
 
 echo
+echo "== F1: Unicode-space path handling (patches/fix-unicode-space-paths.mjs) =="
+# Not a static check. Upstream folds U+3000 (and friends) to an ASCII space on
+# every read/write/edit, which makes `Q1<U+3000>報告.txt` silently resolve to
+# `Q1<SPACE>報告.txt` — a confidential/public pair differing only by space type
+# cross-reads, with isError=false. The image patches that out at build time.
+#
+# The original incident was NOT a broken patch: the patch script was never
+# invoked. So this runs the verifier shipped inside the image, which asserts
+# the marker is present in every path-utils.js copy AND that the behaviour is
+# actually right against a real filesystem.
+if CX test -f /opt/patches/f1-verify.mjs; then
+    if OUT="$(CX node /opt/patches/f1-verify.mjs 2>&1)"; then
+        ok "Unicode-space paths resolve exactly (patch applied and behaving)"
+    else
+        bad "Unicode-space path handling is WRONG — reads/writes may hit the wrong file:"
+        printf '%s\n' "${OUT}" | sed 's/^/        /'
+    fi
+else
+    bad "/opt/patches/f1-verify.mjs missing — the image predates the F1 patch, or patches/ was not COPYed"
+fi
+
+echo
 printf '  %d passed, %d failed\n\n' "${PASS_N}" "${FAIL_N}"
 [ "${FAIL_N}" -eq 0 ] || exit 1

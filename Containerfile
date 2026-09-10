@@ -47,15 +47,24 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # definition; installing them together is the standard pattern documented
 # by nodesource itself. We use apt over the "one-liner install script" so
 # there is exactly one place that decides which repo we trust.
-# Python 3 minimal only — Debian Trixie's python3-pip / python3-venv
-# metadeps deadlock under --no-install-recommends inside this base. Users
-# who need pip can `apt install python3-pip` at runtime (sudo works via
-# SUDO_PASSWORD) or, better, install `pipx` per-user. Keeping this RUN
-# minimal keeps the image reproducible.
+#
+# python3 + venv + pip (NOT python3-minimal). An earlier revision dropped
+# these citing a Debian Trixie metadep deadlock under
+# --no-install-recommends (commit cbb964b). Re-tested against this exact
+# base on 2026-09-10: no deadlock, clean install, pip 25.1.1. The
+# minimal-only image was actively harmful — a field test found pi unable
+# to run a pytest suite it had just written (`pytest` -> 127,
+# `python3 -m pip` -> No module named pip, `ensurepip` also absent,
+# `python3 -m venv` failing), with no working escape hatch: the old
+# comment's advice to `apt install` at runtime via SUDO_PASSWORD is dead
+# because the quadlet sets NoNewPrivileges=true (and k3s sets
+# allowPrivilegeEscalation:false + drop ALL), so sudo cannot elevate.
+# The HA add-on never had this problem — it layers on a base that already
+# ships pip — which made this a real three-platform parity break.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       ca-certificates curl git gnupg jq openssh-client \
-      python3-minimal \
+      python3 python3-venv python3-pip \
       tzdata \
  && mkdir -p /etc/apt/keyrings \
  && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
@@ -65,7 +74,8 @@ RUN apt-get update \
  && apt-get update \
  && apt-get install -y --no-install-recommends nodejs \
  && apt-get clean \
- && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+ && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
+ && ln -sf /usr/bin/python3 /usr/local/bin/python
 
 # --- pi CLI + ACP adapter ------------------------------------------------
 # pi is pinned to 0.83.0 — this is the version PARITY_CONTRACT.md locks
@@ -82,6 +92,79 @@ RUN npm install -g --omit=dev --no-fund --no-audit \
       "@earendil-works/pi-coding-agent@${PI_CODING_AGENT_VERSION}" \
       "pi-acp@${PI_ACP_VERSION}" \
  && test "$(pi --version)" = "${PI_CODING_AGENT_VERSION}"
+
+# --- Stop silent Unicode-space path corruption ---------------------------
+# pi folds U+00A0, U+2000-200A, U+202F, U+205F and U+3000 to an ASCII space
+# on every read/write/edit, and builds its read fallback chain from the
+# ALREADY-FOLDED path — so the exact path the caller asked for is never
+# tried. Reproduced end to end on this image (pi 0.83.0):
+#
+#   - read of `Q1<U+3000>報告.txt` returned the contents of the sibling
+#     `Q1<SPACE>報告.txt`, with isError:false. A confidential/public pair
+#     differing only by space type cross-reads.
+#   - write to `V1<U+3000>DOC.txt` reported success and OVERWROTE the
+#     ASCII-space sibling instead — silent data loss.
+#   - an existing file containing U+3000 is simply unreachable, and the
+#     ENOENT prints the folded path, which looks identical to the request.
+#
+# U+3000 IDEOGRAPHIC SPACE is ordinary in Traditional Chinese and Japanese
+# filenames, so for a zh-TW deployment this is data loss, not an edge case.
+# The patch turns folding into a READ-ONLY FALLBACK (a path pasted with a
+# non-breaking space still resolves) while writes are never rewritten.
+#
+# The sibling pi-agent product line has carried this fix since its own
+# 0.14.x; the code-server images never picked it up, which is what this
+# block corrects. The script asserts every hunk and fails the build on an
+# unrecognised shape, so an upstream bump cannot silently drop the fix.
+#
+# Layout note for 0.83.0 (differs from the 0.85.1 the patch was written
+# against): the folding helper in dist/utils/paths.js is generic and only
+# folds when a caller passes normalizeUnicodeSpaces:true, so it needs no
+# change — the two call sites below are what actually opt in.
+# NOTE: written for POSIX sh, not bash. This Containerfile sets no SHELL
+# directive, so RUN executes under dash — the sibling pi-agent Dockerfile's
+# `mapfile -d '' … < <(find …)` form dies here with
+# "Syntax error: redirection unexpected". xargs -0 gives the same
+# any-filename safety without needing bash.
+COPY patches/ /opt/patches/
+RUN set -eu; \
+    COUNT=$(find /usr/lib/node_modules/@earendil-works \
+      -path '*/dist/*/tools/path-utils.js' | wc -l); \
+    echo "[patch] found ${COUNT} path-utils.js copies"; \
+    if [ "${COUNT}" -lt 2 ]; then \
+      echo "[patch] FAIL: expected at least 2 copies, found ${COUNT}" >&2; \
+      exit 1; \
+    fi; \
+    find /usr/lib/node_modules/@earendil-works \
+      -path '*/dist/*/tools/path-utils.js' -print0 \
+    | xargs -0 node /opt/patches/fix-unicode-space-paths.mjs
+
+# --- npm global prefix, for RUNTIME installs only -------------------------
+# Deliberately declared AFTER pi/pi-acp are installed above, not before.
+#
+# pi and pi-acp must install through npm's DEFAULT prefix (/usr), because
+# that puts their launchers in /usr/bin — the only bin dir that survives
+# /etc/profile, which unconditionally overwrites PATH for every LOGIN shell
+# (and code-server's integrated terminal is a login shell). An earlier
+# attempt at this fix set NPM_CONFIG_PREFIX before the install; `pi` then
+# resolved fine in a non-login shell via the image ENV and vanished with
+# "command not found" the moment anyone opened a terminal — which would
+# have broken both terminal pi and the pi-acp -> pi lookup the ACP panel
+# depends on. Caught by verifying the built image, not by reading it.
+#
+# So: the build-time install stays where it was, and only what a USER
+# installs at runtime is redirected to a coder-writable prefix — fixing
+# the EACCES that `npm install -g <pkg>` used to hit as uid 1000 under
+# NoNewPrivileges. rootfs/etc/profile.d/npm-global.sh puts that prefix's
+# bin dir back on PATH for login shells (profile.d runs after the reset).
+#
+# Runtime globals live in the image layer and are lost on container
+# recreate, same as VS Code extensions (PARITY_CONTRACT.md §6). For a
+# persistent one, install with an explicit prefix on the state volume:
+#   npm install -g --prefix /data/pi-agent/npm-global <pkg>
+ENV NPM_CONFIG_PREFIX=/opt/npm-global
+RUN mkdir -p /opt/npm-global/bin /opt/npm-global/lib \
+ && chown -R coder:coder /opt/npm-global
 
 # --- Rootfs overlay ------------------------------------------------------
 # Contains:
@@ -112,6 +195,7 @@ RUN chmod +x /usr/local/bin/pi-code /usr/local/bin/pi-seed \
 RUN mkdir -p /opt/pi-agent-skel/home/.pi/agent \
              /opt/pi-agent-skel/sessions \
              /opt/pi-agent-skel/skills \
+             /opt/pi-agent-skel/npm-global/bin \
  && touch /opt/pi-agent-skel/.woow-pi-store \
  && mkdir -p /data \
  && cp -a /opt/pi-agent-skel /data/pi-agent \
@@ -127,15 +211,26 @@ RUN mkdir -p /opt/pi-agent-skel/home/.pi/agent \
 # — which never exists, so the TUI would prompt for login even though the
 # ACP panel is already signed in.
 #
-# Two-layer fix:
-#   1. /etc/profile.d/pi.sh (shipped via rootfs/) exports
-#      PI_CODING_AGENT_DIR=/data/pi-agent so pi reads state from there
-#      regardless of HOME. Works for pi versions that respect the env.
-#   2. Symlink /home/coder/.pi → /data/pi-agent/home/.pi so pi versions
-#      that fall back to $HOME/.pi still resolve to the same store.
+# The fix is PI_CODING_AGENT_DIR=/data/pi-agent, exported by
+# /etc/profile.d/pi.sh (shipped via rootfs/) and by the image ENV, so pi
+# reads state from there regardless of HOME.
 #
-# The symlink target already exists at build time now (the skeleton step
-# above populates /data/pi-agent/home/.pi), but the link is created
+# The /home/coder/.pi symlink below is a SKILLS BRIDGE, not a second layer
+# of defence. An earlier version of this comment claimed pi versions that
+# "fall back to $HOME/.pi still resolve to the same store" — that is false
+# and was verified false: the only thing under that tree is
+# `agent/skills -> /data/pi-agent/skills`. auth.json, settings.json,
+# models-store.json and sessions/ all live one level up, directly in
+# /data/pi-agent. Strip PI_CODING_AGENT_DIR and pi finds its skills and
+# then fails with "No API key found".
+#
+# Do NOT try to make the claim true by symlinking auth.json in: pi rewrites
+# it write-temp-then-rename on OAuth refresh, which would replace the
+# symlink with a real file and split the credential store in two. The env
+# is set on every shipped path; that is what this relies on.
+#
+# The symlink target already exists at build time (the skeleton step above
+# populates /data/pi-agent/home/.pi), but the link is created
 # unconditionally so it also self-heals if a future image build ever
 # changes that.
 RUN ln -sfn /data/pi-agent/home/.pi /home/coder/.pi \
