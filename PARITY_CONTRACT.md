@@ -130,7 +130,7 @@ Cosmetic, aligned on podman/k3s only (see §6): `workbench.colorTheme: "Default 
 
 | Value | podman | HA add-on | k3s | Why it cannot be identical |
 |---|---|---|---|---|
-| Listening port | `8080` (published `0.0.0.0:8443`) | `1337` | `8080` (Service `8080`) | HA Supervisor ingress is wired to upstream's `ingress_port: 1337` and its `code-server/run` hardcodes `--port 1337`. Changing it would mean replacing upstream's s6 run script. |
+| Listening port | `8080` (published `127.0.0.1:18443` by default; `CODE_SERVER_BIND`/`CODE_SERVER_PORT`) | `1337` | `8080` (Service `8080`) | HA Supervisor ingress is wired to upstream's `ingress_port: 1337` and its `code-server/run` hardcodes `--port 1337`. Changing it would mean replacing upstream's s6 run script. |
 | Workspace path | `/workspace` ← host `~/Desktop` | `/share/projects` (option `config_path`) | `/workspace` ← Longhorn PVC | HA has no host bind; `/share` is the supervisor-granted, HA-visible surface and is already where the live add-on points. |
 | How the folder is fixed | quadlet `WorkingDir=/workspace` | add-on option `config_path` (upstream's `code-server/run` `cd`s there and passes it positionally) | pod `workingDir: /workspace` | upstream `codercom` entrypoint hardcodes `code-server --bind-addr 0.0.0.0:8080 .`; only the CWD is honoured. HA's upstream run script takes the folder as an argument. |
 | Run user / `HOME` | `coder` uid 1000, `HOME=/home/coder` | `root` uid 0, `HOME=/root` | `coder` uid 1000, `HOME=/home/coder` | HA add-ons run as root by supervisor convention; the upstream image is built that way. |
@@ -141,11 +141,11 @@ Cosmetic, aligned on podman/k3s only (see §6): `workbench.colorTheme: "Default 
 | Node 22 source | NodeSource apt `node_22.x` | official `nodejs.org` tarball → `/opt/node22`, symlinks in `/usr/local/bin` | same image as podman | upstream vscode image exact-pins Debian 13 apt versions and ships **no** system node; a tarball avoids fighting those pins and avoids an untested NodeSource-on-trixie path. |
 | pi state persistence | internal named volume `woow-code-server-pi-data` → `/data/pi-agent` | add-on `/data/pi-agent` (supervisor-managed persistent dir) | Longhorn PVC `code-server-pi-data` → `/data/pi-agent` | different storage substrates; the **mount path is identical and that is what the contract requires**. |
 | IDE user-data persistence | internal volume `woow-code-server-ide` → `/home/coder/.local/share/code-server/User` | already persistent (`/data/vscode`) | PVC subPath `ide-user` → same path | — |
-| Front door | code-server `PASSWORD` (env), plain HTTP `:8443` | HA Supervisor ingress, `--auth none` | Cloudflare Tunnel → ClusterIP; `PASSWORD` from a k8s Secret | one authenticated gate per platform; the mechanism differs, the property does not. |
-| Credential storage | quadlet `EnvironmentFile=` (not committed) | none (HA session is the gate) | Secret `code-server-auth`, key `PASSWORD` | never a literal in git. |
+| Front door | code-server password (a YAML config from the podman secret `code-server-config`, read through `$CODE_SERVER_CONFIG`), loopback HTTP plus an SSH forward, the optional tailscale sidecar (tailnet HTTPS) or a same-host proxy | HA Supervisor ingress, `--auth none` | Cloudflare Tunnel → ClusterIP; `PASSWORD` from a k8s Secret | one authenticated gate per platform; the mechanism differs, the property does not. |
+| Credential storage | podman secret `code-server-config`, mounted read-only (never in the unit, `podman inspect` or the create command) | none (HA session is the gate) | Secret `code-server-auth`, key `PASSWORD` | never a literal in git. |
 | Supervision | Quadlet `Restart=always` + health timer | HA Supervisor + `watchdog:` | Deployment + kubelet probes | the systemd health timer has **no** counterpart elsewhere and must not be recreated. |
-| Image | `ghcr.io/woowtech/woow-code-server-<arch>:<ver>` | `ghcr.io/woowtech/woow-ha-code-server-{arch}:<ver>` | **the podman image**, `ghcr.io/woowtech/woow-code-server-amd64`, pinned by digest | HA must layer on `ghcr.io/hassio-addons/vscode/<arch>:7.0.0` to keep ingress + s6 + `ha` CLI + the 8 vendored extensions; podman and k3s can and must share one image so the pi layer cannot drift. |
-| Public hostname | none (LAN `:8443`) | `https://woowtech-ha.woowtech.io/api/hassio_ingress/<token>/` | `https://code-server-woow-k3s.woowtech.io` | — |
+| Image | `localhost/woow-code-server:<VERSION>`, built locally by `scripts/install.sh` (`Pull=never`); the GHCR `main-<sha>` images from build.yml are not consumed by the podman target | `ghcr.io/woowtech/woow-ha-code-server-{arch}:<ver>` | **the podman image**, `ghcr.io/woowtech/woow-code-server-amd64`, pinned by digest | HA must layer on `ghcr.io/hassio-addons/vscode/<arch>:7.0.0` to keep ingress + s6 + `ha` CLI + the 8 vendored extensions; podman and k3s can and must share one image so the pi layer cannot drift. |
+| Public hostname | none by default (loopback `:18443`); optionally `https://<TS_HOSTNAME>.<tailnet>.ts.net/` through the tailscale sidecar | `https://woowtech-ha.woowtech.io/api/hassio_ingress/<token>/` | `https://code-server-woow-k3s.woowtech.io` | — |
 
 ---
 
@@ -156,7 +156,7 @@ Every row is a command. Define the target adapter first:
 ```bash
 # --- podman ---
 CX(){ podman exec -u coder code-server "$@"; }
-BASE=http://127.0.0.1:8443            # 127.0.0.1, not the LAN IP — see P31
+BASE=http://127.0.0.1:18443           # the install default; loopback is a secure context — see P31
 
 # --- HA (run from /home/woowtechcluster1/woow-code-server-align) ---
 HAC=$(./sshha.sh 'docker ps --format "{{.Names}}" | grep woow_ha_code_server' | tr -d '\r')
@@ -224,7 +224,7 @@ BASE=https://code-server-woow-k3s.woowtech.io
 
 | # | Assertion | Command | Expected |
 |---|---|---|---|
-| P31 | Origin is a secure context | browser at `$BASE`, console: `window.isSecureContext` | `true` (HA/k3s via trusted cert; podman only via `http://127.0.0.1:8443`) |
+| P31 | Origin is a secure context | browser at `$BASE`, console: `window.isSecureContext` | `true` (HA/k3s via trusted cert; podman via `http://127.0.0.1:18443` or the optional tailscale sidecar) |
 | P32 `GATE` | Webview ServiceWorker registers | browser console: `navigator.serviceWorker.getRegistrations().then(r=>console.log(r.map(x=>x.scope)))` | includes a scope ending `/stable-de89acbcdce9d9b870008a270c9f6466993d91f4/static/out/vs/workbench/contrib/webview/browser/pre/` |
 | P33 `GATE` | Chat webview renders and round-trips | open the ACP sidebar, send "say ok" | a reply renders; console free of `'crypto.subtle' is not available` and `Could not register service worker: SecurityError` |
 | P34 | The webview host is served | `curl -o /dev/null -w '%{http_code}' "$BASE/stable-de89acbcdce9d9b870008a270c9f6466993d91f4/static/out/vs/workbench/contrib/webview/browser/pre/service-worker.js"` | `200` |
@@ -362,7 +362,7 @@ below ~60 s** — that, not the 100 s figure, is the real margin.
 
 - A target may be tagged **PARITY-A** when P01–P30 + P38–P44 pass.
 - A target may be tagged **PARITY-FULL** only when P31–P37 also pass.
-- podman is expected to be **PARITY-A** and PARITY-FULL only from `127.0.0.1` until a trusted-cert front door is decided (§7, open fork).
+- podman is expected to be **PARITY-A**, and PARITY-FULL from `127.0.0.1` (or through the optional tailscale sidecar, which gives a browser-trusted tailnet certificate; `scripts/install.sh --with-tailscale`).
 - HA ships **PARITY-A** in `0.1.0`; `0.2.0` claims PARITY-FULL only after P32/P33 are observed in a browser, otherwise the §5.2 fallback ladder applies.
 - **P45–P51 (§H below) are part of PARITY-A.** Every one of them exists because something shipped broken and no existing check caught it.
 
@@ -432,7 +432,7 @@ Consequences, binding on all three targets:
 1. **`auth.json` is mutable state, not a secret to mount.** pi rewrites it on refresh. It must live on the RW persistent store, never on a read-only Secret/ConfigMap projection.
 2. **Default provisioning = one interactive `pi login` per deployment**, run once in that deployment's own terminal. Three deployments, three logins. This is the only design that is safe under rotating refresh tokens.
 3. **Copying `auth.json` between deployments is opt-in and warned.** A refresh in one copy may invalidate the others. `scripts/migrate-pi-state.sh` exists for the podman cut-over but defaults to *not* copying `auth.json`.
-4. **API-key providers are supported but not required.** If a key-based provider is ever adopted, it is injected as `models.json` `providers.*` by `pi-seed` from `PI_PROVIDER_KEYS_JSON` (k3s Secret / HA option / podman `EnvironmentFile`). Nothing to do today.
+4. **API-key providers are supported but not required.** If a key-based provider is ever adopted, it is injected as `models.json` `providers.*` by `pi-seed` from `PI_PROVIDER_KEYS_JSON` (k3s Secret / HA option / a podman secret added to the podman unit). Nothing to do today.
 5. **Model/provider defaults are seeded, not copied.** `pi-seed` writes `settings.json` `{defaultProvider, defaultModel}` only if the file is absent, from `PI_DEFAULT_PROVIDER` / `PI_DEFAULT_MODEL` (all three packages seed `openai-codex` / `gpt-5.6-sol`). **Do not expect the live machines to match that.** Because the seed is write-if-absent and `pi login` writes `settings.json` itself about a second after `auth.json`, whoever ran the login picked the live value: as of the 2026-09 field test k3s was on `gpt-5.6-terra` and podman/HA on `gpt-5.5`, i.e. none of the three ran the seeded value. That is by design, not drift — but it means **any cross-platform comparison must pin the model explicitly** (`pi --model <m>`), or differences get misattributed to packaging.
 6. **The `woowtech-odoo-mcp` package** referenced by the live `settings.json` `packages[]` is pi-web state that code-server inherited by accident. It is **not** part of the parity set. If it is wanted later, it is added as an explicit `pi-seed` input, not by copying a `pi-cwd-*` worktree.
 

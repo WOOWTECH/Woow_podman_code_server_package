@@ -23,7 +23,7 @@
 # `pi login` inside this container (see README "First run").
 
 ARG CODE_SERVER_VERSION=4.135.0
-FROM codercom/code-server:${CODE_SERVER_VERSION}
+FROM docker.io/codercom/code-server:${CODE_SERVER_VERSION}
 
 # All apt / npm / extension work runs as root; the ENTRYPOINT drops back to
 # coder before starting code-server.
@@ -268,10 +268,12 @@ USER coder
 # --- Healthcheck ---------------------------------------------------------
 # code-server exposes /healthz on its internal port (8080). Pointing at
 # 127.0.0.1 inside the container is the correct target — the host publish
-# maps 8443:8080 externally, but internally the server always binds 8080.
-# The systemd timer in ../systemd/code-server-health.timer just re-triggers
-# this check every 30s so `podman ps` STATUS is fresh between the built-in
-# interval ticks.
+# maps <CODE_SERVER_BIND>:<CODE_SERVER_PORT>:8080 externally (127.0.0.1:18443
+# by default, see config/woow-code-server.env.example), but internally the
+# server always binds 8080. The quadlet sets the same probe as HealthCmd=, so
+# health no longer depends on building with --format=docker, and the systemd
+# timer in ../systemd/code-server-health.timer re-triggers it every 30s so
+# `podman ps` STATUS is fresh between the built-in interval ticks.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD curl -sf http://127.0.0.1:8080/healthz || exit 1
 
