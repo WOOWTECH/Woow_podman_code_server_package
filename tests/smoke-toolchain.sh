@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck source-path=SCRIPTDIR
 # Smoke test: the developer toolchain a coding agent actually reaches for.
 #
 # Every check here exists because the 2026-09 field test found it broken on a
@@ -10,6 +11,7 @@
 # Corresponds to PARITY_CONTRACT.md §H (P46, P49, P50, P51).
 set -uo pipefail
 
+# shellcheck source=lib/parity.sh
 . "$(dirname "$0")/lib/parity.sh"
 
 PASS_N=0; FAIL_N=0
@@ -42,6 +44,7 @@ if OUT="$(CX sh -lc 'python3 -m pip --version' 2>&1 | tr -d '\r')"; then
 else
     bad "python3 -m pip broken: ${OUT}"
 fi
+# shellcheck disable=SC2016 # expanded by the container's shell, not this one
 if OUT="$(CX sh -lc 'V=$(mktemp -d)/v && python3 -m venv "$V" && "$V"/bin/python -c "print(1)" && rm -rf "$V"' 2>&1 | tr -d '\r')"; then
     ok "python3 -m venv creates a usable venv"
 else
@@ -78,6 +81,7 @@ IDENT="$(CX sh -lc 'git config --get user.email' 2>/dev/null | tr -d '\r')"
 if [ -z "${IDENT}" ]; then
     skip "no git identity configured on this deployment — mount one at /etc/gitconfig, or run scripts/install.sh with GIT_USER_NAME/GIT_USER_EMAIL"
 else
+    # shellcheck disable=SC2016 # expanded by the container's shell, not this one
     if OUT="$(CX sh -lc 'D=$(mktemp -d) && cd "$D" && git init -q . && git commit -q --allow-empty -m smoke && git log -1 --format=%ae && rm -rf "$D"' 2>&1 | tr -d '\r')"; then
         ok "git commit succeeds, authored as ${OUT}"
     else
@@ -88,6 +92,7 @@ else
     # different ~/.gitconfig from the terminal, and the same repo ends up with
     # commits from two different authors. Reproduce the panel's environment by
     # sourcing the wrapper's env setup — everything up to the final exec.
+    # shellcheck disable=SC2016 # expanded by the container's shell, not this one
     PANEL_IDENT="$(CX sh -lc '
         eval "$(sed "/^exec /d" /usr/local/bin/pi-code)"
         git config --get user.email
