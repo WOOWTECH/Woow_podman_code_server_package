@@ -1,0 +1,13 @@
+# Variables scripts/install.sh may substitute into quadlet/*, quadlet/optional/* and
+# config/tailscale-serve.json.in (D2: rendered at install time). Values come from
+# ~/.config/woow-code-server/woow-code-server.env; a token that is not listed here, or listed
+# but unset, stops the install before anything is written.
+CODE_SERVER_BIND
+CODE_SERVER_PORT
+CODE_SERVER_WORKSPACE
+CODE_SERVER_SSH_DIR
+CODE_SERVER_GITCONFIG
+CODE_SERVER_HOST_BIN
+PI_DEFAULT_PROVIDER
+PI_DEFAULT_MODEL
+CODE_SERVER_TS_HOSTNAME

@@ -1,155 +1,99 @@
-# code-server — browser-based VS Code with pi coding agent + ACP client wired in.
+# code-server: browser-based VS Code with the pi coding agent + ACP client wired in.
 #
-# Publishes on 0.0.0.0:8443 with a shared PASSWORD (set below). The trust
-# boundary is "anything on this LAN with the password"; do not expose this
-# port past a trusted network without an authenticating proxy in front.
+# Rendered by scripts/install.sh from ~/.config/woow-code-server/woow-code-server.env (the
+# double-at tokens are listed in quadlet/render-vars). Edit the env file and re-run install.sh;
+# do not edit the installed copy.
 #
-# pi state is INTERNAL to this deployment. Nothing is shared with the
-# pi-web or open-design containers: this deployment authenticates its own
-# pi (see README "First run" — one `pi login` inside this container), and
-# its sessions are private to it. See PARITY_CONTRACT.md for why: the pi
-# agent is aligned across podman/HA/k3s to each keep its own state.
+# Published on @@CODE_SERVER_BIND@@ only. Reach it through an SSH port-forward, the optional
+# tailscale sidecar (quadlet/optional/) or a proxy on the same host; see README "Security".
+#
+# pi state is INTERNAL to this deployment. Nothing is shared with the pi-web or open-design
+# containers: this deployment authenticates its own pi (one `pi login` inside this container)
+# and its sessions are private to it. See PARITY_CONTRACT.md.
 [Unit]
-Description=code-server — browser IDE with pi ACP adapter
+Description=code-server: browser IDE with pi ACP adapter
 Documentation=https://github.com/WOOWTECH/Woow_podman_code_server_package
-After=network-online.target podman.socket
-Wants=network-online.target
-Requires=podman.socket
 
 [Container]
 ContainerName=code-server
-Image=localhost/woow-code-server:latest
-
-# Locally-built image; a Quadlet default of `Pull=missing` would send it
-# looking for the tag on a registry that never got a push and fail every
-# start after a rebuild pattern change. AutoUpdate=local pairs the two:
-# tracks the local image tag rather than a registry digest.
+# Built by scripts/install.sh from ./Containerfile. Tag = <code-server version>-<package
+# revision> (the VERSION file); tests/dryrun.local.sh fails CI when it disagrees with VERSION
+# or the Containerfile ARG. A locally built image never exists on a registry: Pull=never.
+Image=localhost/woow-code-server:4.135.0-1
 Pull=never
-AutoUpdate=local
 
-# LAN-published on 8443. code-server internally binds 8080 (its default);
-# the mapping is fixed here so healthchecks + docs don't split-brain on
-# which port to talk to.
-PublishPort=0.0.0.0:8443:8080
+# code-server always listens on 8080 inside the container.
+PublishPort=@@CODE_SERVER_BIND@@:@@CODE_SERVER_PORT@@:8080
 
-# Workspace: the invoking user's ~/Desktop. Files edited in code-server
-# land back on the host owned by uid 1000, so a git push from the host
-# terminal against the same repo works without permission gymnastics.
-Volume=/home/woowtechopenclaw/Desktop:/workspace:rw
+# Workspace: files edited in code-server land back on the host owned by the installing user,
+# so a git push from the host terminal against the same repo works.
+Volume=@@CODE_SERVER_WORKSPACE@@:/workspace:rw
 
-# pi state: internal, deployment-private named volume. Seeded from
-# /opt/pi-agent-skel at image-build time (podman populates an empty named
-# volume from the image content at first mount, so this comes up
-# pre-seeded with no runtime hook needed). See rootfs/usr/local/bin/pi-seed
-# for the HA/k3s equivalents of this seeding step.
+# Host git identity and SSH keys, read-only. .gitconfig lands at git's SYSTEM path, not
+# ~/.gitconfig, on purpose: pi-code re-points HOME at the state volume, so a ~/.gitconfig was
+# invisible to the ACP panel's pi (it committed as nobody while the terminal committed as the
+# user), and a read-only single-file bind over ~/.gitconfig made `git config --global` fail
+# with "Device or resource busy". At /etc/gitconfig the identity applies whatever HOME is.
+Volume=@@CODE_SERVER_SSH_DIR@@:/home/coder/.ssh:ro
+Volume=@@CODE_SERVER_GITCONFIG@@:/etc/gitconfig:ro
+
+# Host CLI tools: anything the user `npm install -g`'d on the host is on PATH here.
+Volume=@@CODE_SERVER_HOST_BIN@@:/mnt/host-local-bin:ro
+
+# Deployment-private state. Unchanged volume names, so existing hosts adopt their data. The pi
+# volume is seeded from /opt/pi-agent-skel at first mount (podman copies image content into an
+# empty named volume).
 Volume=woow-code-server-pi.volume:/data/pi-agent
-
-# IDE user data (settings.json edits, globalStorage, History). Nothing was
-# mounted here before this change, so a container recreate silently
-# discarded any in-IDE settings changes and extension state.
 Volume=woow-code-server-ide.volume:/home/coder/.local/share/code-server/User
 
-# Host git identity, read-only.
-#
-# .gitconfig lands at git's SYSTEM path, not ~/.gitconfig, and that is
-# deliberate. Mounting it at /home/coder/.gitconfig broke two things at
-# once: (a) pi never saw it, because pi-code re-points HOME at the state
-# volume, so the ACP panel committed as nobody while the terminal committed
-# as the host user; and (b) it made ~/.gitconfig a read-only single-file
-# bind, so `git config --global ...` inside the container — the exact
-# command git's own error message tells you to run — died with
-# "Device or resource busy". At /etc/gitconfig the host identity applies to
-# every process regardless of HOME, and ~/.gitconfig goes back to being an
-# ordinary writable file that overrides it.
-Volume=/home/woowtechopenclaw/.ssh:/home/coder/.ssh:ro
-Volume=/home/woowtechopenclaw/.gitconfig:/etc/gitconfig:ro
-
-# Host CLI tools — same trick OD uses. Anything the invoking user
-# `npm install -g`'d on the host (claude, aider, ...) is on PATH here.
-Volume=/home/woowtechopenclaw/.local/bin:/mnt/host-local-bin:ro
-
-# Rootless podman + userns keep-id: without this, `coder` (uid 1000 inside)
-# maps to a subuid on the host (~100999) and cannot read/write anything
-# owned by the invoking host user (uid 1000). The four host binds above
-# still need identical uid mapping, and pi itself writes
-# /data/pi-agent/settings.json.lock as uid 1000, so this stays required
-# even though the pi volume is no longer sibling-owned.
-# OD's compose does the same for its `open-design` user (uid 1001).
+# Map the installing host user (any uid) to the image's `coder` (uid 1000). Without it coder
+# maps to a subuid and cannot read or write the host binds, and pi's settings.json.lock on the
+# state volume would be owned by an unmapped uid.
 UserNS=keep-id:uid=1000,gid=1000
 
-# --- Environment ---------------------------------------------------------
-# NOTE: SUDO_PASSWORD is deliberately NOT set. NoNewPrivileges=true below
-# makes it a no-op — sudo refuses to run as root regardless of the password
-# — so setting one would only put a credential on disk that buys nothing.
-# PASSWORD / PI_DEFAULT_PROVIDER / PI_DEFAULT_MODEL live in
-# an EnvironmentFile, not committed here, so a real credential is never in
-# git. install.sh creates ~/.config/woow-code-server/env (mode 600) with a
-# generated PASSWORD on first install.
-EnvironmentFile=%h/.config/woow-code-server/env
+# Password: a YAML config (auth: password, password, cert: false) in the podman secret
+# code-server-config, created by install.sh. code-server reads $CODE_SERVER_CONFIG. As a
+# mount-type secret it never appears in `podman inspect`, the unit or the create command.
+Secret=code-server-config,type=mount,target=/run/secrets/code-server-config.yaml,uid=1000,gid=1000,mode=0400
+Environment=CODE_SERVER_CONFIG=/run/secrets/code-server-config.yaml
+
 Environment=TZ=Asia/Taipei
 Environment=PATH=/mnt/host-local-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=PI_AGENT_DATA_DIR=/data/pi-agent
 Environment=PI_CODING_AGENT_DIR=/data/pi-agent
 Environment=PI_TELEMETRY=0
 Environment=PI_SKIP_VERSION_CHECK=1
-# DEFAULT_WORKSPACE is deliberately NOT set — proven a no-op (commit
-# 1e7c35d); WorkingDir= below is the only thing that actually selects the
-# default folder. PATH= above keeps /usr/local/bin, which is where
-# acp.agents.pi.command ("pi-code", a bare name) is resolved from.
+# Seeded into pi's settings.json by pi-seed only when that file is absent.
+Environment=PI_DEFAULT_PROVIDER=@@PI_DEFAULT_PROVIDER@@
+Environment=PI_DEFAULT_MODEL=@@PI_DEFAULT_MODEL@@
 
-# --- Working directory ---------------------------------------------------
-# The upstream entrypoint hardcodes `code-server --bind-addr 0.0.0.0:8080
-# . "$@"` — the `.` is a positional folder arg that code-server prefers
-# over subsequent ones, so passing /workspace after it via Exec= is
-# silently ignored (took a live browser test to catch this; the CLI
-# accepts multiple folders and picks the first one). Setting WORKDIR to
-# /workspace makes `.` resolve to /workspace inside the container, so
-# the entrypoint's own arg pins the default folder without us needing
-# to override its ENTRYPOINT/CMD.
+# The upstream entrypoint runs `code-server --bind-addr 0.0.0.0:8080 .`, and code-server
+# prefers that positional `.` over any folder passed later via Exec=. Setting the working
+# directory is what makes `.` resolve to /workspace.
 WorkingDir=/workspace
 
-# --- HTTPS decision (documented, NOT enabled here) -----------------------
-# We tried Exec=--cert to give code-server self-signed HTTPS on first boot.
-# It DIDN'T solve the ACP chat webview:
-#
-#   - Browser page load: user clicks "Advanced -> Proceed to <ip> (unsafe)"
-#     once, page loads fine.
-#   - ServiceWorker registration for the webview host: browser uses the OS
-#     trust store, NOT the per-tab "temp accept". SW registration fails
-#     with `SecurityError: An SSL certificate error occurred when fetching
-#     the script`. VS Code webviews are all delivered via that SW, so the
-#     ACP chat panel stays blank.
-#
-# The trust boundary that lets webviews load is either:
-#   (a) A cert the OS already trusts (Let's Encrypt via a public-DNS
-#       domain, or a locally-issued cert added to each user's OS trust
-#       store via `mkcert -install` etc), OR
-#   (b) Access via localhost / 127.0.0.1 — always a secure context.
-#
-# Since (a) is out-of-scope for this addon (and would depend on the site's
-# DNS / cert story), we ship plain HTTP LAN by default and document the
-# trade-off in README.md#security. Sidebar tree + status bar + connection
-# to pi work over plain HTTP; only the chat webview needs trusted TLS.
-#
-# When you're ready to enable HTTPS, front this container with a reverse
-# proxy that has a trusted cert (NPM + Let's Encrypt, nginx + mkcert, etc)
-# and change PublishPort= below to 127.0.0.1:8443:8080 so the plain-HTTP
-# port is not directly reachable.
-#
-# Parity note (PARITY_CONTRACT.md): the sibling HA add-on and the k3s chart
-# both DO get a browser-trusted origin (HA ingress; a Cloudflare Tunnel
-# hostname at path root) and their ACP chat webview is confirmed working
-# there. podman is deliberately left as-is in this pass — it is the one
-# target where the webview only renders from http://127.0.0.1:8443 on the
-# host itself (or via an SSH port-forward to that same localhost port,
-# since localhost is unconditionally a secure context). That is accepted,
-# not a bug to chase here; see README.md#security.
+# Health lives in the unit, so it no longer depends on building with --format=docker to keep
+# the Containerfile HEALTHCHECK. systemd/code-server-health.timer re-runs it every 30 s.
+HealthCmd=curl -sf http://127.0.0.1:8080/healthz
+HealthInterval=30s
+HealthTimeout=10s
+HealthStartPeriod=30s
+HealthRetries=3
 
-# --- Sandboxing ----------------------------------------------------------
+# sudo cannot escalate inside (no SUDO_PASSWORD is set, on purpose). Install what the image
+# needs in the Containerfile.
 NoNewPrivileges=true
+
+# HTTPS, documented and not enabled here: `code-server --cert` alone does not make the ACP chat
+# webview work, because VS Code delivers webviews through a service worker that only
+# registers on an origin the OS trusts (or on localhost, always a secure context). Hence the
+# loopback default plus an SSH port-forward, or a trusted front door such as the optional
+# tailscale sidecar. A reverse proxy must forward a Host/Origin matching what the browser used,
+# or code-server 403s the WebSocket upgrade.
 
 [Service]
 Restart=always
+RestartSec=10
 TimeoutStartSec=180
 
 [Install]

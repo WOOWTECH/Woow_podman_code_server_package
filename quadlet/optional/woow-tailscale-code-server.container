@@ -1,0 +1,39 @@
+# OPTIONAL tailnet front door for code-server (tailscale sidecar). Installed only when
+# CODE_SERVER_TAILSCALE=yes (scripts/install.sh --with-tailscale).
+#
+# A dedicated, userspace-mode tailscale node on the host network that serves code-server
+# (bound to 127.0.0.1) over HTTPS with a tailnet (Let's Encrypt) certificate. The trusted
+# origin is what lets the ACP chat webview render. The names match the hand-made unit on
+# woowtechopenclaw, so that host keeps its node identity (the state volume) instead of
+# registering a new node.
+[Unit]
+Description=code-server tailnet front door (optional tailscale sidecar)
+Documentation=https://github.com/WOOWTECH/Woow_podman_code_server_package
+Wants=code-server.service
+After=code-server.service
+
+[Container]
+ContainerName=woow-tailscale-code-server
+Image=docker.io/tailscale/tailscale:v1.102.3
+Network=host
+Volume=woow-tailscale-code-server.volume:/var/lib/tailscale
+# Rendered by install.sh from config/tailscale-serve.json.in with the CODE_SERVER_PORT in
+# effect, so the proxy target follows the port setting.
+Volume=%h/.config/woow-code-server/tailscale-serve.json:/config/serve.json:ro
+Environment=TS_STATE_DIR=/var/lib/tailscale
+Environment=TS_USERSPACE=true
+Environment=TS_SERVE_CONFIG=/config/serve.json
+Environment=TS_AUTH_ONCE=true
+Environment=TS_HOSTNAME=@@CODE_SERVER_TS_HOSTNAME@@
+# One-time auth key, a podman secret (install.sh --ts-authkey-file PATH). Ignored once the
+# node is logged in, because TS_AUTH_ONCE=true.
+Secret=woow-code-server-ts-authkey,type=env,target=TS_AUTHKEY
+NoNewPrivileges=true
+
+[Service]
+Restart=always
+RestartSec=10
+TimeoutStartSec=180
+
+[Install]
+WantedBy=default.target
