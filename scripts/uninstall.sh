@@ -1,43 +1,68 @@
 #!/usr/bin/env bash
-# Remove the code-server Quadlet unit + health timer. Data volumes KEPT by
-# default: woow-code-server-pi-data and woow-code-server-ide hold this
-# deployment's own pi login/sessions and IDE settings — this repo no
-# longer uses any sibling-owned volume at all, so there is nothing to
-# leave alone on someone else's behalf any more. Pass --purge to delete
-# them too, after a confirmation prompt.
+# scripts/uninstall.sh: remove the code-server Quadlet units. Keeps data by default.
+#
+#   scripts/uninstall.sh                   stop + remove the units; keep the pi and IDE volumes,
+#                                          the podman secrets, the image and the env file (a
+#                                          re-install adopts them unchanged)
+#   scripts/uninstall.sh --purge [--yes]   also delete the volumes (after a final backup to
+#                                          ~/backups/woow-code-server/) and the secrets. This is
+#                                          the ONLY way this repo deletes data
+#   scripts/uninstall.sh --purge-images    also remove the localhost/woow-code-server:* images
+#   scripts/uninstall.sh --dry-run         report what would be removed
+#
+# Never touched: the workspace, ~/.ssh, ~/.gitconfig and ~/.local/bin on the host, and the env
+# file in ~/.config/woow-code-server/ (delete it yourself after --purge).
+# shellcheck source-path=SCRIPTDIR
 set -euo pipefail
+REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
+# shellcheck source=lib/quadlet-lib.sh
+. "$REPO/scripts/lib/quadlet-lib.sh"
 
-QUADLET_DIR="${HOME}/.config/containers/systemd"
-USER_UNIT_DIR="${HOME}/.config/systemd/user"
-PURGE=0
-[ "${1:-}" = "--purge" ] && PURGE=1
+# ---- per-repo settings -----------------------------------------------------------------
+APP=woow-code-server
+# exported before --purge deletes them (the sidecar state only when it exists)
+DATA_VOLUMES=(woow-code-server-pi-data woow-code-server-ide woow-tailscale-code-server-state)
+BACKUP_DIR=$HOME/backups/$APP
+IMAGE_REPO=localhost/woow-code-server
+# ------------------------------------------------------------------------------------------
 
-say() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
+purge=0 yes=0 purge_images=0
+while (($#)); do
+  case $1 in
+    --purge) purge=1 ;;
+    --purge-images) purge_images=1 ;;
+    --yes) yes=1 ;;
+    --dry-run) export QL_DRY_RUN=1 ;;
+    -h | --help) sed -n '2,15p' "$0"; exit 0 ;;
+    *) ql_die "unknown option $1 (see --help)" ;;
+  esac
+  shift
+done
+export QL_APP=$APP
+DRY=${QL_DRY_RUN:-0}
+ql_require_rootless
+ql_lock "$APP"
 
-say "Stopping services"
-systemctl --user disable --now code-server-health.timer 2>/dev/null || true
-systemctl --user stop code-server.service 2>/dev/null || true
-
-say "Removing units"
-rm -f "${QUADLET_DIR}/code-server.container" \
-      "${QUADLET_DIR}/woow-code-server-pi.volume" \
-      "${QUADLET_DIR}/woow-code-server-ide.volume"
-rm -f "${USER_UNIT_DIR}/code-server-health.service" \
-      "${USER_UNIT_DIR}/code-server-health.timer"
-systemctl --user daemon-reload
-podman rm -f code-server 2>/dev/null || true
-
-if [ "${PURGE}" -eq 1 ]; then
-    printf 'Delete woow-code-server-pi-data and woow-code-server-ide volumes? This removes the pi login and all IDE settings. [y/N] '
-    read -r ans
-    if [ "${ans}" = "y" ] || [ "${ans}" = "Y" ]; then
-        podman volume rm woow-code-server-pi-data woow-code-server-ide 2>/dev/null || true
-        say "Volumes deleted."
-    else
-        say "Skipped — volumes kept."
-    fi
+if ((purge)); then
+  if ((!yes)) && [[ $DRY != 1 ]]; then
+    [[ -t 0 ]] || ql_die "--purge deletes the pi login, the IDE settings and the secrets; add --yes to confirm non-interactively"
+    read -r -p "Type '$APP' to delete its volumes (pi login, IDE settings) and secrets: " answer
+    [[ $answer == "$APP" ]] || ql_die "aborted; nothing was deleted"
+  fi
+  if [[ $DRY != 1 ]]; then
+    for v in "${DATA_VOLUMES[@]}"; do
+      if podman volume exists "$v"; then ql_backup_volume "$v" "$BACKUP_DIR" >/dev/null; fi
+    done
+  fi
+  ql_uninstall_units "$APP" --purge
 else
-    say "Done. woow-code-server-pi-data and woow-code-server-ide were NOT deleted."
-    say "  podman volume rm woow-code-server-pi-data woow-code-server-ide   # to delete them"
-    say "  (pi-agent-data, if it exists on this host, was never used by this repo and is untouched.)"
+  ql_uninstall_units "$APP"
+fi
+
+if ((purge_images)); then
+  mapfile -t imgs < <(podman images --format '{{.Repository}}:{{.Tag}}' | grep -E "^${IMAGE_REPO}:" || true)
+  for img in "${imgs[@]}"; do
+    if [[ $DRY == 1 ]]; then ql_info "[dry-run] would remove image $img"; continue; fi
+    if podman rmi "$img" >/dev/null 2>&1; then ql_info "removed image $img"; else ql_warn "could not remove image $img (in use?)"; fi
+  done
 fi
