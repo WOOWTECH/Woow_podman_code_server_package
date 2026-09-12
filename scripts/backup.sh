@@ -7,7 +7,10 @@
 #                       subdirectory is created in it and printed on stdout
 #   --include-secrets   also write the podman secrets (the login password, the tailscale auth
 #                       key) into <dir>/secrets/ (0600 files in a 0700 directory)
-#   --stop              stop code-server during the export, for a consistent pi state
+#   --stop              stop code-server (and the tailscale sidecar, when it is running)
+#                       during the export, for a consistent pi state. Without it the volumes
+#                       are tarred while their containers write them, which is what podman's
+#                       "the export may be inconsistent" warning is about.
 #
 # Contents: a podman volume export of woow-code-server-pi-data (pi login, sessions, skills),
 # woow-code-server-ide (IDE settings) and, when it exists, woow-tailscale-code-server-state,
@@ -22,6 +25,7 @@ ENV_FILE=$HOME/.config/$APP/$APP.env
 VOLUMES=(woow-code-server-pi-data woow-code-server-ide woow-tailscale-code-server-state)
 SECRETS=(code-server-config woow-code-server-ts-authkey)
 UNIT='code-server.service'
+TS_UNIT=woow-tailscale-code-server.service   # owns woow-tailscale-code-server-state
 
 dest=$HOME/backups/$APP include_secrets=0 stop=0
 while (($#)); do
@@ -29,7 +33,7 @@ while (($#)); do
     --dest) dest=${2:?--dest needs a directory}; shift ;;
     --include-secrets) include_secrets=1 ;;
     --stop) stop=1 ;;
-    -h | --help) sed -n '2,14p' "$0"; exit 0 ;;
+    -h | --help) sed -n '2,17p' "$0"; exit 0 ;;
     *) ql_die "unknown option $1 (see --help)" ;;
   esac
   shift
@@ -48,14 +52,31 @@ while [[ -e $out ]]; do out=$base-$n; n=$((n + 1)); done
 (umask 077 && mkdir -p -- "$out") || ql_die "cannot create $out"
 chmod 700 "$out"
 
-started=0
-if ((stop)) && systemctl --user is-active --quiet "$UNIT"; then
-  ql_info "stopping $UNIT for a consistent export"
-  systemctl --user stop "$UNIT"
-  started=1
+stopped=()
+start_stopped() { # idempotent: called from the EXIT trap and again on the happy path
+  ((${#stopped[@]})) || return 0
+  local -a again=("${stopped[@]}")
+  stopped=()
+  ql_info "starting ${again[*]} again"
+  systemctl --user start "${again[@]}" \
+    || ql_warn "could not start ${again[*]} again; run: systemctl --user start ${again[*]}"
+}
+if ((stop)); then
+  for u in "$UNIT" "$TS_UNIT"; do
+    if systemctl --user is-active --quiet "$u" 2>/dev/null; then stopped+=("$u"); fi
+  done
+  if ((${#stopped[@]})); then
+    # Without the trap a failed export left the IDE stopped, with no hint that it had been.
+    trap start_stopped EXIT
+    ql_info "stopping ${stopped[*]} for a consistent export"
+    systemctl --user stop "${stopped[@]}" || ql_die "could not stop ${stopped[*]}"
+  fi
 fi
+
 for v in "${found[@]}"; do ql_backup_volume "$v" "$out" >/dev/null; done
-((started == 0)) || { ql_info "starting $UNIT again"; systemctl --user start "$UNIT"; }
+
+start_stopped
+trap - EXIT
 
 if [[ -f $ENV_FILE ]]; then install -m 600 -- "$ENV_FILE" "$out/${ENV_FILE##*/}"; fi
 if ((include_secrets)); then

@@ -24,6 +24,7 @@ APP=woow-code-server
 DATA_VOLUMES=(woow-code-server-pi-data woow-code-server-ide woow-tailscale-code-server-state)
 BACKUP_DIR=$HOME/backups/$APP
 IMAGE_REPO=localhost/woow-code-server
+UNITS=(code-server.service woow-tailscale-code-server.service)
 # ------------------------------------------------------------------------------------------
 
 purge=0 yes=0 purge_images=0
@@ -50,6 +51,10 @@ if ((purge)); then
     [[ $answer == "$APP" ]] || ql_die "aborted; nothing was deleted"
   fi
   if [[ $DRY != 1 ]]; then
+    # The volumes are deleted a few lines below, so there is nothing to keep running: stop
+    # the writers first and the export is consistent instead of "may be inconsistent".
+    systemctl --user stop "${UNITS[@]}" 2>/dev/null \
+      || ql_warn "could not stop ${UNITS[*]}; the final export may be inconsistent"
     for v in "${DATA_VOLUMES[@]}"; do
       if podman volume exists "$v"; then ql_backup_volume "$v" "$BACKUP_DIR" >/dev/null; fi
     done
