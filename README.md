@@ -243,6 +243,94 @@ Rollback: `scripts/uninstall.sh`, put the old unit files back from
 
 ---
 
+## Converging a hand-edited install
+
+woowtechopenclaw already runs code-server as Quadlet - but from a unit that was written by hand
+and then edited in place. The container name, both volumes (`woow-code-server-ide`,
+`woow-code-server-pi-data`) and the optional tailscale sidecar are already the ones this repo
+declares, so there is **nothing to migrate**: no legacy container to rename or capture, no data
+to adopt under another name. This repo therefore ships no `migrate-legacy.sh`. What that host
+needs is a **converge**, and the converge is `scripts/install.sh`: `ql_install_files` keeps a
+copy of every foreign file with our name before writing ours, and `ql_apply_units` restarts only
+the units whose file actually changed. It is the same path
+[Woow_podman_pi_agent_package](https://github.com/WOOWTECH/Woow_podman_pi_agent_package) took on
+toypark1234, where repointing a hand-edited `pi-web.container` at `%h`/`%t` cost 1.5 s.
+
+```bash
+scripts/converge.sh --check      # pre-flight + drift report + install.sh --dry-run
+scripts/converge.sh              # backup, install.sh, verify, report the downtime
+scripts/converge.sh              # again: "files changed : none", no downtime
+scripts/converge.sh --status
+scripts/converge.sh --rollback   # the previous unit file back, restarted on the old :latest
+```
+
+`scripts/converge.sh` never installs anything itself. It wraps that one `install.sh` call with
+the evidence an operator needs around a live IDE:
+
+**A pre-flight that refuses instead of guessing.** The container must exist, be running and
+carry `PODMAN_SYSTEMD_UNIT=code-server.service`; anything else is a migration and is refused.
+Both volumes must exist. The workspace, the `.ssh` directory, the gitconfig, the host `bin`
+directory, the publish address, the port, the pi defaults and whether the tailscale sidecar is
+present are **read off the running container**, never defaulted from this repo - a converge that
+quietly moved someone's workspace or port would be worse than no converge at all.
+
+**A drift report, per file, before anything restarts.** On openclaw it names exactly what the
+hand-written unit carries that this repo does not:
+
+| drift | what openclaw has | what this repo has |
+|---|---|---|
+| `literal-home` | `Volume=/home/woowtechopenclaw/Desktop:/workspace` and `…/.ssh` | `%h`-rendered `@@CODE_SERVER_WORKSPACE@@`, `@@CODE_SERVER_SSH_DIR@@` |
+| `floating-tag` | `Image=localhost/woow-code-server:latest` | `:<VERSION>` with `Pull=never` |
+| `autoupdate` | `AutoUpdate=local` | nothing: systemd owns the image |
+| `no-success-exit` | – | `SuccessExitStatus=143`, so a clean stop is not a failure |
+| plaintext password | `EnvironmentFile=…/env` with `PASSWORD=` | the podman secret `code-server-config` |
+
+**The login password does not change.** `install.sh` adopts the `PASSWORD=` from the
+pre-Quadlet `~/.config/woow-code-server/env` into the secret. If neither the secret nor that
+file has one, `converge.sh` **refuses** rather than let `install.sh` generate a new password and
+lock the user out of what they were told was a no-op; `scripts/install.sh --rotate-password` is
+the explicit way to change it.
+
+**Exposure is kept, not changed.** openclaw publishes `0.0.0.0:8443`. The converge keeps that
+and prints why it is worth narrowing (a plain-HTTP password prompt in front of a container that
+mounts `~/.ssh` and `~/Desktop`); `--bind 127.0.0.1` narrows it deliberately, and the tailnet
+`serve` in front continues to reach `127.0.0.1:8443`.
+
+**A backup first, with checksums.** `~/backups/woow-code-server/converge-<timestamp>/` holds an
+export of both volumes, a copy of every unit file that is about to be overwritten, the
+`podman inspect`, both env files and a `precheck.txt` - all in `SHA256SUMS`, `0700`/`0600`.
+
+**Proof that the data was adopted.** A `.volume` adopts by *name*; that is only worth trusting
+if the name still resolves to the same directory. Each volume's `CreatedAt` and mountpoint inode
+are recorded before and asserted after, and so is the workspace mount. A mismatch fails the
+converge and rolls it back.
+
+**A measured downtime.** A prober samples `/healthz` every 100 ms from outside; the gap between
+the last success before the restart and the first one after it is what gets reported. An open
+browser tab reconnects on its own; an unsaved editor buffer lives in the IDE volume, which is
+why that volume is exported first.
+
+### The tailscale sidecar
+
+`woow-tailscale-code-server` is converged only when the container is already on the host - the
+converge never adds a tailnet node. Its identity lives in `woow-tailscale-code-server-state`,
+which is adopted by name like the others, so `TS_AUTH_ONCE=true` finds the node already logged
+in and no auth key is needed or passed.
+
+### Rollback
+
+`scripts/converge.sh --rollback` puts the saved unit files back, reloads and restarts
+code-server (and the sidecar when it has one). Nothing in the converge removes an image, so the
+old `:latest` is still on the host and the restored unit starts on exactly what it ran before.
+Both volumes are untouched either way.
+
+### Afterwards
+
+Delete `~/.config/woow-code-server/env` and any `env.bak-*` once you have checked the login: the
+password now lives in the podman secret, and those files are plain text.
+
+---
+
 ## Layout
 
 ```
@@ -273,6 +361,9 @@ scripts/
   backup.sh / restore.sh    volume exports and imports
   show-password.sh          print the login password from the podman secret
   migrate-pi-state.sh       opt-in copy from an old shared pi-agent-data volume
+  converge.sh               a hand-installed Quadlet host -> these units: pre-flight, drift
+                            report, backup, adoption proof, measured downtime, --rollback
+  converge-lib.sh           the drift, backup, restore and downtime helpers it shares with tests/
 tests/
   dryrun.sh                 render the units and check them with the 4.9.3 generator (+ dryrun.local.sh, fixtures/)
   smoke.sh                  the podman checks, then the parity suites below
@@ -281,8 +372,12 @@ tests/
   smoke-pi-integration.sh   pi/pi-acp/pi-code present, internal store seeded
   smoke-acp.sh              extension installed, settings.json's required keys wired
   smoke-toolchain.sh        pip/venv, npm -g, git identity, pi on PATH in a login shell
+  converge-model.sh         shim-driven: drift, backup round trip, downtime, and the property
+                            that defines a finished converge - the second run changes nothing
+  shims/                    podman and systemctl doubles (no container is created)
 docs/plans/                dated design decisions for the changes that shaped this package
 .github/workflows/quadlet-ci.yml  vendored lib checksum + dry-run + shellcheck
+.github/workflows/scripts-ci.yml  tests/converge-model.sh + shellcheck of the test doubles
 .github/workflows/build.yml       amd64 + arm64 image build, ghcr on push/release
 ```
 

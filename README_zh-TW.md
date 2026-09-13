@@ -224,6 +224,84 @@ scripts/uninstall.sh --purge-images     # 另外移除 localhost/woow-code-serve
 
 ---
 
+## 收斂手動編輯過的安裝
+
+woowtechopenclaw 上的 code-server 已經是 Quadlet——只是那個單元是手寫的，而且後來又被就地改過。
+容器名稱、兩個磁碟區（`woow-code-server-ide`、`woow-code-server-pi-data`）與選用的 tailscale
+sidecar，都已經是本 repo 宣告的那一組，所以**沒有東西需要遷移**：沒有舊容器要改名或 capture，也沒有
+資料需要用別的名字沿用。因此本 repo 不提供 `migrate-legacy.sh`。那台主機需要的是**收斂**，而收斂就是
+`scripts/install.sh`：`ql_install_files` 會在寫入我們的檔案前，先備份同名的外來檔案；`ql_apply_units`
+只重啟檔案真的變了的單元。這正是
+[Woow_podman_pi_agent_package](https://github.com/WOOWTECH/Woow_podman_pi_agent_package)
+在 toypark1234 上走過的路——把手改過的 `pi-web.container` 重新指向 `%h`/`%t`，代價是 1.5 秒。
+
+```bash
+scripts/converge.sh --check      # 前置檢查 + 偏移報告 + install.sh --dry-run
+scripts/converge.sh              # 備份、install.sh、驗證、回報停機時間
+scripts/converge.sh              # 再跑一次：「files changed : none」，零停機
+scripts/converge.sh --status
+scripts/converge.sh --rollback   # 放回先前的單元檔，用舊的 :latest 重新啟動
+```
+
+`scripts/converge.sh` 自己不安裝任何東西。它只是在那一次 `install.sh` 外面，補上操作者面對線上 IDE
+時需要的證據：
+
+**前置檢查寧可拒絕也不猜測。** 容器必須存在、在執行中，且帶有
+`PODMAN_SYSTEMD_UNIT=code-server.service`；其他情況都屬於「遷移」而被拒絕。兩個磁碟區都必須存在。
+工作區、`.ssh` 目錄、gitconfig、主機 `bin` 目錄、發布位址、連接埠、pi 預設值，以及 tailscale sidecar
+是否存在，**全部讀自執行中的容器**，不用 repo 的預設值——一個會悄悄搬動別人工作區或連接埠的收斂，
+比不做還糟。
+
+**逐檔的偏移報告，在任何重啟之前。** 在 openclaw 上，它會明確列出手寫單元有、而本 repo 沒有的東西：
+
+| 偏移 | openclaw 的樣子 | 本 repo 的樣子 |
+|---|---|---|
+| `literal-home` | `Volume=/home/woowtechopenclaw/Desktop:/workspace` 與 `…/.ssh` | 由 `%h` 渲染的 `@@CODE_SERVER_WORKSPACE@@`、`@@CODE_SERVER_SSH_DIR@@` |
+| `floating-tag` | `Image=localhost/woow-code-server:latest` | `:<VERSION>` 搭配 `Pull=never` |
+| `autoupdate` | `AutoUpdate=local` | 沒有：映像由 systemd 決定 |
+| `no-success-exit` | – | `SuccessExitStatus=143`，正常停止不會被記為失敗 |
+| 明文密碼 | `EnvironmentFile=…/env` 裡的 `PASSWORD=` | podman secret `code-server-config` |
+
+**登入密碼不會改變。** `install.sh` 會把舊的 `~/.config/woow-code-server/env` 裡的 `PASSWORD=`
+收編進 secret。如果 secret 與該檔案都沒有密碼，`converge.sh` 會**拒絕**執行，而不是讓 `install.sh`
+產生一組新密碼、把使用者鎖在一個號稱「什麼都不會變」的操作外面；要換密碼請明確使用
+`scripts/install.sh --rotate-password`。
+
+**曝露面維持原樣，不會被改掉。** openclaw 發布在 `0.0.0.0:8443`。收斂會保留它，同時說明為什麼值得
+縮小（那是一個明文 HTTP 的密碼輸入畫面，背後的容器掛著 `~/.ssh` 與 `~/Desktop`）；要刻意縮小請用
+`--bind 127.0.0.1`，前面的 tailnet `serve` 仍然指向 `127.0.0.1:8443`。
+
+**先備份，並附校驗碼。** `~/backups/woow-code-server/converge-<timestamp>/` 內含兩個磁碟區的匯出、
+每個即將被覆寫的單元檔副本、`podman inspect`、兩個 env 檔與 `precheck.txt`——全部列進 `SHA256SUMS`，
+權限 `0700`/`0600`。
+
+**證明資料確實被沿用。** `.volume` 是**用名稱**沿用；唯有名稱仍指向同一個目錄，這才值得相信。每個
+磁碟區的 `CreatedAt` 與掛載點 inode 都在事前記錄、事後比對，工作區掛載也一樣。不符即判定收斂失敗
+並自動回復。
+
+**量測停機時間。** 探測器每 100 毫秒從外部取樣 `/healthz`；重啟前最後一次成功到之後第一次成功之間
+的間隔，就是回報的停機時間。開著的瀏覽器分頁會自行重新連線；編輯器裡未存檔的緩衝區存在 IDE 磁碟區，
+這也是為什麼那個磁碟區會先被匯出。
+
+### tailscale sidecar
+
+只有當 `woow-tailscale-code-server` 容器已經在主機上時才會一併收斂——收斂本身絕不新增 tailnet 節點。
+它的身分存在 `woow-tailscale-code-server-state`，和其他磁碟區一樣按名稱沿用，所以
+`TS_AUTH_ONCE=true` 會發現節點已登入，不需要、也不會傳入任何 auth key。
+
+### 回復
+
+`scripts/converge.sh --rollback` 會把儲存的單元檔放回去，reload 並重啟 code-server（有 sidecar 時
+一併重啟）。收斂過程不會移除任何映像，所以舊的 `:latest` 仍在主機上，還原後的單元啟動的就是它先前
+跑的東西。兩個磁碟區在兩個方向都完全未受影響。
+
+### 之後
+
+確認登入沒問題後，刪掉 `~/.config/woow-code-server/env` 與任何 `env.bak-*`：密碼現在存在 podman
+secret 裡，那些檔案是明文。
+
+---
+
 ## 目錄結構
 
 ```
@@ -254,6 +332,9 @@ scripts/
   backup.sh / restore.sh    volume 匯出與匯入
   show-password.sh          從 podman secret 印出登入密碼
   migrate-pi-state.sh       從舊的共用 pi-agent-data volume 選擇性搬移
+  converge.sh               手動安裝的 Quadlet 主機 → 本 repo 的單元：前置檢查、偏移報告、
+                            備份、沿用證明、量測停機、--rollback
+  converge-lib.sh           它與 tests/ 共用的偏移、備份、還原與停機量測輔助函式
 tests/
   dryrun.sh                 渲染單元並用 4.9.3 產生器檢查（含 dryrun.local.sh、fixtures/）
   smoke.sh                  podman 專屬檢查，再跑下面的 parity 套件
@@ -262,8 +343,12 @@ tests/
   smoke-pi-integration.sh   pi/pi-acp/pi-code 齊全、內部儲存已初始化
   smoke-acp.sh              extension 有裝、settings.json 必要 key 都對
   smoke-toolchain.sh        pip/venv、npm -g、git 身分、login shell 的 pi
+  converge-model.sh         以 shim 驅動：偏移偵測、備份往返、停機量測，以及定義「收斂完成」的
+                            性質——第二次執行什麼都不會變
+  shims/                    podman 與 systemctl 測試替身（不會建立任何容器）
 docs/plans/                塑造本 package 的設計決策
 .github/workflows/quadlet-ci.yml  vendored 函式庫雜湊 + dry-run + shellcheck
+.github/workflows/scripts-ci.yml  tests/converge-model.sh 與測試替身的 shellcheck
 .github/workflows/build.yml       amd64 + arm64 image build，push/release 推到 ghcr
 ```
 
