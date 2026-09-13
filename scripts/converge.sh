@@ -102,7 +102,6 @@ fi
 
 ql_preflight "$PODMAN_MIN"
 ql_lock "$CV_APP"
-export WOOW_QL_LOCK_HELD=$CV_APP
 
 # =============================================================================================
 # rollback
