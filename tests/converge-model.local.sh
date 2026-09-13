@@ -59,3 +59,14 @@ grep -qF '[[ ${WOOW_QL_LOCK_HELD:-} == "$APP" ]] || ql_lock "$APP"' "$REPO/scrip
 grep -qF 'export WOOW_QL_LOCK_HELD=$CV_APP' "$REPO/scripts/converge.sh" \
   || msg="$msg; converge.sh does not announce that it holds the lock"
 local_check t_local_install_sh_honours_the_lock_the_converge_holds "${msg#; }"
+
+# --check must validate the render on a host whose plain helper units were installed by hand.
+# Found on toypark1234: they are ours but in no manifest, so install.sh's shadow guard refused
+# to run and --check validated nothing. Moving them aside is a real change --check must not
+# make, so the dry-run gets a scratch QL_SYSTEMD_USER_DIR and the units are NAMED instead.
+msg=''
+grep -q 'cv_plain_units_to_adopt' "$REPO/scripts/converge.sh" \
+  || msg='--check does not name the hand-installed helper units it will take over'
+grep -q 'QL_SYSTEMD_USER_DIR=$scratch "$REPO/scripts/install.sh" --dry-run' "$REPO/scripts/converge.sh" \
+  || msg="$msg; the dry-run does not get a scratch plain-unit directory"
+local_check t_local_check_survives_hand_installed_helper_units "${msg#; }"
