@@ -274,8 +274,12 @@ directory, the publish address, the port, the pi defaults and whether the tailsc
 present are **read off the running container**, never defaulted from this repo - a converge that
 quietly moved someone's workspace or port would be worse than no converge at all.
 
-**A drift report, per file, before anything restarts.** On openclaw it names exactly what the
-hand-written unit carries that this repo does not:
+**A drift report, per file, before anything restarts.** It names what the hand-written unit
+carries that this repo does not. A file with none of those markers is reported as *no named
+drift*, never as identical: `install.sh` compares bytes and will still rewrite it for a
+difference the report has no name for - both `.volume` files on openclaw are rewritten for a
+missing `Label=`. The authoritative list is the `[dry-run] would write` output of `--check`.
+On openclaw the report names:
 
 | drift | what openclaw has | what this repo has |
 |---|---|---|
