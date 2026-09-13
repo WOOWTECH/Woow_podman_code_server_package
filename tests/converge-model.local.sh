@@ -1,8 +1,8 @@
 # shellcheck shell=bash
-# shellcheck disable=SC2016 # the greps look for literal shell text in another script
 # tests/converge-model.local.sh: code-server-specific assertions, sourced at the end of
 # tests/converge-model.sh (which defines REPO, run, npass, nfail and FAILED).
 # shellcheck disable=SC2154 # REPO, npass, nfail, FAILED come from tests/converge-model.sh
+# shellcheck disable=SC2016 # the greps look for literal shell text in another script
 
 local_ok() { npass=$((npass + 1)); printf 'ok    %s\n' "$1"; }
 local_fail() { nfail=$((nfail + 1)); FAILED+=("$1"); printf 'FAIL  %s\n      | %s\n' "$1" "$2"; }
@@ -50,3 +50,12 @@ grep -qF 'if [[ $TAILSCALE == yes ]]; then SETS+=(--with-tailscale); else SETS+=
   "$REPO/scripts/converge.sh" || msg="$msg; install.sh is not told which of the two the host has"
 grep -q 'ts-authkey-file' "$REPO/scripts/converge.sh" && msg="$msg; the converge passes an auth key"
 local_check t_local_the_tailscale_sidecar_is_detected_not_assumed "$msg"
+
+# Found on toypark1234: converge.sh takes ql_lock and then runs install.sh, whose own ql_lock
+# aborted the run. install.sh must skip the lock when the caller already holds it.
+msg=''
+grep -qF '[[ ${WOOW_QL_LOCK_HELD:-} == "$APP" ]] || ql_lock "$APP"' "$REPO/scripts/install.sh" \
+  || msg='install.sh takes the lock unconditionally; the converge would deadlock on itself'
+grep -qF 'export WOOW_QL_LOCK_HELD=$CV_APP' "$REPO/scripts/converge.sh" \
+  || msg="$msg; converge.sh does not announce that it holds the lock"
+local_check t_local_install_sh_honours_the_lock_the_converge_holds "${msg#; }"
