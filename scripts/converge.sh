@@ -108,7 +108,12 @@ export WOOW_QL_LOCK_HELD=$CV_APP
 # rollback
 # =============================================================================================
 if [[ $mode == rollback ]]; then
-  bk=$(cv_state_get BACKUP)
+  # ROLLBACK_BACKUP, not BACKUP: a re-run that changed nothing still takes a fresh backup, and
+  # its units/ holds the ALREADY CONVERGED files. Rolling back to that would be a no-op and the
+  # way back to the pre-converge units would be lost. Only a run that actually replaced a unit
+  # file records a new rollback point.
+  bk=$(cv_state_get ROLLBACK_BACKUP)
+  [[ -n $bk ]] || bk=$(cv_state_get BACKUP)
   [[ -n $bk && -d $bk ]] || ql_die "no converge backup recorded in $CV_STATE"
   [[ $(cv_state_get STATUS) == converged || $(cv_state_get STATUS) == failed ]] \
     || ql_die "nothing to roll back (status: $(cv_state_get STATUS))"
@@ -314,6 +319,8 @@ fi
 cv_state_set STATUS converged
 cv_state_set DOWNTIME_MS "$down"
 cv_state_set CHANGED "${changed_files:-none}"
+# Only a run that replaced a unit file becomes the rollback point; see --rollback above.
+[[ -z $changed_files ]] || cv_state_set ROLLBACK_BACKUP "$bk"
 printf '\n' >&2
 ql_info "converged."
 ql_info "  files changed : ${changed_files:-none}"
@@ -324,7 +331,8 @@ else
   ql_info "  downtime      : ${down} ms (probe every 100 ms against http://$HOST:$cur_port/healthz), wall clock $(((T1 - T0) / 1000)) s"
 fi
 ql_info "  backup        : $bk (sha256sum -c SHA256SUMS)"
-ql_info "  rollback      : $0 --rollback"
+rb=$(cv_state_get ROLLBACK_BACKUP)
+ql_info "  rollback      : $0 --rollback${rb:+   (restores the unit files from $rb)}"
 ql_info "run $0 again: it must report 'files changed : none' and take no downtime. That is the property that says the host and the repo now agree."
 [[ ! -f $LEGACY_ENV ]] \
   || ql_warn "$LEGACY_ENV still holds the login password in plain text; delete it once you have checked the login (the password now lives in the podman secret code-server-config)"

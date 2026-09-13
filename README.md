@@ -324,6 +324,13 @@ code-server (and the sidecar when it has one). Nothing in the converge removes a
 old `:latest` is still on the host and the restored unit starts on exactly what it ran before.
 Both volumes are untouched either way.
 
+### Re-running is safe, and it does not move the rollback point
+
+A converge that changed nothing still takes a fresh backup (a volume export is worth having
+either way), but only a run that actually replaced a unit file becomes the `--rollback` target.
+Otherwise the second, no-op run - the one you are told to make - would silently replace the
+saved pre-converge units with the already-converged ones and destroy the only way back.
+
 ### Afterwards
 
 Delete `~/.config/woow-code-server/env` and any `env.bak-*` once you have checked the login: the
