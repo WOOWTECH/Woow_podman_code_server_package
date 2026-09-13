@@ -1,0 +1,6 @@
+# Node identity and serve state of the optional tailscale sidecar. The existing name on
+# woowtechopenclaw, so VolumeName= adopts it there.
+[Volume]
+VolumeName=woow-tailscale-code-server-state
+Label=app=woow-code-server
+Label=io.woowtech.app=woow-code-server

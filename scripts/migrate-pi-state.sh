@@ -42,7 +42,7 @@ say "Copying safe state: settings.json, home/.pi/pi-acp/, sessions/--workspace--
 podman run --rm \
     -v pi-agent-data:/old:ro \
     -v woow-code-server-pi-data:/new \
-    docker.io/library/busybox sh -c '
+    docker.io/library/busybox:1.37.0 sh -c '
         set -e
         [ -f /old/settings.json ] && cp -an /old/settings.json /new/settings.json || true
         if [ -d /old/home/.pi/pi-acp ]; then
@@ -60,7 +60,7 @@ if [ "${WITH_AUTH}" -eq 1 ]; then
     podman run --rm \
         -v pi-agent-data:/old:ro \
         -v woow-code-server-pi-data:/new \
-        docker.io/library/busybox sh -c '
+        docker.io/library/busybox:1.37.0 sh -c '
             [ -f /old/auth.json ] && cp -an /old/auth.json /new/auth.json && chmod 600 /new/auth.json || true
         '
 fi

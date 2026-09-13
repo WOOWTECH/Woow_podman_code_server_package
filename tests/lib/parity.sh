@@ -24,7 +24,8 @@
 case "${PARITY_TARGET}" in
 podman)
     CODE_SERVER_HOST="${CODE_SERVER_HOST:-127.0.0.1}"
-    PORT="${CODE_SERVER_PORT:-8443}"
+    # scripts/install.sh default (127.0.0.1:18443); tests/smoke.sh passes the configured one.
+    PORT="${CODE_SERVER_PORT:-18443}"
     BASE="${CODE_SERVER_BASE:-http://${CODE_SERVER_HOST}:${PORT}}"
     SETTINGS="/home/coder/.local/share/code-server/User/settings.json"
     # Overridable so a freshly built image can be smoke-tested in a throwaway

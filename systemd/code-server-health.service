@@ -1,13 +1,12 @@
 [Unit]
 Description=Refresh code-server container health state
-After=code-server.service
 Documentation=https://github.com/WOOWTECH/Woow_podman_code_server_package
+After=code-server.service
 
 [Service]
 Type=oneshot
-# Silent no-op if the container was manually stopped. This unit does not
-# start the container itself; it only re-runs the container's built-in
-# healthcheck so `podman ps` STATUS reflects the latest reality between
-# HEALTHCHECK interval ticks.
-ExecCondition=/usr/bin/podman container exists code-server
-ExecStart=/usr/bin/podman healthcheck run code-server
+# A silent no-op when the container is not there. This unit never starts the container; it
+# only re-runs its healthcheck so `podman ps` shows the current state between the transient
+# health timer's ticks. Bare `podman`: systemd resolves it on its fixed search path.
+ExecCondition=podman container exists code-server
+ExecStart=podman healthcheck run code-server

@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
+# shellcheck source-path=SCRIPTDIR
 # Smoke test: pi CLI is on PATH at the pinned version, pi-acp is present,
 # the pi-code wrapper is installed, and this deployment's OWN internal
 # /data/pi-agent store exists and is correctly seeded. No sibling-package
 # assertions any more — pi state is private per PARITY_CONTRACT.md.
 set -uo pipefail
 
+# shellcheck source=lib/parity.sh
 . "$(dirname "$0")/lib/parity.sh"
 
 EXPECTED_PI_VERSION="${EXPECTED_PI_VERSION:-0.83.0}"
@@ -16,9 +18,11 @@ skip() { printf '  \033[90mSKIP\033[0m  %s\n' "$*"; }
 
 echo "== pi CLI (PARITY_TARGET=${PARITY_TARGET}) =="
 if V="$(CX pi --version 2>&1)"; then
-    [ "${V}" = "${EXPECTED_PI_VERSION}" ] \
-        && ok "pi --version = ${V}" \
-        || bad "pi --version = ${V} (expected ${EXPECTED_PI_VERSION})"
+    if [ "${V}" = "${EXPECTED_PI_VERSION}" ]; then
+        ok "pi --version = ${V}"
+    else
+        bad "pi --version = ${V} (expected ${EXPECTED_PI_VERSION})"
+    fi
 else
     bad "pi not on PATH inside container"
 fi
@@ -52,7 +56,7 @@ if CX test -d /data/pi-agent; then
     fi
     if CX test -f /data/pi-agent/auth.json; then
         PERM="$(CX_ROOT stat -c '%a' /data/pi-agent/auth.json 2>/dev/null || echo '?')"
-        [ "${PERM}" = "600" ] && ok "  auth.json present, mode 600" || bad "  auth.json present but mode ${PERM} (expected 600)"
+        if [ "${PERM}" = "600" ]; then ok "  auth.json present, mode 600"; else bad "  auth.json present but mode ${PERM} (expected 600)"; fi
     else
         skip "  auth.json absent — run 'pi login' inside this deployment (see README First run)"
     fi

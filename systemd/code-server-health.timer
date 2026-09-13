@@ -1,5 +1,5 @@
 [Unit]
-Description=Run code-server health check every 30 seconds
+Description=Run the code-server health check every 30 seconds
 Documentation=https://github.com/WOOWTECH/Woow_podman_code_server_package
 
 [Timer]

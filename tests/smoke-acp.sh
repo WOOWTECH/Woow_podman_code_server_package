@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
+# shellcheck source-path=SCRIPTDIR
 # Smoke test: the ACP Client extension is installed and settings.json
 # carries all seven required keys from PARITY_CONTRACT.md §2.5 — the
 # acp.agents wiring plus the four workspace-trust keys the extension
 # needs to activate its view container at all.
 set -uo pipefail
 
+# shellcheck source=lib/parity.sh
 . "$(dirname "$0")/lib/parity.sh"
 
 EXPECTED_EXT="formulahendry.acp-client"

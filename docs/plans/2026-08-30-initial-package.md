@@ -14,7 +14,7 @@ This repo extends the pattern to a browser IDE: `code-server` + the [ACP Client]
 2. **Upstream `codercom/code-server:4.135.0` as base image**, with our own overlay for Node 22 + pi + pi-acp + the ACP extension. We ship pi 0.83.0 to match the sibling pi-agent-package version — the shared volume schema must not drift.
 3. **Only `pi-acp` bundled** (not Claude Code / Codex / Gemini adapters). The sidebar in the ACP extension will show them as installable, but only pi is connected out of the box. Adding more adapters is a follow-up when there's demand.
 4. **`pi-code` wrapper is the ACP command**, not raw `pi-acp`. The wrapper re-scopes `HOME` to `/data/pi-agent/home` for the pi subprocess only, without moving code-server's own `HOME`. This is the same trick OD's `pi-od` wrapper uses. See `rootfs/usr/local/bin/pi-code` for the actual script.
-5. **LAN publish `0.0.0.0:8443`** with a shared `PASSWORD=woowtech` for the initial deploy. Deliberate short-cut: the users are on the office LAN, TLS terminates elsewhere (NPM or CF Tunnel if we front it). Documenting explicitly that this is only safe on a trusted LAN.
+5. **LAN publish `0.0.0.0:8443`** with a shared password (the literal value is redacted here; it was generated per host from 2026-09 on, and the 2026-09-12 conversion moved it into the podman secret `code-server-config`) for the initial deploy. Deliberate short-cut: the users are on the office LAN, TLS terminates elsewhere (NPM or CF Tunnel if we front it). Documenting explicitly that this is only safe on a trusted LAN.
 6. **Workspace = host `~/Desktop`** bind-mounted at `/workspace`. Files edited in code-server land back on the host owned by uid 1000, so a `git push` from the host terminal against the same repo works without permission gymnastics. Also mount host `~/.ssh` (ro) and `~/.gitconfig` (ro) so `git commit` and `git push` over SSH work out of the box.
 7. **`amd64 + aarch64`** CI matrix, ghcr push on main + release. Same shape as pi-agent-package.
 
@@ -93,3 +93,52 @@ Rollback: `git revert` this change and reapply the old quadlet's
 `Volume=pi-agent-data.volume:/data/pi-agent` line; the external volume
 was never deleted by any part of this change, so nothing is lost by
 reverting.
+
+---
+
+## 2026-09-12 — Quadlet + systemd-first conversion (v1)
+
+The package already shipped Quadlet units, but they were hand-installed and carried this
+host's values. This conversion makes the units a rendered artefact of a per-host env file and
+gives the repo the standard WOOWTECH script set. Decisions, in the order they bite:
+
+1. **No literal `/home/<user>` anywhere.** The four host binds (workspace, `.ssh`,
+   `.gitconfig`, `.local/bin`), the publish address and the pi defaults are `@@VAR@@` tokens in
+   `quadlet/code-server.container`, whitelisted in `quadlet/render-vars` and rendered by
+   `scripts/install.sh` from `~/.config/woow-code-server/woow-code-server.env` (0600). Values
+   may use `%h`, which systemd expands, so the installed unit stays host-independent where the
+   default is used. Rendering at install time (rather than `${VAR}` at runtime) keeps
+   `PublishPort=` under the generator's validation — podman 4.9.3 rejects `${VAR}` there — and
+   makes "did anything change?" a byte comparison, which is what drives the restart decision.
+2. **The password moved from an env file to a podman secret.** `code-server-config` holds a
+   YAML config (`auth`, `password`, `cert`) mounted at `/run/secrets/code-server-config.yaml`
+   with `CODE_SERVER_CONFIG` pointing at it. A mount-type secret is the only shape that keeps
+   the credential out of `podman inspect` Config.Env, which matters because the podman MCP
+   server on the same host can read every container's environment. A pre-existing
+   `~/.config/woow-code-server/env` is adopted once, so nobody is locked out, and the file is
+   then reported as plaintext to delete.
+3. **Default endpoint `127.0.0.1:18443`** instead of `0.0.0.0:8443`. 8443 collides with the
+   Caddy proxy in the tailscale package, and loopback is the only default where the ACP chat
+   webview works at all (localhost is a secure context). LAN exposure stays possible through
+   `CODE_SERVER_BIND`, with a warning.
+4. **Optional tailscale sidecar** (`quadlet/optional/`, `install.sh --with-tailscale`) as the
+   supported trusted-origin front door, replacing the hand-made unit on woowtechopenclaw. Same
+   container, volume and node names, so that host keeps its node identity; the serve config is
+   rendered from `config/tailscale-serve.json.in` with the port in effect, and the one-time
+   auth key is a podman secret.
+5. **Pinned image tag `localhost/woow-code-server:<VERSION>` with `Pull=never`**, replacing
+   `:latest` + `AutoUpdate=local` (which did nothing: no auto-update timer runs). `VERSION` is
+   `<code-server version>-<package revision>` and `tests/dryrun.local.sh` fails CI when it
+   disagrees with the unit or the Containerfile ARG. GHCR publishing is deliberately left as
+   future work: the build workflow only produces `main-<sha>` tags today.
+6. **Health in the unit** (`HealthCmd=`), so it no longer depends on building with
+   `--format=docker`, and the health timer calls bare `podman` instead of `/usr/bin/podman`.
+   `Requires=podman.socket` and `network-online.target` are gone: the container never calls the
+   podman API, and `network-online.target` is a no-op in the user manager.
+7. **The shared library** `scripts/lib/quadlet-lib.sh` (vendored, checksum-pinned by CI) owns
+   preflight, env parsing, rendering, the dry-run gate, collision/shadow guards, secret
+   handling, change-aware installs and the uninstall/purge rules. The scripts are thin.
+
+Rollback: the old units are in git, and `install.sh` keeps a copy of every file it replaces in
+`~/.local/state/woow-quadlet/woow-code-server/replaced/<timestamp>/`. The volumes and their
+names are unchanged throughout, so nothing in this conversion can lose pi state.
