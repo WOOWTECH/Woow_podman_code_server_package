@@ -22,7 +22,7 @@
 # seeded from /opt/pi-agent-skel at build time — first run needs one
 # `pi login` inside this container (see README "First run").
 
-ARG CODE_SERVER_VERSION=4.135.0
+ARG CODE_SERVER_VERSION=4.138.0
 FROM docker.io/codercom/code-server:${CODE_SERVER_VERSION}
 
 # All apt / npm / extension work runs as root; the ENTRYPOINT drops back to
@@ -78,26 +78,53 @@ RUN apt-get update \
  && ln -sf /usr/bin/python3 /usr/local/bin/python
 
 # --- pi CLI + ACP adapter ------------------------------------------------
-# pi is pinned to 0.83.0 — this is the version PARITY_CONTRACT.md locks
-# across all three code-server deployments (podman/HA/k3s). It is the only
-# version verified end-to-end with pi-acp 0.0.33 + acp-client 0.2.0. Bump
-# all three repos together; see PARITY_CONTRACT.md §2.1 before changing.
+# pi is pinned to 0.99.1 — the version PARITY_CONTRACT.md (v1.1) locks
+# across all three code-server deployments (podman/HA/k3s), verified
+# end-to-end with pi-acp 0.0.34 + acp-client 0.2.0. Bump all three repos
+# together; see PARITY_CONTRACT.md §2.1 and §8 before changing.
 #
-# pi-acp is on 0.0.33 (current head; the package is 0.0.x, expect churn).
+# pi-acp is on 0.0.34 (current head; the package is 0.0.x, expect churn).
 # It spawns `pi --mode rpc` internally and bridges to ACP JSON-RPC over
 # stdio, which is what the ACP Client extension consumes.
-ARG PI_CODING_AGENT_VERSION=0.83.0
-ARG PI_ACP_VERSION=0.0.33
+ARG PI_CODING_AGENT_VERSION=0.99.1
+ARG PI_ACP_VERSION=0.0.34
 RUN npm install -g --omit=dev --no-fund --no-audit \
       "@earendil-works/pi-coding-agent@${PI_CODING_AGENT_VERSION}" \
       "pi-acp@${PI_ACP_VERSION}" \
  && test "$(pi --version)" = "${PI_CODING_AGENT_VERSION}"
 
+# --- Claude Code CLI + its ACP adapter (PARITY_CONTRACT.md v1.1) -----------
+# Claude Code joins pi as a second agent on all three deployments:
+#   - `claude` on the terminal PATH (the official CLI; npm pulls the native
+#     linux-x64 / linux-arm64 binary through its optionalDependencies),
+#   - `claude-agent-acp` as a second agent in the ACP Client sidebar (the
+#     Agent Client Protocol adapter built on the Claude Agent SDK),
+#   - the official VS Code extension, installed further down.
+# Same install rule as pi above and for the same reason: npm's DEFAULT
+# prefix (/usr), so the launchers land in /usr/bin and survive /etc/profile.
+# All three read one state dir, CLAUDE_CONFIG_DIR=/data/pi-agent/claude on
+# the persistent pi volume, so one `claude` login serves the terminal, the
+# sidebar and the extension, and survives a container recreate.
+ARG CLAUDE_CODE_VERSION=2.1.285
+ARG CLAUDE_AGENT_ACP_VERSION=0.84.0
+RUN npm install -g --omit=dev --no-fund --no-audit \
+      "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
+      "@agentclientprotocol/claude-agent-acp@${CLAUDE_AGENT_ACP_VERSION}" \
+ && v=$(claude --version | awk '{print $1}') \
+ && test "$v" = "${CLAUDE_CODE_VERSION}" \
+ && test -x "$(command -v claude-agent-acp)" \
+ && npm ls -g --depth 0 "@agentclientprotocol/claude-agent-acp" | grep -q "@${CLAUDE_AGENT_ACP_VERSION}"
+# The CLI would otherwise try to self-update into the root-owned /usr prefix
+# (uid 1000 cannot write it) and drift off the pinned version.
+ENV CLAUDE_CONFIG_DIR=/data/pi-agent/claude \
+    DISABLE_AUTOUPDATER=1
+
 # --- Stop silent Unicode-space path corruption ---------------------------
 # pi folds U+00A0, U+2000-200A, U+202F, U+205F and U+3000 to an ASCII space
 # on every read/write/edit, and builds its read fallback chain from the
 # ALREADY-FOLDED path — so the exact path the caller asked for is never
-# tried. Reproduced end to end on this image (pi 0.83.0):
+# tried. Reproduced end to end on this image (pi 0.83.0; the same two call
+# sites still carry it in 0.99.1 — the script patched both on the bump):
 #
 #   - read of `Q1<U+3000>報告.txt` returned the contents of the sibling
 #     `Q1<SPACE>報告.txt`, with isError:false. A confidential/public pair
@@ -175,6 +202,8 @@ RUN mkdir -p /opt/npm-global/bin /opt/npm-global/lib \
 #     the HA add-on and k3s chart vendor these same three files.
 #   - /etc/profile.d/pi.sh — scopes terminal `pi` invocations to the same
 #     state directory the ACP chat panel uses.
+#   - /etc/profile.d/claude.sh — the same for terminal `claude`
+#     (CLAUDE_CONFIG_DIR + no self-update), also byte-identical x3.
 #   - /etc/skel/.local/share/code-server/User/settings.json — first-boot
 #     default VS Code settings pre-wiring the ACP Client extension to
 #     the pi adapter. code-server copies /etc/skel into the coder user's
@@ -196,12 +225,13 @@ RUN mkdir -p /opt/pi-agent-skel/home/.pi/agent \
              /opt/pi-agent-skel/sessions \
              /opt/pi-agent-skel/skills \
              /opt/pi-agent-skel/npm-global/bin \
+             /opt/pi-agent-skel/claude \
  && touch /opt/pi-agent-skel/.woow-pi-store \
  && mkdir -p /data \
  && cp -a /opt/pi-agent-skel /data/pi-agent \
  && ln -sfn /data/pi-agent/skills /data/pi-agent/home/.pi/agent/skills \
  && chown -R coder:coder /opt/pi-agent-skel /data/pi-agent \
- && chmod 700 /data/pi-agent
+ && chmod 700 /data/pi-agent /opt/pi-agent-skel/claude /data/pi-agent/claude
 
 # --- Terminal pi shares state with the ACP chat panel ---------------------
 # code-server's default HOME is /home/coder, but the ACP chat panel scopes
@@ -245,11 +275,23 @@ RUN ln -sfn /data/pi-agent/home/.pi /home/coder/.pi \
 # ToS explicitly forbids third-party clients, so the environment overrides
 # below are the correct-and-only way to fetch extensions from a public
 # source in this image. Do NOT swap for marketplace.visualstudio.com.
+#
+# The official Claude Code extension (anthropic.claude-code) rides the same
+# route and pin discipline. Open VSX publishes it per target platform
+# (linux-x64 / linux-arm64); code-server picks the one matching the build
+# arch. It runs the same Claude Code and reads the same CLAUDE_CONFIG_DIR
+# as the terminal `claude` and the sidebar's claude-agent-acp.
 ARG ACP_CLIENT_VERSION=0.2.0
+ARG CLAUDE_CODE_EXTENSION_VERSION=2.1.285
 USER coder
 RUN SERVICE_URL=https://open-vsx.org/vscode/gallery \
     ITEM_URL=https://open-vsx.org/vscode/item \
-    code-server --install-extension "formulahendry.acp-client@${ACP_CLIENT_VERSION}"
+    code-server --install-extension "formulahendry.acp-client@${ACP_CLIENT_VERSION}" \
+ && SERVICE_URL=https://open-vsx.org/vscode/gallery \
+    ITEM_URL=https://open-vsx.org/vscode/item \
+    code-server --install-extension "anthropic.claude-code@${CLAUDE_CODE_EXTENSION_VERSION}" \
+ && code-server --list-extensions --show-versions | grep -qx "anthropic.claude-code@${CLAUDE_CODE_EXTENSION_VERSION}" \
+ && code-server --list-extensions --show-versions | grep -qx "formulahendry.acp-client@${ACP_CLIENT_VERSION}"
 
 # Copy the pre-wired settings.json into the coder user's config dir. It
 # gets set up by /etc/skel on a fresh $HOME, but users who mount their
@@ -281,7 +323,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 ARG BUILD_VERSION=dev
 ARG BUILD_DATE=unknown
 LABEL org.opencontainers.image.title="Woow Podman code-server" \
-      org.opencontainers.image.description="code-server + pi coding agent + ACP client, rootless-podman-friendly; pi state aligned with the WOOWTECH HA add-on and k3s chart per PARITY_CONTRACT.md" \
+      org.opencontainers.image.description="code-server + pi coding agent + Claude Code + ACP client, rootless-podman-friendly; pi state aligned with the WOOWTECH HA add-on and k3s chart per PARITY_CONTRACT.md" \
       org.opencontainers.image.source="https://github.com/WOOWTECH/Woow_podman_code_server_package" \
       org.opencontainers.image.vendor="WOOWTECH" \
       org.opencontainers.image.licenses="MIT" \
