@@ -6,7 +6,7 @@
 
 | | |
 |---|---|
-| Version | **1.1 (2026-09-30)** — code-server 4.138.0, pi 0.99.1, pi-acp 0.0.34, and **Claude Code joins the baseline** (CLI + ACP sidebar agent + extension). Changes are listed in §9. 1.0 was 2026-09-10. |
+| Version | **1.1 (2026-09-30)** — code-server 4.139.1, pi 0.99.1, pi-acp 0.0.34, and **Claude Code joins the baseline** (CLI + ACP sidebar agent + extension). Changes are listed in §9. 1.0 was 2026-09-10. |
 | Baseline | `Woow_podman_code_server_package` @ `2df94fc` — parity is levelled **UP** to this feature set |
 | Targets | `Woow_podman_code_server_package` (exists), `Woow_ha_code_server_add_on` (new), `Woow_k3s_code_server_package` (new) |
 | Authority | Where this file and a recon report, a README, or `docs/K3S_BLUEPRINT.md` disagree, **this file wins.** `docs/K3S_BLUEPRINT.md` is stale (StatefulSet / ingress-nginx / oauth2-proxy / Velero) and is superseded here by the realized `Woow_k3s_pi_agent_package` + `opendesign-2.0.0` house style. |
@@ -37,7 +37,7 @@ These are identical on every platform. A target that cannot reach one of these v
 
 | Key | Value | Notes |
 |---|---|---|
-| `CODE_SERVER_VERSION` | `4.138.0` | Code `1.138.0`. The ceiling is the HA base: `hassio-addons/vscode` v7.2.0 ships 4.138.0, so podman/k3s pin the same instead of the newer 4.139.x. |
+| `CODE_SERVER_VERSION` | `4.139.1` | Code `1.139.1`. Matches the HA base `hassio-addons/vscode` v7.2.0, which ships 4.139.1 (its Dockerfile `CODE_SERVER_VERSION`). |
 | `PI_CODING_AGENT_VERSION` | `0.99.1` | npm `@earendil-works/pi-coding-agent@0.99.1`. Bumped with `pi-acp@0.0.34` + `acp-client@0.2.0` in 1.1; `patches/fix-unicode-space-paths.mjs` still patches both `path-utils.js` call sites. Bumping it is a three-repo, same-day operation (§8). |
 | `PI_ACP_VERSION` | `0.0.34` | npm `pi-acp@0.0.34`. 0.0.x — expect churn; pin hard. |
 | `CLAUDE_CODE_VERSION` | `2.1.285` | npm `@anthropic-ai/claude-code@2.1.285` (native binary via its optionalDependencies). Installed in npm's default prefix like pi. Self-update off (`DISABLE_AUTOUPDATER=1`). |
@@ -184,7 +184,7 @@ BASE=https://code-server-woow-k3s.woowtech.io
 
 | # | Assertion | Command | Expected |
 |---|---|---|---|
-| P01 | code-server version | `CX code-server --version \| head -1` | starts `4.138.0`, contains `with Code 1.138.0` |
+| P01 | code-server version | `CX code-server --version \| head -1` | starts `4.139.1`, contains `with Code 1.139.1` |
 | P02 | pi version | `CX pi --version` | `0.99.1` exactly |
 | P03 | pi-acp on PATH | `CX sh -c 'command -v pi-acp'` | non-empty |
 | P04 | pi-acp version | `CX sh -c 'pi-acp --version 2>/dev/null \|\| npm ls -g --depth 0 pi-acp'` | contains `0.0.34` |
@@ -473,7 +473,7 @@ Never bump one target alone. The old lockstep rationale ("the shared volume sche
 
 ### 1.1 — 2026-09-30
 
-- `CODE_SERVER_VERSION` 4.135.0 → **4.138.0** (Code 1.138.0; the HA base `hassio-addons/vscode` v7.2.0 is the ceiling).
+- `CODE_SERVER_VERSION` 4.135.0 → **4.139.1** (Code 1.139.1; the HA base `hassio-addons/vscode` moves 7.0.0 → 7.2.0, which ships 4.139.1).
 - `PI_CODING_AGENT_VERSION` 0.83.0 → **0.99.1**; `PI_ACP_VERSION` 0.0.33 → **0.0.34**.
 - **Claude Code joins the baseline**: `claude` CLI 2.1.285, `claude-agent-acp` 0.84.0 as the sidebar's second agent, extension `anthropic.claude-code` 2.1.285. State in `CLAUDE_CONFIG_DIR=/data/pi-agent/claude` (new skeleton dir, 0700). New shared file `/etc/profile.d/claude.sh`; new `settings.json` seed hash; checklist rows P40–P44; §7 item 7.
 - Existing deployments keep their own `settings.json` (code-server only seeds an empty one): add the `claude` agent to `acp.agents` by hand when upgrading an existing install.

@@ -22,7 +22,7 @@
 # seeded from /opt/pi-agent-skel at build time — first run needs one
 # `pi login` inside this container (see README "First run").
 
-ARG CODE_SERVER_VERSION=4.138.0
+ARG CODE_SERVER_VERSION=4.139.1
 FROM docker.io/codercom/code-server:${CODE_SERVER_VERSION}
 
 # All apt / npm / extension work runs as root; the ENTRYPOINT drops back to

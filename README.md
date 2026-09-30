@@ -2,7 +2,7 @@
 
 [![Podman](https://img.shields.io/badge/Podman-%E2%89%A54.9%20rootless-892CA0)](https://podman.io)
 [![Quadlet](https://img.shields.io/badge/units-Quadlet%20%2B%20systemd-orange)](https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html)
-[![code-server](https://img.shields.io/badge/code--server-4.138.0-blueviolet)](https://github.com/coder/code-server)
+[![code-server](https://img.shields.io/badge/code--server-4.139.1-blueviolet)](https://github.com/coder/code-server)
 [![pi-coding-agent](https://img.shields.io/badge/pi--coding--agent-0.99.1-blue)](https://www.npmjs.com/package/@earendil-works/pi-coding-agent)
 [![ACP](https://img.shields.io/badge/ACP%20client-formulahendry.acp--client%400.2.0-green)](https://open-vsx.org/extension/formulahendry/acp-client)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -28,7 +28,7 @@ cross-platform contract.
 | | |
 |---|---|
 | **UI** | `http://127.0.0.1:18443` — password-gated, loopback by default (SSH forward, optional tailscale sidecar, or a proxy on the same host) |
-| **IDE** | VS Code (via code-server 4.138.0), OpenVSX extensions |
+| **IDE** | VS Code (via code-server 4.139.1), OpenVSX extensions |
 | **Agent** | pi 0.99.1 available in the ACP right-side chat panel, and as `pi` on the terminal PATH |
 | **Claude Code** | Claude Code 2.1.285: `claude` on the terminal PATH, a second **Claude Code** agent in the ACP chat panel (`claude-agent-acp` 0.84.0), and the official extension. One `claude` login (or `ANTHROPIC_API_KEY`) serves all three; its state lives in `/data/pi-agent/claude` on the pi volume |
 | **Workspace** | Host `~/Desktop` bind-mounted at `/workspace` — edit files and they land back on the host owned by you |
