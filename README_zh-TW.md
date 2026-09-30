@@ -2,8 +2,8 @@
 
 [![Podman](https://img.shields.io/badge/Podman-%E2%89%A54.9%20rootless-892CA0)](https://podman.io)
 [![Quadlet](https://img.shields.io/badge/units-Quadlet%20%2B%20systemd-orange)](https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html)
-[![code-server](https://img.shields.io/badge/code--server-4.135.0-blueviolet)](https://github.com/coder/code-server)
-[![pi-coding-agent](https://img.shields.io/badge/pi--coding--agent-0.83.0-blue)](https://www.npmjs.com/package/@earendil-works/pi-coding-agent)
+[![code-server](https://img.shields.io/badge/code--server-4.139.1-blueviolet)](https://github.com/coder/code-server)
+[![pi-coding-agent](https://img.shields.io/badge/pi--coding--agent-0.99.1-blue)](https://www.npmjs.com/package/@earendil-works/pi-coding-agent)
 [![ACP](https://img.shields.io/badge/ACP%20client-formulahendry.acp--client%400.2.0-green)](https://open-vsx.org/extension/formulahendry/acp-client)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -25,8 +25,9 @@ pi 的狀態（登入、sessions、skills、模型設定）**這個部署內部�
 | | |
 |---|---|
 | **UI** | `http://127.0.0.1:18443` — 密碼保護，預設只聽 loopback（SSH port-forward、選用的 tailscale sidecar，或同主機上的 proxy） |
-| **IDE** | code-server 4.135.0，extension 走 OpenVSX |
-| **Agent** | pi 0.83.0，右側 ACP chat panel 直接可用；terminal PATH 上也有 `pi` |
+| **IDE** | code-server 4.139.1，extension 走 OpenVSX |
+| **Agent** | pi 0.99.1，右側 ACP chat panel 直接可用；terminal PATH 上也有 `pi` |
+| **Claude Code** | Claude Code 2.1.285：terminal 可直接 `claude`；ACP chat panel 多一個 **Claude Code** 代理（`claude-agent-acp` 0.84.0）；另有官方擴充。三者共用一次 `claude` 登入（或 `ANTHROPIC_API_KEY`），狀態放在 pi volume 的 `/data/pi-agent/claude` |
 | **Workspace** | 主機 `~/Desktop` bind-mount 到 `/workspace`——你在編輯器改的檔案主機直接看得到，也還是你的擁有者 |
 | **持久化** | pi 狀態存在內部的 `woow-code-server-pi-data` volume；IDE 設定存在 `woow-code-server-ide`；container 重建、重開機都不丟 |
 | **監管** | `systemd --user` via Quadlet，`Restart=always`，30 秒健康檢查 |

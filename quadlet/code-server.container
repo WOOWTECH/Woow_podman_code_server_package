@@ -19,7 +19,7 @@ ContainerName=code-server
 # Built by scripts/install.sh from ./Containerfile. Tag = <code-server version>-<package
 # revision> (the VERSION file); tests/dryrun.local.sh fails CI when it disagrees with VERSION
 # or the Containerfile ARG. A locally built image never exists on a registry: Pull=never.
-Image=localhost/woow-code-server:4.135.0-1
+Image=localhost/woow-code-server:4.139.1-1
 Pull=never
 
 # code-server always listens on 8080 inside the container.
