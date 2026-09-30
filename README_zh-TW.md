@@ -493,7 +493,7 @@ symlink）。
 - [ACP Client (formulahendry)](https://open-vsx.org/extension/formulahendry/acp-client) — 右側 agent chat panel 的 VS Code extension
 - [pi-acp](https://www.npmjs.com/package/pi-acp) — 社群做的 ACP JSON-RPC → pi `--mode rpc` bridge
 - [`Woow_ha_code_server_add_on`](https://github.com/WOOWTECH/Woow_ha_code_server_add_on) — 同一套 pi/ACP 接線，包成 Home Assistant add-on
-- [`Woow_k3s_code_server_package`](https://github.com/WOOWTECH/Woow_k3s_code_server_package) — 同一顆 image，用 Helm + Cloudflare Tunnel 部署到 k3s
+- [`Woow_k3s_code_server_package`](https://github.com/WOOWTECH/Woow_k3s_code_server_package) — k3s 這一邊：WOOW PaaS 的 code-server 雲端服務（chart 與 image 層的唯讀鏡像，以同一顆 podman image 為底）
 
 ## 授權
 

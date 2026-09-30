@@ -566,7 +566,7 @@ other. Run `pi login` fresh in each deployment instead.
 - [ACP Client (formulahendry)](https://open-vsx.org/extension/formulahendry/acp-client) — the VS Code extension that renders the right-side agent chat panel
 - [pi-acp](https://www.npmjs.com/package/pi-acp) — community bridge from ACP JSON-RPC to pi's `--mode rpc`
 - [`Woow_ha_code_server_add_on`](https://github.com/WOOWTECH/Woow_ha_code_server_add_on) — the same pi/ACP wiring, packaged as a Home Assistant add-on
-- [`Woow_k3s_code_server_package`](https://github.com/WOOWTECH/Woow_k3s_code_server_package) — the same image, deployed on k3s via Helm + Cloudflare Tunnel
+- [`Woow_k3s_code_server_package`](https://github.com/WOOWTECH/Woow_k3s_code_server_package) — the k3s leg: the WOOW PaaS code-server cloud service (read-only mirror of its chart and image layer, built on the same podman image)
 
 ## License
 
