@@ -23,6 +23,7 @@ CONTAINER='code-server'
 declare -A VOLUME_UNIT=(
   [woow-code-server-pi-data]=woow-code-server-pi-volume.service
   [woow-code-server-ide]=woow-code-server-ide-volume.service
+  [woow-code-server-extensions]=woow-code-server-extensions-volume.service
   [woow-tailscale-code-server-state]=woow-tailscale-code-server-volume.service
 )
 

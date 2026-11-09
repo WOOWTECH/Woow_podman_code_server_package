@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/backup.sh: back up the code-server deployment into a new directory.
 #
-#   scripts/backup.sh [--dest DIR] [--include-secrets] [--stop]
+#   scripts/backup.sh [--dest DIR] [--include-secrets] [--stop [--leave-stopped]]
 #
 #   --dest DIR          parent directory (default ~/backups/woow-code-server); a <timestamp>/
 #                       subdirectory is created in it and printed on stdout
@@ -11,9 +11,12 @@
 #                       during the export, for a consistent pi state. Without it the volumes
 #                       are tarred while their containers write them, which is what podman's
 #                       "the export may be inconsistent" warning is about.
+#   --leave-stopped     with --stop, keep services stopped after a successful export;
+#                       upgrade.sh uses this to prevent writes between backup and install.
 #
 # Contents: a podman volume export of woow-code-server-pi-data (pi login, sessions, skills),
-# woow-code-server-ide (IDE settings) and, when it exists, woow-tailscale-code-server-state,
+# woow-code-server-ide (IDE settings), woow-code-server-extensions (user extensions), and,
+# when it exists, woow-tailscale-code-server-state,
 # each with a .sha256, plus a copy of the env file. Restore with scripts/restore.sh <dir>.
 # shellcheck source-path=SCRIPTDIR
 set -euo pipefail
@@ -22,22 +25,24 @@ REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 . "$REPO/scripts/lib/quadlet-lib.sh"
 APP=woow-code-server
 ENV_FILE=$HOME/.config/$APP/$APP.env
-VOLUMES=(woow-code-server-pi-data woow-code-server-ide woow-tailscale-code-server-state)
+VOLUMES=(woow-code-server-pi-data woow-code-server-ide woow-code-server-extensions woow-tailscale-code-server-state)
 SECRETS=(code-server-config woow-code-server-ts-authkey)
 UNIT='code-server.service'
 TS_UNIT=woow-tailscale-code-server.service   # owns woow-tailscale-code-server-state
 
-dest=$HOME/backups/$APP include_secrets=0 stop=0
+dest=$HOME/backups/$APP include_secrets=0 stop=0 leave_stopped=0
 while (($#)); do
   case $1 in
     --dest) dest=${2:?--dest needs a directory}; shift ;;
     --include-secrets) include_secrets=1 ;;
     --stop) stop=1 ;;
+    --leave-stopped) leave_stopped=1 ;;
     -h | --help) sed -n '2,17p' "$0"; exit 0 ;;
     *) ql_die "unknown option $1 (see --help)" ;;
   esac
   shift
 done
+((leave_stopped == 0 || stop == 1)) || ql_die "--leave-stopped requires --stop"
 export QL_APP=$APP
 ql_require_rootless
 
@@ -75,7 +80,12 @@ fi
 
 for v in "${found[@]}"; do ql_backup_volume "$v" "$out" >/dev/null; done
 
-start_stopped
+if ((leave_stopped)); then
+  ql_info "leaving services stopped for the caller to restart"
+  stopped=()
+else
+  start_stopped
+fi
 trap - EXIT
 
 if [[ -f $ENV_FILE ]]; then install -m 600 -- "$ENV_FILE" "$out/${ENV_FILE##*/}"; fi

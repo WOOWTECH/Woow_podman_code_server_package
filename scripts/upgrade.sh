@@ -5,7 +5,7 @@
 #   git pull && scripts/upgrade.sh [--no-backup] [--keep-images]
 #
 #   1. snapshot the installed unit files and the install manifest
-#   2. scripts/backup.sh (volume exports)                    (skipped with --no-backup)
+#   2. scripts/backup.sh --stop --leave-stopped (consistent volume exports; skipped with --no-backup)
 #   3. scripts/install.sh: builds localhost/woow-code-server:$(cat VERSION) when it is missing,
 #      re-renders the units, restarts what changed and runs tests/smoke.sh --quick
 #   4. tests/smoke.sh (the full parity suites)
@@ -97,7 +97,7 @@ rollback() {
 
 # ---- 2. backup -------------------------------------------------------------------------------
 if ((backup)); then
-  "$REPO/scripts/backup.sh" >/dev/null || ql_die "backup failed; nothing was changed"
+  "$REPO/scripts/backup.sh" --stop --leave-stopped >/dev/null || ql_die "backup failed; nothing was changed"
 fi
 
 # ---- 3./4. install, then the full smoke suite ------------------------------------------------

@@ -29,7 +29,7 @@ pi 的狀態（登入、sessions、skills、模型設定）**這個部署內部�
 | **Agent** | pi 0.99.1，右側 ACP chat panel 直接可用；terminal PATH 上也有 `pi` |
 | **Claude Code** | Claude Code 2.1.285：terminal 可直接 `claude`；ACP chat panel 多一個 **Claude Code** 代理（`claude-agent-acp` 0.84.0）；另有官方擴充。三者共用一次 `claude` 登入（或 `ANTHROPIC_API_KEY`），狀態放在 pi volume 的 `/data/pi-agent/claude` |
 | **Workspace** | 主機 `~/Desktop` bind-mount 到 `/workspace`——你在編輯器改的檔案主機直接看得到，也還是你的擁有者 |
-| **持久化** | pi 狀態存在內部的 `woow-code-server-pi-data` volume；IDE 設定存在 `woow-code-server-ide`；container 重建、重開機都不丟 |
+| **持久化** | Pi 狀態、IDE 設定及使用者後裝擴充各有私有 volume（`woow-code-server-pi-data`、`woow-code-server-ide`、`woow-code-server-extensions`），容器重建後仍在。執行期 `npm install -g` 要持久化時，請用 `--prefix /data/pi-agent/npm-global`。 |
 | **監管** | `systemd --user` via Quadlet，`Restart=always`，30 秒健康檢查 |
 
 ---
@@ -182,7 +182,8 @@ scripts/restore.sh ~/backups/woow-code-server/<時間戳>      # 會先詢問；
 ```
 
 備份會匯出 `woow-code-server-pi-data`（pi 登入、sessions、skills）、`woow-code-server-ide`
-（IDE 設定），以及存在時的 sidecar 狀態 volume，每個都附 `.sha256`，並複製一份 env 檔。
+（IDE 設定）、`woow-code-server-extensions`（使用者後裝擴充），以及存在時的 sidecar 狀態
+volume，每個都附 `.sha256`，並複製一份 env 檔。
 `restore.sh` 會停止 IDE、換掉這些 volume、再啟動並跑 smoke 測試。
 
 ### 移除
@@ -321,6 +322,7 @@ quadlet/
   code-server.container      容器定義、掛載與健康檢查（含 @@VAR@@ 標記）
   woow-code-server-pi.volume  內部 pi 狀態 volume
   woow-code-server-ide.volume 內部 IDE 使用者資料 volume
+  woow-code-server-extensions.volume  使用者後裝擴充的持久化 volume
   render-vars                install.sh 可以代入的變數白名單
   optional/                  tailscale sidecar，用 --with-tailscale 才安裝
 config/
@@ -337,6 +339,7 @@ systemd/
 scripts/
   lib/quadlet-lib.sh        WOOWTECH 共用 Quadlet 函式庫（vendored，CI 檢查雜湊）
   install.sh                渲染 + 驗證 + 建置 + 安裝 + 只重啟有變更的單元
+  merge-settings.sh         保留既有設定並補齊新版 ACP 代理
   upgrade.sh                快照 + 備份 + 安裝 + smoke，失敗自動回復
   uninstall.sh              停止 + 移除（沒有 --purge 就不刪資料）
   backup.sh / restore.sh    volume 匯出與匯入

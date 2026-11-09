@@ -77,10 +77,11 @@ else
     else
         CODE="$(password_stream | curl -sS -o /dev/null -w '%{http_code}' --max-time 5 \
             --data-urlencode "password@-" "${BASE}/login")"
-        case "${CODE}" in
-            302|200) ok "correct password -> ${CODE}" ;;
-            *)       bad "correct password -> ${CODE}" ;;
-        esac
+        if [ "${CODE}" = "302" ]; then
+            ok "correct password -> 302"
+        else
+            bad "correct password -> ${CODE} (expected redirect to the workbench)"
+        fi
     fi
 fi
 

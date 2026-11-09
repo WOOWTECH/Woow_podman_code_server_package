@@ -293,6 +293,29 @@ RUN SERVICE_URL=https://open-vsx.org/vscode/gallery \
  && code-server --list-extensions --show-versions | grep -qx "anthropic.claude-code@${CLAUDE_CODE_EXTENSION_VERSION}" \
  && code-server --list-extensions --show-versions | grep -qx "formulahendry.acp-client@${ACP_CLIENT_VERSION}"
 
+# Keep the pinned extensions in code-server's built-in directory. User-installed
+# extensions get a persistent named volume in Quadlet; leaving the pins in that
+# user directory would let an older volume hide a newer image's pinned versions.
+# The PaaS derivative uses this same built-in layout for its tenant PVC.
+USER root
+RUN set -eu; \
+    builtin=/usr/lib/code-server/lib/vscode/extensions; \
+    userdir=/home/coder/.local/share/code-server/extensions; \
+    test -d "$builtin"; \
+    for id in "formulahendry.acp-client-${ACP_CLIENT_VERSION}" "anthropic.claude-code-${CLAUDE_CODE_EXTENSION_VERSION}"; do \
+      src=$(find "$userdir" -mindepth 1 -maxdepth 1 -type d -name "${id}*" | head -n1); \
+      test -n "$src" || { echo "missing pinned extension $id" >&2; exit 1; }; \
+      mv "$src" "$builtin/$(basename "$src")"; \
+    done; \
+    rm -rf "$userdir"; \
+    mkdir -p "$userdir"; \
+    chown coder:coder "$userdir"; \
+    for id in "formulahendry.acp-client-${ACP_CLIENT_VERSION}" "anthropic.claude-code-${CLAUDE_CODE_EXTENSION_VERSION}"; do \
+      manifest=$(find "$builtin" -mindepth 2 -maxdepth 2 -path "*/${id}*/package.json" | head -n1); \
+      test -n "$manifest" || { echo "missing built-in manifest $id" >&2; exit 1; }; \
+      test "$(jq -r .version "$manifest")" = "${id##*-}"; \
+    done
+
 # Copy the pre-wired settings.json into the coder user's config dir. It
 # gets set up by /etc/skel on a fresh $HOME, but users who mount their
 # host $HOME as /home/coder skip /etc/skel entirely, so we also install

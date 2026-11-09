@@ -288,6 +288,20 @@ if [[ $DRY == 1 ]]; then
   ql_info "dry-run complete; nothing was changed"
   exit 0
 fi
+# After a Podman reset the generated volume oneshot can still be "active" while the
+# actual volume is gone. Mark it for restart so ql_apply_units recreates it before
+# starting code-server; ordinary re-runs keep their no-restart behavior.
+for spec in \
+  'woow-code-server-pi-data:woow-code-server-pi-volume.service' \
+  'woow-code-server-ide:woow-code-server-ide-volume.service' \
+  'woow-code-server-extensions:woow-code-server-extensions-volume.service'; do
+  volume_name=${spec%%:*}
+  volume_unit=${spec#*:}
+  if ! podman volume exists "$volume_name"; then
+    ql_info "missing volume $volume_name; scheduling $volume_unit to recreate it"
+    ql_mark_changed "$APP" "$volume_unit"
+  fi
+done
 if ((built || pw_changed)); then ql_mark_changed "$APP" "$UNIT"; fi
 # a single-file bind keeps the old inode of a replaced file: the sidecar must restart
 if ((ts_changed)) || grep -qx 'config/tailscale-serve.json' <<<"$changed"; then ql_mark_changed "$APP" "$TS_UNIT"; fi
@@ -303,6 +317,22 @@ HOST=$BIND
 [[ $HOST != 0.0.0.0 ]] || HOST=127.0.0.1
 ql_wait_container_healthy "$CONTAINER" 300 \
   || ql_die "$CONTAINER did not become healthy; see: journalctl --user -u $UNIT -n 100"
+# Existing named volumes hide newly seeded files from the image. The shared pi-seed
+# script adds missing Claude/Pi directories without touching credentials, and the
+# settings merge adds the two pinned ACP agents while retaining user customizations.
+podman exec -u coder "$CONTAINER" /usr/local/bin/pi-seed \
+  || ql_die "could not seed the persistent Pi/Claude state"
+merge_result=$(podman exec -i -u coder "$CONTAINER" sh -s < "$REPO/scripts/merge-settings.sh") \
+  || ql_die "could not merge the persistent IDE settings"
+case $merge_result in
+  unchanged) ;;
+  changed)
+    ql_info "updated persistent IDE settings from the current image defaults"
+    systemctl --user restart "$UNIT" || ql_die "could not restart code-server after settings merge"
+    ql_wait_container_healthy "$CONTAINER" 300 || ql_die "code-server did not become healthy after settings merge"
+    ;;
+  *) ql_die "settings merge returned an unexpected result" ;;
+esac
 ql_wait_http "http://$HOST:$PORT/healthz" '200' 120 || ql_die "http://$HOST:$PORT/healthz did not answer 200"
 "$REPO/tests/smoke.sh" --quick || ql_die "tests/smoke.sh --quick failed; see the output above"
 

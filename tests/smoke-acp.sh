@@ -21,6 +21,22 @@ if EXT_INSTALLED; then
 else
     bad "extension NOT installed (checked via EXT_INSTALLED for PARITY_TARGET=${PARITY_TARGET})"
 fi
+if CLAUDE_EXT_INSTALLED; then
+    ok "Claude Code extension installed at 2.1.285"
+else
+    bad "Claude Code extension missing or at the wrong version"
+fi
+if CX sh -lc 'command -v claude-agent-acp >/dev/null && command -v claude >/dev/null'; then
+    ok "Claude Code and claude-agent-acp are on PATH"
+else
+    bad "Claude Code or claude-agent-acp missing from PATH"
+fi
+CLAUDE_VERSION="$(CX sh -lc 'claude --version' 2>/dev/null | awk 'NR==1 {print $1}')"
+if [ "${CLAUDE_VERSION}" = "2.1.285" ]; then
+    ok "Claude Code CLI = 2.1.285"
+else
+    bad "Claude Code CLI = ${CLAUDE_VERSION:-unavailable} (expected 2.1.285)"
+fi
 
 echo
 echo "== settings.json required keys (${SETTINGS}) =="
@@ -36,6 +52,7 @@ if CX test -f "${SETTINGS}"; then
         fi
     }
     check_jq 'acp.agents.pi.command == "pi-code"'            '.["acp.agents"].pi.command == "pi-code"'
+    check_jq 'acp.agents.claude.command == "claude-agent-acp"' '.["acp.agents"].claude.command == "claude-agent-acp"'
     check_jq 'security.workspace.trust.enabled == false'      '.["security.workspace.trust.enabled"] == false'
     check_jq 'security.workspace.trust.startupPrompt == "never"' '.["security.workspace.trust.startupPrompt"] == "never"'
     check_jq 'security.workspace.trust.banner == "never"'      '.["security.workspace.trust.banner"] == "never"'

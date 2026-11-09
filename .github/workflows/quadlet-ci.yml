@@ -39,6 +39,9 @@ jobs:
       - name: The per-app lock is given back by a script that ends normally
         run: tests/lock-release.sh
 
+      - name: Persistent IDE settings merge preserves user changes
+        run: bash tests/merge-settings.sh
+
       - name: shellcheck
         run: |
           shopt -s globstar nullglob
