@@ -4,10 +4,10 @@ Connect this code-server deployment’s **Claude Code, Codex and Pi Agent** to P
 
 ## Install
 
-Install `woowtech.paseo-0.1.2.vsix` through **Extensions → … → Install from VSIX**, or run inside the container:
+Install `woowtech.paseo-0.1.3.vsix` through **Extensions → … → Install from VSIX**, or run inside the container:
 
 ```sh
-code-server --install-extension /opt/woow-connector-vsix/woowtech.paseo-0.1.2.vsix
+code-server --install-extension /opt/woow-connector-vsix/woowtech.paseo-0.1.3.vsix
 ```
 
 This is a normal installed extension, not a built-in. It appears in **Extensions → Installed** with ID `woowtech.paseo`. It does not require a marketplace account or another gallery extension. The default marketplace has not been used to publish this package.

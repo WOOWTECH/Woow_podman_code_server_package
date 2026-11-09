@@ -3,6 +3,7 @@ import importlib.metadata
 import json
 import os
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -28,6 +29,21 @@ class RuntimeContracts(unittest.TestCase):
         self.env = patch.dict(os.environ, {"WOOW_OMNIGENT_SHARED_TOOLS": "1", "PI_CODING_AGENT_DIR": str(self.source)})
         self.env.start()
         self.addCleanup(self.env.stop)
+
+    def test_actual_sdk_runner_preserves_pinned_claude_guard_without_forwarding_unrelated_secrets(self):
+        from omnigent.host.connect import _build_runner_env
+        adapter = Path(__file__).resolve().parents[1] / "index.mjs"
+        source = ("import {environment} from " + json.dumps(adapter.as_uri()) + ";"
+                  "console.log(JSON.stringify(environment({HOME:" + json.dumps(str(self.root)) + ","
+                  "OMNIGENT_CONFIG_HOME:" + json.dumps(str(self.root / "config")) + ","
+                  "UNRELATED_PRIVATE_SECRET:'synthetic-secret',DISABLE_AUTOUPDATER:'0'})));" )
+        base = json.loads(subprocess.check_output(["node", "--input-type=module", "-e", source], text=True))
+        with patch.dict(os.environ, {"HOME": str(self.root), "OMNIGENT_CONFIG_HOME": str(self.root / "config")}, clear=True):
+            runner = _build_runner_env(base, server_url="http://127.0.0.1:8000", runner_id="test-runner",
+                                       binding_token="synthetic-binding", workspace=str(self.root), parent_pid=1,
+                                       harness="claude-native")
+        self.assertEqual(runner["DISABLE_AUTOUPDATER"], "1")
+        self.assertNotIn("UNRELATED_PRIVATE_SECRET", runner)
 
     def test_codex_private_home_gets_shared_skills_and_mcp_but_model_edits_stay_private(self):
         from omnigent.inner.codex_executor import _populate_codex_home_config

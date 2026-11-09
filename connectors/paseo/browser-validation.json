@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-11-09T19:18:10.919Z",
+  "checkedAt": "2026-11-09T20:02:09.584008+00:00",
   "official": {
     "url": "https://app.paseo.sh/",
     "httpStatus": 200,
@@ -33,14 +33,72 @@
   },
   "fullThreeAgentBrowserJourney": {
     "implemented": true,
-    "executed": false,
-    "realModelRepliesVerified": false,
-    "modelSwitchesVerified": false,
-    "pending": "Assigned authenticated code-server deployment, its fresh pairing URL, live model selections, and read-only inspector transport."
+    "executed": true,
+    "target": "Podman existing QA container",
+    "installationMode": "Parent directly installed pinned runtime into existing QA; not a newly built image validation",
+    "workspace": "/workspace/connector-qa",
+    "realModelRepliesVerified": true,
+    "modelSwitchesVerified": true,
+    "sameConversationVerified": true,
+    "sharedMcpProofVerified": true,
+    "archiveCleanupVerified": true,
+    "providerPromptTurns": 9,
+    "providers": [
+      {
+        "provider": "claude",
+        "models": [
+          "claude-sonnet-5-5",
+          "claude-opus-5-5"
+        ],
+        "passed": true,
+        "uiCreated": true,
+        "twoTurns": true,
+        "modelSwitch": true,
+        "runtimeVerified": true,
+        "cleanupConfirmed": true,
+        "sameAgent": true,
+        "sharedSkillMcpVerified": true,
+        "newProofCalls": 1
+      },
+      {
+        "provider": "codex",
+        "models": [
+          "gpt-6.1-sol",
+          "gpt-6-sol"
+        ],
+        "passed": true,
+        "uiCreated": true,
+        "twoTurns": true,
+        "modelSwitch": true,
+        "runtimeVerified": true,
+        "cleanupConfirmed": true,
+        "sameAgent": true,
+        "sharedSkillMcpVerified": true,
+        "newProofCalls": 1
+      },
+      {
+        "provider": "pi",
+        "models": [
+          "openai-codex/gpt-6.1-sol",
+          "openai-codex/gpt-6-sol"
+        ],
+        "passed": true,
+        "uiCreated": true,
+        "twoTurns": true,
+        "modelSwitch": true,
+        "runtimeVerified": true,
+        "cleanupConfirmed": true,
+        "sameAgent": true,
+        "sharedSkillMcpVerified": true,
+        "newProofCalls": 1
+      }
+    ],
+    "claudeVersionAfter": "2.1.285",
+    "autoUpdaterGuard": "DISABLE_AUTOUPDATER=1 explicitly forwarded to Claude SDK provider env after this run"
   },
   "contractTests": {
     "command": "node --test connectors/paseo/tests/adapter.test.mjs connectors/paseo/tests/browser-contract.test.mjs",
-    "passed": 17,
+    "passed": 20,
     "failed": 0
   },
   "privacy": {

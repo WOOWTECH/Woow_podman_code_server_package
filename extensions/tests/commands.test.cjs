@@ -4,24 +4,38 @@ const assert = require('node:assert/strict');
 const { createExtension } = require('../shared/extension.cjs');
 const { html } = require('../shared/ui.cjs');
 function harness(connector, responses={}) {
-  const commands=new Map(), calls=[], logs=[], updates=[], notices=[], opened=[], posted=[], inputOptions=[];
+  const commands=new Map(), calls=[], logs=[], updates=[], notices=[], opened=[], posted=[], inputOptions=[], editorCommands=[];
   const values={runtimePath:'/usr/local/bin/woow-connectors',workspace:'/workspace',hostName:'test',server:'https://omnigent.example.org',webUrl:connector==='paseo'?'https://app.paseo.sh':''};
   const inputs=[], picks=[];
   let receive;
   const disposable={dispose(){}};
   const panel={webview:{html:'',postMessage:message=>posted.push(message),onDidReceiveMessage:fn=>{receive=fn;return disposable;}},reveal(){},onDidDispose(){return disposable;},dispose(){}};
   const vscode={
-    ConfigurationTarget:{Global:1},ViewColumn:{One:1},Uri:{parse:value=>value},
+    ConfigurationTarget:{Global:1},ViewColumn:{One:1},UIKind:{Desktop:1,Web:2},Uri:{parse:value=>value},
     EventEmitter:class {event=()=>{};fire(){}dispose(){}},
     workspace:{isTrusted:true,getConfiguration:()=>({inspect:key=>({defaultValue:values[key]}),update:async(key,value)=>{updates.push([key,value]);values[key]=value;}}),onDidChangeConfiguration:()=>disposable},
     env:{openExternal:async url=>{opened.push(url);return true;}},
-    commands:{registerCommand:(id,fn)=>{commands.set(id,fn);return disposable;},executeCommand:async()=>{}},
+    commands:{registerCommand:(id,fn)=>{commands.set(id,fn);return disposable;},executeCommand:async(...args)=>{editorCommands.push(args);}},
     window:{createOutputChannel:()=>({appendLine:line=>logs.push(line),dispose(){}}),registerTreeDataProvider:()=>disposable,createWebviewPanel:()=>panel,showInputBox:async options=>{inputOptions.push(options);return inputs.shift();},showQuickPick:async()=>picks.shift(),showInformationMessage:async text=>notices.push(text),showErrorMessage:async text=>notices.push(text)},
   };
   const ext=createExtension(connector,{vscode,createRuntime:options=>async request=>{calls.push(request);const response=responses[request.action]??{ok:true,phase:'online'};options.onEvent({connector,action:request.action,ok:response.ok});return response;}});
   const api=ext.activate({subscriptions:[]});
-  return {ext,api,vscode,commands,calls,logs,updates,notices,opened,posted,inputs,picks,inputOptions,panel,values,receive:message=>receive(message)};
+  return {ext,api,vscode,commands,calls,logs,updates,notices,opened,posted,inputs,picks,inputOptions,panel,values,editorCommands,receive:message=>receive(message)};
 }
+test('native settings opens container machine settings in remote and browser hosts without changing configuration', async () => {
+  for (const connector of ['paseo','omnigent']) {
+    for (const [environment, expected] of [
+      [{remoteName:'code-server',uiKind:1},'workbench.action.openRemoteSettings'],
+      [{uiKind:2},'workbench.action.openRemoteSettings'],
+      [{uiKind:1},'workbench.action.openSettings'],
+    ]) {
+      const h=harness(connector);Object.assign(h.vscode.env,environment);
+      await h.commands.get(`woow.${connector}.settings`)();
+      assert.deepEqual(h.editorCommands,[[expected,{query:`@ext:woowtech.${connector}`}]]);
+      assert.equal(h.calls.length,0);assert.equal(h.updates.length,0);
+    }
+  }
+});
 test('activation and window deactivation do not start or stop backend processes', () => {
   for(const name of ['paseo','omnigent']) {const h=harness(name);assert.equal(h.calls.length,0);assert.ok(h.commands.has(`woow.${name}.configure`));h.ext.deactivate();assert.equal(h.calls.length,0);}
 });

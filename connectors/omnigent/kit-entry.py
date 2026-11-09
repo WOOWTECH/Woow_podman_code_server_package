@@ -48,7 +48,9 @@ def main():
         raise SystemExit("kit-entry: product command required")
     env = dict(os.environ)
     env["WOOW_OMNIGENT_SHARED_TOOLS"] = "1"
-    shared_names = ["WOOW_OMNIGENT_SHARED_TOOLS", "PI_AGENT_DATA_DIR", "PI_CODING_AGENT_DIR", "CODEX_HOME", "CLAUDE_CONFIG_DIR"]
+    # Keep the deployment's pinned CLI intact through the kit and SDK filters.
+    env["DISABLE_AUTOUPDATER"] = "1"
+    shared_names = ["WOOW_OMNIGENT_SHARED_TOOLS", "PI_AGENT_DATA_DIR", "PI_CODING_AGENT_DIR", "CODEX_HOME", "CLAUDE_CONFIG_DIR", "DISABLE_AUTOUPDATER"]
     env["OG_PASSTHROUGH"] = ",".join(dict.fromkeys(filter(None, env.get("OG_PASSTHROUGH", "").split(",") + shared_names)))
     data = env.get("PI_AGENT_DATA_DIR", "/data/pi-agent")
     env.setdefault("PI_AGENT_DATA_DIR", data)

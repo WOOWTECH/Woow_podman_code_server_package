@@ -17,8 +17,8 @@ npm run package --prefix extensions
 
 ```json
 [
-  {"id":"woowtech.paseo","version":"0.1.2","file":"woowtech.paseo-0.1.2.vsix","sha256":"<sha256>"},
-  {"id":"woowtech.omnigent","version":"0.1.2","file":"woowtech.omnigent-0.1.2.vsix","sha256":"<sha256>"}
+  {"id":"woowtech.paseo","version":"0.1.3","file":"woowtech.paseo-0.1.3.vsix","sha256":"<sha256>"},
+  {"id":"woowtech.omnigent","version":"0.1.3","file":"woowtech.omnigent-0.1.3.vsix","sha256":"<sha256>"}
 ]
 ```
 
@@ -72,3 +72,5 @@ These tests do not replace installation in the real code-server browser, HA Ingr
 ## Reference architecture
 
 The implementation uses public [VS Code workspace extension host](https://code.visualstudio.com/api/advanced-topics/extension-host), [manifest](https://code.visualstudio.com/api/references/extension-manifest), and [webview APIs](https://code.visualstudio.com/api/extension-guides/webview). Existing connector source snapshots and licenses are recorded in the repository's `docs/research/code-server-connectors-sources.json`; no reference plugin source is copied into these VSIX files.
+
+Native settings open the container’s Remote settings in code-server, where machine-scoped connector fields are visible. In desktop VS Code without a remote host, they open User settings.

@@ -1,12 +1,12 @@
 {
-  "checkedAt": "2026-11-09T19:18:10.919Z",
+  "checkedAt": "2026-11-09T20:02:09.584008+00:00",
   "platform": "linux",
   "arch": "x64",
   "node": "22.23.4",
   "paseoVersion": "0.11.2",
   "behavioralTests": {
     "command": "node --test connectors/paseo/tests/adapter.test.mjs connectors/paseo/tests/browser-contract.test.mjs",
-    "passed": 17,
+    "passed": 20,
     "failed": 0
   },
   "isolatedDaemonIntegration": {
@@ -22,12 +22,17 @@
   },
   "notVerified": [
     "new-image npm ci install step",
-    "real Claude/Codex/Pi model replies",
-    "real model switching",
-    "shared skill/MCP invocation",
-    "Podman/HA/PaaS deployment",
-    "arm64 runtime",
-    "three-agent real Paseo Web conversations and model switching"
+    "HA/PaaS real Web conversations, model switching and shared MCP proof",
+    "arm64 runtime"
   ],
-  "browserValidation": "browser-validation.json"
+  "browserValidation": "browser-validation.json",
+  "podmanQa": {
+    "realThreeAgentWebConversations": true,
+    "realModelSwitches": true,
+    "sharedSkillRequestedAndMcpProofVerified": true,
+    "allCreatedConversationsArchived": true,
+    "claudePinnedVersionAfter": "2.1.285",
+    "installedUnconfiguredPhase": "not_configured",
+    "evidence": "browser-validation.json"
+  }
 }

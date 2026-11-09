@@ -15,12 +15,15 @@ export function environment(env=process.env) {
   const sdkData = managed ? env.OG_DATA_DIR || env.OMNIGENT_DATA_DIR || config : config;
   const nativeHome = value => /\/(?:codex-native|claude-native)\//.test(value || '');
   const passthrough=[...new Set((env.OMNIGENT_RUNNER_ENV_PASSTHROUGH||'').split(',').filter(Boolean)
-    .concat(['WOOW_OMNIGENT_SHARED_TOOLS','PI_AGENT_DATA_DIR','PI_CODING_AGENT_DIR','CODEX_HOME','CLAUDE_CONFIG_DIR']))].join(',');
+    .concat(['WOOW_OMNIGENT_SHARED_TOOLS','PI_AGENT_DATA_DIR','PI_CODING_AGENT_DIR','CODEX_HOME','CLAUDE_CONFIG_DIR','DISABLE_AUTOUPDATER']))].join(',');
   // Preserve the deployment's native homes. Never inherit a native session home
   // as the source for subsequent sessions.
   return {...env, PI_AGENT_DATA_DIR:data, PI_CODING_AGENT_DIR:data,
     CODEX_HOME:env.CODEX_HOME&&!nativeHome(env.CODEX_HOME)?env.CODEX_HOME:path.join(data,'codex'),
     CLAUDE_CONFIG_DIR:env.CLAUDE_CONFIG_DIR&&!nativeHome(env.CLAUDE_CONFIG_DIR)?env.CLAUDE_CONFIG_DIR:path.join(data,'claude'),
+    // The image owns the pinned Claude installation. SDK runner env filtering
+    // otherwise drops this flag, allowing a native chat to replace that CLI.
+    DISABLE_AUTOUPDATER:'1',
     OMNIGENT_RUNNER_ENV_PASSTHROUGH:passthrough,
     WOOW_OMNIGENT_SHARED_TOOLS:'1', WOOW_OMNIGENT_CONNECTOR_STATE:state,
     OMNIGENT_CONFIG_HOME:config, OMNIGENT_DATA_DIR:sdkData,

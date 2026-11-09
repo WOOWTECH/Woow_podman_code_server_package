@@ -238,6 +238,11 @@ export async function configure(options = {}) {
 export async function status() {
   return singleFlight(`status:${locations().paseoHome}`,readStatus);
 }
+export function statusPhase(state, installed, running) {
+  if (state.phase === 'running' && !running) return 'stopped';
+  if (state.phase) return state.phase;
+  return installed ? (state.settings?.cwd ? 'not_started' : 'not_configured') : 'not_installed';
+}
 async function readStatus() {
   const state = readState(); const installed = !!controlRuntimeDirectory(); const owned = ownsHome();
   const daemon = { running: false, reachable: false, owned, pid: null, listen: null, relayEnabled: false, relayConnected: null, relayVerified: state.relayVerification?.verified === true, relayVerifiedAt: state.relayVerification?.checkedAt || null };
@@ -257,7 +262,7 @@ async function readStatus() {
       }
     } catch (error) { diagnosticCode = safeCode(error); }
   }
-  const phase = state.phase === 'running' && !daemon.running ? 'stopped' : state.phase || 'not_installed';
+  const phase = statusPhase(state, installed, daemon.running);
   return { installed, version: installed ? PASEO_VERSION : null, enabled: state.desiredEnabled === true, phase, daemon, providers, chatVerified: state.acceptance?.passed === true, pairingAvailable: daemon.reachable, diagnosticCode, state };
 }
 export async function diagnose() {

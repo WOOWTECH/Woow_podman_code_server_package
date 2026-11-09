@@ -22,6 +22,9 @@ Object.assign(process.env, {
 for (const name of Object.keys(process.env)) if (/TOKEN|PASSWORD|SECRET|API_KEY/.test(name)) delete process.env[name];
 for (const directory of [process.env.HOME, process.env.PI_AGENT_DATA_DIR, process.env.CLAUDE_CONFIG_DIR, process.env.CODEX_HOME]) fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
 try {
+  const fresh = await handle({ action: 'status' });
+  assert.equal(fresh.installed, true);
+  assert.equal(fresh.phase, 'not_configured');
   assert.equal((await handle({ action: 'restore' })).restored, false);
   const starts = await Promise.all([handle({ action: 'start' }), handle({ action: 'start' })]);
   assert.equal(starts[0].ok, true, JSON.stringify(starts[0]));

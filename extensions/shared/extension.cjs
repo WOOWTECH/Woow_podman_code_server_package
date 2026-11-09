@@ -124,7 +124,12 @@ function createExtension(connector, dependencies = {}) {
     panel?.webview.postMessage({ type: 'busy', busy: true });
     let result;
     try {
-      if (action === 'settings') return await vscode.commands.executeCommand('workbench.action.openSettings', `@ext:woowtech.${connector}`);
+      if (action === 'settings') {
+        // Machine settings live in the container. The browser's local User tab
+        // hides them, so opening the default Settings page shows no results.
+        const remote = vscode.env.remoteName || (vscode.UIKind && vscode.env.uiKind === vscode.UIKind.Web);
+        return await vscode.commands.executeCommand(remote ? 'workbench.action.openRemoteSettings' : 'workbench.action.openSettings', { query: `@ext:woowtech.${connector}` });
+      }
       if (action === 'status') {
         result = await refresh();
         if (!panel) {

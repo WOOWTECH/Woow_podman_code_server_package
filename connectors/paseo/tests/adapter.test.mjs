@@ -7,7 +7,7 @@ import { handle, allowedActions, normalizeRequest } from '../index.mjs';
 import { locations, readState, updateState, withRuntimeLock, processIdentity } from '../src/state.mjs';
 import { configureProviders, resolveProviderLaunchers, providerEnvironment } from '../src/provider-launchers.mjs';
 import { chatResult, latestAssistantCursor } from '../src/chat-result.mjs';
-import { applyVerifiedModel } from '../src/runtime.mjs';
+import { applyVerifiedModel, statusPhase } from '../src/runtime.mjs';
 import { runProcess } from '../src/process.mjs';
 
 function fixture(t) {
@@ -21,6 +21,14 @@ function fixture(t) {
   });
   return root;
 }
+
+test('installed runtime without configuration is not reported as uninstalled', () => {
+  assert.equal(statusPhase({}, true, false), 'not_configured');
+  assert.equal(statusPhase({ settings: { cwd: '/workspace' } }, true, false), 'not_started');
+  assert.equal(statusPhase({}, false, false), 'not_installed');
+  assert.equal(statusPhase({ phase: 'running' }, true, false), 'stopped');
+  assert.equal(statusPhase({ phase: 'disabled' }, true, false), 'disabled');
+});
 
 test('fresh status and periodic restore neither write state nor start/install runtime', async t => {
   const root = fixture(t);
@@ -84,6 +92,18 @@ test('all providers reuse the deployment homes and missing providers never trigg
     for (const key of ['CODEX_HOME', 'CLAUDE_CONFIG_DIR', 'PI_CODING_AGENT_DIR', 'PI_AGENT_DATA_DIR']) assert.equal(config[provider].env[key], env[key]);
   }
   assert.equal(providerEnvironment(loc, {}).CODEX_HOME, '/deployment/agents/codex');
+});
+
+test('Claude updater is disabled in discovery and explicit SDK child configuration', async () => {
+  const loc = { home: '/home/runtime', dataDir: '/deployment/agents', agentDir: '/deployment/pi' };
+  const env = { DISABLE_AUTOUPDATER: '0', CLAUDE_CONFIG_DIR: '/private/claude' };
+  const launches = [];
+  const launchers = await resolveProviderLaunchers(loc, { env, discover: provider => provider === 'claude' ? '/usr/bin/claude' : null, run: async (_command, _args, options) => { launches.push(options.env); return '2.1.285'; } });
+  assert.equal(launches[0].DISABLE_AUTOUPDATER, '1');
+  const configured = configureProviders({}, launchers, loc, env);
+  assert.equal(configured.claude.env.DISABLE_AUTOUPDATER, '1');
+  assert.equal(configured.claude.env.CLAUDE_CONFIG_DIR, '/private/claude');
+  assert.equal(configured.claude.command[0], '/usr/bin/claude');
 });
 
 test('verify does not report ok when a selected provider cannot answer', async t => {

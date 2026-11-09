@@ -11,6 +11,9 @@ export function providerEnvironment(loc, env = process.env) {
     PI_CODING_AGENT_DIR: env.PI_CODING_AGENT_DIR || loc.agentDir,
     CLAUDE_CONFIG_DIR: env.CLAUDE_CONFIG_DIR || path.join(loc.dataDir, 'claude'),
     CODEX_HOME: env.CODEX_HOME || path.join(loc.dataDir, 'codex'),
+    // Engines are image-pinned. A client or SDK child must never self-update the
+    // shared executable, even if a caller's ambient environment says otherwise.
+    DISABLE_AUTOUPDATER: '1',
   };
 }
 
@@ -38,6 +41,6 @@ export function configureProviders(previous, launchers, loc, env = process.env) 
   return Object.fromEntries(PROVIDERS.map(provider => [provider, {
     enabled: launchers[provider].startup === 'ready',
     ...(launchers[provider].command ? { command: [path.resolve(launchers[provider].command)] } : {}),
-    env: providerEnv,
+    env: provider === 'claude' ? { ...providerEnv, DISABLE_AUTOUPDATER: '1' } : { ...providerEnv },
   }]));
 }

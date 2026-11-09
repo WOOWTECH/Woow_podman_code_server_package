@@ -14,12 +14,25 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("kit_entry", ROOT / "kit-entry.py")
 entry = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(entry)
 KIT = os.environ.get("WOOW_TEST_KIT_SOURCE")
+
+
+class KitEnvironment(unittest.TestCase):
+    def test_deployment_kit_forwards_pinned_claude_guard(self):
+        with patch.dict(os.environ, {"OG_HOST_ENABLED": "0", "OG_PASSTHROUGH": "EXISTING_FLAG", "DISABLE_AUTOUPDATER": "0"}, clear=True), \
+                patch.object(sys, "argv", ["kit-entry.py", "--", "product-entry"]), \
+                patch.object(os, "execvpe") as execute:
+            entry.main()
+        env = execute.call_args.args[2]
+        self.assertEqual(env["DISABLE_AUTOUPDATER"], "1")
+        self.assertIn("DISABLE_AUTOUPDATER", env["OG_PASSTHROUGH"].split(","))
+        self.assertIn("EXISTING_FLAG", env["OG_PASSTHROUGH"].split(","))
 
 
 @unittest.skipUnless(KIT, "set WOOW_TEST_KIT_SOURCE to the canonical kit")

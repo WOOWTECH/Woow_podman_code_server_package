@@ -19,6 +19,8 @@ export function validatePlan(value) {
     if (row.models.some(model => typeof model.id !== 'string' || !/^[A-Za-z0-9_./:+-]{1,200}$/.test(model.id) || typeof model.label !== 'string' || !model.label || model.label.length > 200)) fail('INVALID_MODEL_SELECTION');
   }
   if (value.turnTimeoutMs !== undefined && (!Number.isInteger(value.turnTimeoutMs) || value.turnTimeoutMs < 1000 || value.turnTimeoutMs > 600000)) fail('INVALID_TIMEOUT');
+  if (value.sharedProof !== undefined && typeof value.sharedProof !== 'boolean') fail('INVALID_SHARED_PROOF_PLAN');
+  if (value.sharedProof && !/^paseo-(podman|ha|paas)$/.test(value.proofRunPrefix || '')) fail('INVALID_SHARED_PROOF_PREFIX');
   return value;
 }
 
@@ -32,15 +34,17 @@ export function readPrivatePlan(file) {
 }
 
 export async function chooseModelInBrowser(page, provider, model) {
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="combined-model-selector"]')].some(node => node.getBoundingClientRect().width && !/Loading/i.test(node.getAttribute('aria-label') || '')), undefined, { timeout: 45000 });
   await page.getByTestId('combined-model-selector').filter({ visible: true }).first().click();
   const row = page.getByTestId(`model-row-${provider}-${model.id}`).filter({ visible: true });
-  if (!(await row.count())) {
-    const providerRow = page.getByTestId(`model-provider-${provider}`).filter({ visible: true });
-    if (!(await providerRow.count())) {
-      const back = page.getByRole('dialog').getByRole('button', { name: 'Back', exact: true });
-      if (await back.isVisible()) await back.click();
-    }
-    if (await providerRow.count()) await providerRow.click();
+  const providerRow = page.getByTestId(`model-provider-${provider}`).filter({ visible: true });
+  const back = page.getByRole('button', { name: 'Back', exact: true }).filter({ visible: true });
+  const deadline = Date.now() + 45000;
+  while (!(await row.first().isVisible())) {
+    if (Date.now() > deadline) fail('MODEL_SELECTOR_CONTENT_UNAVAILABLE');
+    if (await providerRow.first().isVisible()) { await providerRow.first().click(); await row.first().waitFor({ timeout: 30000 }); break; }
+    if (await back.first().isVisible()) await back.first().click();
+    await page.waitForTimeout(200);
   }
   await row.first().waitFor({ timeout: 30000 });
   await row.first().click();
@@ -89,7 +93,7 @@ async function closeTestAgent(page, agentId) {
   await tab.waitFor({ state: 'hidden', timeout: 30000 });
 }
 
-export async function runAcceptance(page, plan, inspect) {
+export async function runAcceptance(page, plan, inspect, onProgress = () => {}) {
   await pairBrowser(page, plan.pairUrl);
   const newAgentUrl = await openProjectInBrowser(page, plan.workspace);
   if (plan.mode === 'pair') return { ok: true, pairingConfirmedInBrowser: true, remoteDirectoryOpenedThroughBrowser: true, realModelsTested: false };
@@ -98,6 +102,7 @@ export async function runAcceptance(page, plan, inspect) {
   for (const selection of plan.providers) {
     const row = { provider: selection.id, passed: false, uiCreated: false, twoTurns: false, modelSwitch: false, runtimeVerified: false, cleanupConfirmed: false };
     let id, submitted = false, priorTabs = [], stage = 'open_new_conversation';
+    onProgress({ provider: selection.id, stage });
     try {
       await page.goto(newAgentUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
       const composer = page.getByRole('textbox', { name: 'Message agent...' }).first();
@@ -116,6 +121,7 @@ export async function runAcceptance(page, plan, inspect) {
       await waitForNewAssistant(page, previousCount, marker, plan.turnTimeoutMs || 180000);
       stage = 'inspect_first_reply';
       const first = await checkRuntime(inspect, { agentId: id, provider: selection.id, model: selection.models[0].id, marker });
+      onProgress({ provider: selection.id, stage: 'first_reply_verified', agentId: id });
       const beforeSecond = await page.getByTestId('assistant-message').filter({ visible: true }).count();
       stage = 'switch_model_in_browser';
       await chooseModelInBrowser(page, selection.id, selection.models[1]);
@@ -124,10 +130,30 @@ export async function runAcceptance(page, plan, inspect) {
       stage = 'second_reply';
       await waitForNewAssistant(page, beforeSecond, marker, plan.turnTimeoutMs || 180000);
       stage = 'inspect_second_reply';
-      await checkRuntime(inspect, { agentId: id, provider: selection.id, model: selection.models[1].id, marker, previousCursor: first.cursor });
+      const second = await checkRuntime(inspect, { agentId: id, provider: selection.id, model: selection.models[1].id, marker, previousCursor: first.cursor });
       row.twoTurns = true; row.modelSwitch = true; row.runtimeVerified = true;
       row.models = selection.models.map(model => model.id);
       row.sameAgent = (await selectedAgentId(page)) === id;
+      onProgress({ provider: selection.id, stage: 'model_switch_verified', agentId: id });
+      if (plan.sharedProof) {
+        stage = 'shared_skill_mcp_proof';
+        const run = `${plan.proofRunPrefix}-${selection.id}-${randomUUID().replaceAll('-', '').slice(0, 8)}`;
+        row.proofRun = run;
+        const before = await inspect({ mode: 'proof', run });
+        if (before?.ok !== true || !Array.isArray(before.rows) || before.rows.length !== 0) fail('PROOF_BASELINE_NOT_EMPTY');
+        const previous = await page.getByTestId('assistant-message').filter({ visible: true }).count();
+        await composer.fill(`Use the woow-connector-proof skill with run label ${run}. Follow that skill and return only the exact tool output.`);
+        await composer.press('Enter');
+        await waitForNewAssistant(page, previous, 'CONNECTOR-', plan.turnTimeoutMs || 180000);
+        const after = await inspect({ mode: 'proof', run });
+        const proof = after?.rows?.at(-1)?.proof;
+        if (after?.ok !== true || !/^CONNECTOR-[0-9a-f]{32}$/.test(proof || '')) fail('NEW_MCP_PROOF_NOT_FOUND');
+        if (!(await page.getByTestId('assistant-message').filter({ visible: true }).last().innerText()).includes(proof)) fail('ASSISTANT_PROOF_MISMATCH');
+        await checkRuntime(inspect, { agentId: id, provider: selection.id, model: selection.models[1].id, marker: proof, previousCursor: second.cursor });
+        row.sharedSkillMcpVerified = true;
+        row.newProofCalls = after.rows.length;
+        onProgress({ provider: selection.id, stage: 'shared_skill_mcp_verified', agentId: id });
+      }
     } catch (error) {
       row.error = safeFailure(error).error;
       row.failedStage = stage;
@@ -147,8 +173,9 @@ export async function runAcceptance(page, plan, inspect) {
           row.cleanupConfirmed = archived?.ok === true && archived.archived === true;
         } catch { row.cleanupConfirmed = false; }
       }
-      row.passed = row.twoTurns && row.modelSwitch && row.sameAgent === true && row.runtimeVerified && row.cleanupConfirmed;
+      row.passed = row.twoTurns && row.modelSwitch && row.sameAgent === true && row.runtimeVerified && row.cleanupConfirmed && (!plan.sharedProof || row.sharedSkillMcpVerified === true);
       results.push(row);
+      onProgress({ provider: selection.id, stage: 'completed', passed: row.passed, failedStage: row.failedStage });
     }
   }
   return { ok: results.length === 3 && results.every(row => row.passed), pairingConfirmedInBrowser: true, realModelsTested: true, providers: results };
@@ -166,7 +193,7 @@ export async function main() {
     }
     browser = await launchBrowser();
     const { page } = await freshPage(browser);
-    const result = await runAcceptance(page, plan, inspect);
+    const result = await runAcceptance(page, plan, inspect, event => process.stderr.write(JSON.stringify({ browserProgress: event }) + '\n'));
     process.stdout.write(JSON.stringify(result) + '\n');
     if (!result.ok) process.exitCode = 1;
   } catch (error) {

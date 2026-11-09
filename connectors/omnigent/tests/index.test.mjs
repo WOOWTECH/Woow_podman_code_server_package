@@ -12,6 +12,8 @@ test('deployment homes override a nested native session without copying credenti
   assert.equal(env.WOOW_OMNIGENT_CONNECTOR_STATE,'/private/connectors/omnigent');
   assert.equal(env.OMNIGENT_CONFIG_HOME,'/private/connectors/omnigent/sdk');
   assert.ok(env.OMNIGENT_RUNNER_ENV_PASSTHROUGH.includes('WOOW_OMNIGENT_SHARED_TOOLS'));
+  assert.equal(env.DISABLE_AUTOUPDATER,'1');
+  assert.ok(env.OMNIGENT_RUNNER_ENV_PASSTHROUGH.split(',').includes('DISABLE_AUTOUPDATER'));
 });
 test('explicit deployment native homes are preserved',()=>{
   const env=environment({PI_AGENT_DATA_DIR:'/data/tenant',CODEX_HOME:'/data/custom-codex',CLAUDE_CONFIG_DIR:'/data/custom-claude'});

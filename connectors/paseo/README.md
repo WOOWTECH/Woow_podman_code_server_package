@@ -63,12 +63,16 @@ All examples are JSON sent on stdin to `/usr/local/bin/woow-connectors`:
   Changes do not implicitly start a daemon. Stop before changing a live port.
   Display name is a connector label; Paseo itself rejects `daemon.name`.
 - `start`: enables persistent desired state, starts or safely reuses one daemon.
+  Existing engine binaries remain image-pinned: `DISABLE_AUTOUPDATER=1` is forced
+  during discovery and explicitly forwarded in Claude's provider/SDK environment.
 - `stop`: writes disabled state before stopping the owned daemon. Restore respects
   this even if the stop operation itself fails.
 - `restore`: no state/disabled means no start. Only explicitly enabled state may
   restore after process/container loss.
 - `status`: distinguishes `daemon.running`, `daemon.reachable`, `relayEnabled`,
   `relayConnected` (null if the daemon does not report it), and `chatVerified`.
+  An installed runtime with no configuration reports `not_configured`; one with
+  workspace settings but no started daemon reports `not_started`.
   `online` means the local control connection is reachable, not proof that a Web
   client has paired or a model answered. It contains no pairing URL or raw state.
 - `pair`: returns official `https://app.paseo.sh/...` URL and `sensitive:true` only
@@ -144,8 +148,11 @@ node --test connectors/paseo/tests/adapter.test.mjs connectors/paseo/tests/brows
 On 2026-11-10, the official client returned HTTP 200 and rendered **v0.15.3** in
 Chrome 143.0.7499.169 / Playwright 1.61.1. Browser pairing to daemon 0.11.2 and
 remote-directory opening succeeded. Therefore no extra self-hosted Web server or
-proxy assets were added. See `browser-validation.json`. This is not evidence that
-the three authenticated providers have passed Web conversation/model tests.
+proxy assets were added. See `browser-validation.json` for the separate Podman
+QA run: all three authenticated providers passed two model turns, switching
+models inside the same conversation, a shared MCP proof turn, and archive cleanup.
+The tested Podman container used the parent's directly installed pinned runtime;
+this result does not validate a newly built image or the HA/PaaS deployments.
 
 `tests/browser-acceptance.mjs` is the live three-agent harness. Put its JSON plan
 in a current-user-owned **0600 file outside this Git checkout**; it contains the
@@ -177,6 +184,15 @@ new server timeline cursor, matching actual `runtimeInfo.model`, and confirmed
 archive cleanup. No browser state, tokens, screenshots, HARs, traces, prompts or
 assistant text are saved. Failure output contains a stable code/stage only.
 
+For an explicitly prepared shared skill/MCP fixture, set `sharedProof:true` and
+`proofRunPrefix:"paseo-podman"` (also `paseo-ha` or `paseo-paas`). The harness adds
+a third Web turn requesting the `woow-connector-proof` skill. Its inspector must
+also accept `{mode:"proof",run}` and return `{ok:true,rows:[{run,tool,proof}]}` from
+the fixture's invocation log. Each run label is fresh; the baseline must be empty,
+the MCP server must record a new `read_proof` call, and its generated proof must
+appear in both the new assistant DOM node and the new server timeline entry.
+Only proof labels/counts and success flags are reported, not conversation text.
+
 Provide a read-only inspector module using `WOOW_PASEO_INSPECT_MODULE`. For a
 browser running on the same deployment, use the absolute path to
 `tests/inspect-local.mjs`; it inherits that deployment's connector environment.
@@ -197,9 +213,10 @@ node connectors/paseo/tests/browser-acceptance.mjs
 
 By default Playwright is loaded from the sibling `browser-tools/node_modules` and
 Chrome from `/usr/bin/google-chrome`; overrides are `WOOW_PLAYWRIGHT_MODULE`
-(absolute module entry path) and `WOOW_CHROME_PATH`. The real three-agent journey
-must still run on the assigned, authenticated deployment; the harness itself and
-its synthetic contract tests do not establish successful model conversations.
+(absolute module entry path) and `WOOW_CHROME_PATH`. Run the real journey on each
+assigned deployment; the harness and its synthetic contract tests alone do not
+establish successful model conversations. Podman evidence does not transfer to
+HA/PaaS or different provider credentials.
 
 ## Source and license
 

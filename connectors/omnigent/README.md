@@ -85,6 +85,14 @@ deployment agent directory's settings plus skills/extensions/prompts/MCP. Claude
 continues to use the deployment `CLAUDE_CONFIG_DIR`. Changes to MCP require a new
 agent session. Provider auth is not copied between deployments.
 
+The connector and scoped PaaS entry overlay set `DISABLE_AUTOUPDATER=1` and
+explicitly forward it through the host/runner environment allowlist. The image
+owns the pinned native CLIs. Without this forwarding, a native Claude session
+can start its npm self-updater even though the host itself inherited the flag,
+temporarily remove the CLI from PATH, and replace the pinned version. Regression
+coverage exercises the actual Omnigent 0.16.0 runner environment filter and also
+checks that unrelated environment secrets remain filtered.
+
 Tests: `python3 -m unittest discover -s connectors/omnigent/tests -p 'test_*.py'`
 and `node --test connectors/omnigent/tests/*.test.mjs`. These tests are isolated;
 they do not authenticate to a live server or count as real model acceptance.

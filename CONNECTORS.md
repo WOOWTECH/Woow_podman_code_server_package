@@ -11,8 +11,8 @@
 **Install from VSIX…**，或在該 code-server 的終端執行：
 
 ```sh
-code-server --install-extension woowtech.paseo-0.1.2.vsix
-code-server --install-extension woowtech.omnigent-0.1.2.vsix
+code-server --install-extension woowtech.paseo-0.1.3.vsix
+code-server --install-extension woowtech.omnigent-0.1.3.vsix
 ```
 
 VSIX 本身只提供介面；既有的普通 code-server 映像還需要安裝本儲存庫的

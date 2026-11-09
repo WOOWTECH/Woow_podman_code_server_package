@@ -24,6 +24,12 @@ test('browser plan requires all three engines and two distinct models per engine
   assert.throws(() => validatePlan(repeated), { code: 'TWO_DISTINCT_MODELS_REQUIRED' });
 });
 
+test('shared proof requires an explicit deployment prefix and boolean opt-in', () => {
+  assert.throws(() => validatePlan({ ...plan(), sharedProof: 'true' }), { code: 'INVALID_SHARED_PROOF_PLAN' });
+  assert.throws(() => validatePlan({ ...plan(), sharedProof: true }), { code: 'INVALID_SHARED_PROOF_PREFIX' });
+  assert.equal(validatePlan({ ...plan(), sharedProof: true, proofRunPrefix: 'paseo-podman' }).sharedProof, true);
+});
+
 test('pair URL rejects origin changes and userinfo without disclosing its fragment', () => {
   assert.equal(validatePairUrl(pairUrl), pairUrl);
   assert.throws(() => validatePairUrl('https://other.invalid/#sensitive-fragment'), { code: 'INVALID_PAIR_URL' });
