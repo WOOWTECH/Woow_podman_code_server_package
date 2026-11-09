@@ -30,6 +30,7 @@ pi 的狀態（登入、sessions、skills、模型設定）**這個部署內部�
 | **Claude Code** | Claude Code 2.1.285：terminal 可直接 `claude`；ACP chat panel 多一個 **Claude Code** 代理（`claude-agent-acp` 0.84.0）；另有官方擴充。三者共用一次 `claude` 登入（或 `ANTHROPIC_API_KEY`），狀態放在 pi volume 的 `/data/pi-agent/claude` |
 | **Workspace** | 主機 `~/Desktop` bind-mount 到 `/workspace`——你在編輯器改的檔案主機直接看得到，也還是你的擁有者 |
 | **持久化** | Pi 狀態、IDE 設定及使用者後裝擴充各有私有 volume（`woow-code-server-pi-data`、`woow-code-server-ide`、`woow-code-server-extensions`），容器重建後仍在。執行期 `npm install -g` 要持久化時，請用 `--prefix /data/pi-agent/npm-global`。 |
+| **Codex** | 獨立的 Codex CLI 0.167.0 與 ACP 側欄代理 `codex-acp` 2.6.0；執行 `codex login` 後兩者共用 `/data/pi-agent/codex` 的私有持久化登入。Pi 的 `openai-codex` 登入是另一份狀態。 |
 | **監管** | `systemd --user` via Quadlet，`Restart=always`，30 秒健康檢查 |
 
 ---
@@ -131,10 +132,11 @@ ssh -L 18443:127.0.0.1:18443 <host>     # 然後開 http://localhost:18443
 
 ```bash
 podman exec -it -u coder code-server sh -lc 'pi login'
+podman exec -it -u coder code-server sh -lc 'codex login --device-auth'
 ```
 
-之後在 IDE 裡：底部狀態列會顯示 `ACP: pi ACP adapter`（綠燈），右側面板就是用這次登入在跑的
-chat。
+Pi 與獨立 Codex 使用各自的登入檔。在 IDE 的 ACP 側欄選取 `pi`、`claude` 或 `codex`，即可使用
+對應代理及其在本部署私有資料卷中的登入狀態。
 
 > **從舊版（用共用 `pi-agent-data` volume）升級？** 跑 `scripts/migrate-pi-state.sh` 把
 > `settings.json` 和 ACP session map 搬過來（絕對不會搬 `auth.json`——看該腳本自己的警告，

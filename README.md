@@ -31,6 +31,7 @@ cross-platform contract.
 | **IDE** | VS Code (via code-server 4.139.1), OpenVSX extensions |
 | **Agent** | pi 0.99.1 available in the ACP right-side chat panel, and as `pi` on the terminal PATH |
 | **Claude Code** | Claude Code 2.1.285: `claude` on the terminal PATH, a second **Claude Code** agent in the ACP chat panel (`claude-agent-acp` 0.84.0), and the official extension. One `claude` login (or `ANTHROPIC_API_KEY`) serves all three; its state lives in `/data/pi-agent/claude` on the pi volume |
+| **Codex** | Codex CLI 0.167.0 in the terminal and `codex-acp` 2.6.0 as a separate ACP sidebar agent. One `codex login` serves both; its private state is backed up under `/data/pi-agent/codex` (`CODEX_HOME`). Pi's `openai-codex` login remains separate. |
 | **Workspace** | Host `~/Desktop` bind-mounted at `/workspace` — edit files and they land back on the host owned by you |
 | **Persistence** | Pi state, IDE settings, and user-installed VS Code extensions live in separate private volumes (`woow-code-server-pi-data`, `woow-code-server-ide`, `woow-code-server-extensions`) and survive container recreation. Runtime `npm install -g` still lives in the image's writable layer; for a persistent CLI, use `npm install -g --prefix /data/pi-agent/npm-global <pkg>` (that bin dir is on `PATH`). |
 | **Supervision** | `systemd --user` via Quadlet, `Restart=always`, 30s healthcheck timer |
@@ -142,10 +143,11 @@ pi has **no credentials yet** in this deployment's internal store, so sign in on
 
 ```bash
 podman exec -it -u coder code-server sh -lc 'pi login'
+podman exec -it -u coder code-server sh -lc 'codex login --device-auth'
 ```
 
-Then in the IDE: the bottom status bar shows `ACP: pi ACP adapter` in green, and the right-side
-chat panel uses that login.
+Pi and Codex keep separate credentials. In the IDE, select `pi`, `claude`, or `codex` in the
+ACP chat panel; each agent uses its own login in this deployment's private volume.
 
 > **Coming from an older install that used the shared `pi-agent-data` volume?** Run
 > `scripts/migrate-pi-state.sh` to copy `settings.json` and your ACP session map (never

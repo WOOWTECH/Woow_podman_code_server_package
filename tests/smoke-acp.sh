@@ -31,6 +31,17 @@ if CX sh -lc 'command -v claude-agent-acp >/dev/null && command -v claude >/dev/
 else
     bad "Claude Code or claude-agent-acp missing from PATH"
 fi
+if CX sh -lc 'command -v codex-acp >/dev/null && command -v codex >/dev/null && test "$CODEX_HOME" = /data/pi-agent/codex'; then
+    ok "Codex CLI and ACP adapter share the persistent state path"
+else
+    bad "Codex CLI, ACP adapter, or persistent state path missing"
+fi
+CODEX_VERSION="$(CX sh -lc 'codex --version' 2>/dev/null | awk 'NR==1 {print $2}')"
+if [ "${CODEX_VERSION}" = "0.167.0" ]; then
+    ok "Codex CLI = 0.167.0"
+else
+    bad "Codex CLI = ${CODEX_VERSION:-unavailable} (expected 0.167.0)"
+fi
 CLAUDE_VERSION="$(CX sh -lc 'claude --version' 2>/dev/null | awk 'NR==1 {print $1}')"
 if [ "${CLAUDE_VERSION}" = "2.1.285" ]; then
     ok "Claude Code CLI = 2.1.285"
@@ -53,6 +64,7 @@ if CX test -f "${SETTINGS}"; then
     }
     check_jq 'acp.agents.pi.command == "pi-code"'            '.["acp.agents"].pi.command == "pi-code"'
     check_jq 'acp.agents.claude.command == "claude-agent-acp"' '.["acp.agents"].claude.command == "claude-agent-acp"'
+    check_jq 'acp.agents.codex.command == "codex-acp"'     '.["acp.agents"].codex.command == "codex-acp"'
     check_jq 'security.workspace.trust.enabled == false'      '.["security.workspace.trust.enabled"] == false'
     check_jq 'security.workspace.trust.startupPrompt == "never"' '.["security.workspace.trust.startupPrompt"] == "never"'
     check_jq 'security.workspace.trust.banner == "never"'      '.["security.workspace.trust.banner"] == "never"'

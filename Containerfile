@@ -119,6 +119,19 @@ RUN npm install -g --omit=dev --no-fund --no-audit \
 ENV CLAUDE_CONFIG_DIR=/data/pi-agent/claude \
     DISABLE_AUTOUPDATER=1
 
+# Codex is a separate terminal CLI and ACP sidebar agent. Keep its login in
+# this deployment's private, backed-up pi volume; the IDE and login shells
+# must point at the same directory. The ACP package bundles a compatible
+# Codex dependency, and the explicit CLI pin keeps the terminal version fixed.
+ARG CODEX_CLI_VERSION=0.167.0
+ARG CODEX_ACP_VERSION=2.6.0
+RUN npm install -g --omit=dev --no-fund --no-audit \
+      "@openai/codex@${CODEX_CLI_VERSION}" \
+      "@agentclientprotocol/codex-acp@${CODEX_ACP_VERSION}" \
+ && test "$(codex --version)" = "codex-cli ${CODEX_CLI_VERSION}" \
+ && test "$(codex-acp --version)" = "@agentclientprotocol/codex-acp ${CODEX_ACP_VERSION}"
+ENV CODEX_HOME=/data/pi-agent/codex
+
 # --- Stop silent Unicode-space path corruption ---------------------------
 # pi folds U+00A0, U+2000-200A, U+202F, U+205F and U+3000 to an ASCII space
 # on every read/write/edit, and builds its read fallback chain from the
@@ -226,12 +239,14 @@ RUN mkdir -p /opt/pi-agent-skel/home/.pi/agent \
              /opt/pi-agent-skel/skills \
              /opt/pi-agent-skel/npm-global/bin \
              /opt/pi-agent-skel/claude \
+             /opt/pi-agent-skel/codex \
  && touch /opt/pi-agent-skel/.woow-pi-store \
  && mkdir -p /data \
  && cp -a /opt/pi-agent-skel /data/pi-agent \
  && ln -sfn /data/pi-agent/skills /data/pi-agent/home/.pi/agent/skills \
  && chown -R coder:coder /opt/pi-agent-skel /data/pi-agent \
- && chmod 700 /data/pi-agent /opt/pi-agent-skel/claude /data/pi-agent/claude
+ && chmod 700 /data/pi-agent /opt/pi-agent-skel/claude /data/pi-agent/claude \
+              /opt/pi-agent-skel/codex /data/pi-agent/codex
 
 # --- Terminal pi shares state with the ACP chat panel ---------------------
 # code-server's default HOME is /home/coder, but the ACP chat panel scopes
@@ -346,7 +361,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 ARG BUILD_VERSION=dev
 ARG BUILD_DATE=unknown
 LABEL org.opencontainers.image.title="Woow Podman code-server" \
-      org.opencontainers.image.description="code-server + pi coding agent + Claude Code + ACP client, rootless-podman-friendly; pi state aligned with the WOOWTECH HA add-on and k3s chart per PARITY_CONTRACT.md" \
+      org.opencontainers.image.description="code-server + Pi, Claude Code, Codex and ACP client; private agent state on a rootless Podman volume" \
       org.opencontainers.image.source="https://github.com/WOOWTECH/Woow_podman_code_server_package" \
       org.opencontainers.image.vendor="WOOWTECH" \
       org.opencontainers.image.licenses="MIT" \
