@@ -35,5 +35,11 @@ jobs:
       - name: Converge model (drift, backup, downtime, "the second run changes nothing")
         run: tests/converge-model.sh
 
+      - name: Install pinned shared-agent test dependencies
+        run: npm ci --prefix rootfs/opt/woow-agent-tools --omit=dev
+
+      - name: Shared skills and MCP migration
+        run: node --test tests/shared-agents.test.mjs
+
       - name: Persistent IDE settings merge preserves user changes
         run: tests/merge-settings.sh

@@ -322,6 +322,8 @@ ql_wait_container_healthy "$CONTAINER" 300 \
 # settings merge adds the two pinned ACP agents while retaining user customizations.
 podman exec -u coder "$CONTAINER" /usr/local/bin/pi-seed \
   || ql_die "could not seed the persistent Pi/Claude state"
+podman exec -u coder "$CONTAINER" /usr/local/bin/woow-agent-sync \
+  || ql_die "could not synchronize shared agent skills/MCP"
 merge_result=$(podman exec -i -u coder "$CONTAINER" sh -s < "$REPO/scripts/merge-settings.sh") \
   || ql_die "could not merge the persistent IDE settings"
 case $merge_result in

@@ -1,0 +1,7 @@
+#!/bin/sh
+# Run migration as the same user as the upstream entrypoint, before the IDE starts.
+set -eu
+eval "$(fixuid -q)"
+/usr/local/bin/pi-seed
+/usr/local/bin/woow-agent-sync
+exec /usr/bin/entrypoint.sh "$@"

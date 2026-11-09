@@ -13,4 +13,7 @@ Thumbs.db
 .idea/
 
 # Node
-node_modules/
+node_modules
+
+# Build/runtime npm dependencies
+node_modules
