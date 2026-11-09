@@ -14,6 +14,7 @@ import sysconfig
 HASHES = {
     "inner/codex_executor.py": "aa4ccd1220ae5a287411868d05c5e69c2d40d0db1907ee3889bdb76a350f49dd",
     "inner/pi_settings.py": "5f93e9acd0923898a65817b3828cb6b7d47f30cbf99cfd8643d672086e60f157",
+    "harnesses/pi_native/credentials.py": "371b3d604a26d5e1e64bb75fcc99d29b10a1c601edc596ea48ee32e6198d23c5",
 }
 MARKER = "WOOW_SHARED_TOOLS_V1"
 
@@ -31,6 +32,26 @@ def transformed(name, source):
             '    Path("rules"),\n    # WOOW_SHARED_TOOLS_V1: keep skills in each private native session.\n'
             '    *((Path("skills"),) if os.environ.get("WOOW_OMNIGENT_SHARED_TOOLS") == "1" else ()),\n'
             ')\n_CODEX_MINIMAL_CONFIG_ENV')
+    if name == "harnesses/pi_native/credentials.py":
+        return replace_once(source,
+            '    for provider_id, payload in _read_json_object(root / "models-store.json").items():\n',
+            '    catalog = _read_json_object(root / "models-store.json")\n'
+            '    # WOOW_SHARED_TOOLS_V1: include authenticated custom Pi providers.\n'
+            '    if os.environ.get("WOOW_OMNIGENT_SHARED_TOOLS") == "1":\n'
+            '        custom = _read_json_object(root / "models.json").get("providers")\n'
+            '        if _is_str_object_dict(custom):\n'
+            '            for provider_id, payload in custom.items():\n'
+            '                if not _is_str_object_dict(payload):\n'
+            '                    continue\n'
+            '                models = payload.get("models")\n'
+            '                if not isinstance(models, list):\n'
+            '                    continue\n'
+            '                original = catalog.get(provider_id)\n'
+            '                existing = original.get("models") if _is_str_object_dict(original) else None\n'
+            '                catalog[provider_id] = {"models": (existing if isinstance(existing, list) else []) + models}\n'
+            '    for provider_id, payload in catalog.items():\n')
+    if name != "inner/pi_settings.py":
+        raise ValueError("Unknown Omnigent patch target: " + name)
     source = replace_once(source, 'import logging\n', 'import logging\nimport os\n')
     source = replace_once(source,
         '    agent_root = global_agent_dir if global_agent_dir is not None else DEFAULT_PI_AGENT_DIR\n',

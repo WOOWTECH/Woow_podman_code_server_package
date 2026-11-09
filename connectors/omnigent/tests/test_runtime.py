@@ -88,6 +88,48 @@ class RuntimeContracts(unittest.TestCase):
             pi_settings.prepare_managed_pi_agent_dir(self.target)
         self.assertEqual((self.target / "skills").resolve(), (self.source / "skills").resolve())
 
+    def pi_catalog(self, custom, stored=None, authenticated=None):
+        from omnigent.harnesses.pi_native.credentials import pi_own_login_model_options
+        (self.source / "auth.json").write_text(json.dumps(authenticated or {
+            "gateway": {"type": "api_key", "key": "synthetic-private-key"}}))
+        (self.source / "models-store.json").write_text(json.dumps(stored or {}))
+        (self.source / "models.json").write_text(json.dumps({"providers": custom}))
+        return pi_own_login_model_options(self.source)
+
+    def test_pi_authenticated_custom_provider_exposes_nested_model_ids_without_credentials(self):
+        result = self.pi_catalog({"gateway": {"baseUrl": "https://private.invalid/v1",
+            "apiKey": "another-private-key", "models": [
+                {"id": "apporo/first", "name": "First"}, {"id": "apporo/second"}]},
+            "not-authenticated": {"models": [{"id": "hidden"}]}})
+        self.assertEqual(result, [
+            {"id": "gateway/apporo/first", "model": "gateway/apporo/first", "displayName": "First"},
+            {"id": "gateway/apporo/second", "model": "gateway/apporo/second", "displayName": "apporo/second"}])
+        self.assertNotIn("private", json.dumps(result))
+
+    def test_pi_custom_models_extend_and_override_builtins_once(self):
+        result = self.pi_catalog({"gateway": {"models": [{"id": "same", "name": "Custom"},
+            {"id": "new"}]}}, {"gateway": {"models": [{"id": "same", "name": "Original"}, {"id": "old"}]}})
+        self.assertEqual([m["id"] for m in result], ["gateway/new", "gateway/old", "gateway/same"])
+        self.assertEqual(result[-1]["displayName"], "Custom")
+
+    def test_pi_malformed_custom_catalog_preserves_builtins(self):
+        stored = {"gateway": {"models": [{"id": "old"}]}}
+        expected = [{"id": "gateway/old", "model": "gateway/old", "displayName": "old"}]
+        for custom in (None, [], "invalid", {"gateway": None}, {"gateway": {"models": {}}},
+                       {"gateway": {"models": [None, {}, {"id": 7}]}}):
+            with self.subTest(custom=custom):
+                self.assertEqual(self.pi_catalog(custom, stored), expected)
+
+    def test_pi_custom_catalog_flag_off_keeps_upstream_behavior(self):
+        with patch.dict(os.environ, {"WOOW_OMNIGENT_SHARED_TOOLS": "0"}):
+            self.assertEqual(self.pi_catalog({"gateway": {"models": [{"id": "custom"}]}}), [])
+
+    def test_pi_custom_catalog_requires_native_auth(self):
+        from omnigent.harnesses.pi_native.credentials import pi_own_login_model_options
+        self.pi_catalog({"gateway": {"models": [{"id": "custom"}]}})
+        (self.source / "auth.json").write_text("{}")
+        self.assertEqual(pi_own_login_model_options(self.source), [])
+
 
 if __name__ == "__main__":
     unittest.main()

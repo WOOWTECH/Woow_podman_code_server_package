@@ -87,6 +87,14 @@ deployment agent directory's settings plus skills/extensions/prompts/MCP. Claude
 continues to use the deployment `CLAUDE_CONFIG_DIR`. Changes to MCP require a new
 agent session. Provider auth is not copied between deployments.
 
+With the shared-tools flag enabled, Pi's model picker also includes custom
+providers from the deployment's `models.json`, filtered to providers present in
+its native `auth.json`. This supports authenticated OpenAI-compatible gateways
+such as LiteLLM even when `models-store.json` has no built-in model catalogue.
+Model IDs retain the full `provider/model` path, including nested model IDs.
+Custom entries extend the built-in catalogue and override duplicate display
+names; URLs and credentials are never included in catalogue responses.
+
 The connector and scoped PaaS entry overlay set `DISABLE_AUTOUPDATER=1` and
 explicitly forward it through the host/runner environment allowlist. The image
 owns the pinned native CLIs. Without this forwarding, a native Claude session
