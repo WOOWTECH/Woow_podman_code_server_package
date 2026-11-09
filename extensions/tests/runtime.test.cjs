@@ -89,6 +89,17 @@ test('public status drops credential-bearing server URLs rather than displaying 
   const result=publicStatus({ok:true,server:'https://user:private-password@example.org/'},'omnigent');
   assert.equal(result.server,'');
 });
+test('Omnigent status respects runtime validation of engine receipts and rejects stale or failed evidence', () => {
+  const receipts=Object.fromEntries(['claude','codex','pi'].map(engine=>[engine,{ok:true,cleanup:'stopped'}]));
+  const current={ok:true,phase:'connected',verified:true,verification:receipts};
+  assert.equal(publicStatus(current,'omnigent').verification,'passed');
+  assert.equal(publicStatus({ok:true,data:current},'omnigent').verification,'passed');
+  assert.equal(publicStatus({...current,verified:false},'omnigent').verification,'incomplete');
+  assert.equal(publicStatus({...current,verified:false,verification:{ok:true}},'omnigent').verification,'incomplete');
+  assert.equal(publicStatus({...current,ok:false},'omnigent').verification,'incomplete');
+  assert.equal(publicStatus({ok:true,phase:'connected',verification:receipts},'omnigent').verification,'incomplete');
+  assert.equal(publicStatus({ok:true,phase:'connected'},'omnigent').verification,'unverified');
+});
 test('Paseo daemon is not online evidence, and acceptance is separate verification evidence', () => {
   const base={ok:true,daemon:{running:true},providers:[{id:'pi',installed:true,models:[{id:'example-model'}]}]};
   const initial=publicStatus(base,'paseo');

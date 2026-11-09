@@ -6,7 +6,7 @@ const { html } = require('../shared/ui.cjs');
 function harness(connector, responses={}) {
   const commands=new Map(), calls=[], logs=[], updates=[], notices=[], opened=[], posted=[], inputOptions=[], editorCommands=[];
   const values={runtimePath:'/usr/local/bin/woow-connectors',workspace:'/workspace',hostName:'test',server:'https://omnigent.example.org',webUrl:connector==='paseo'?'https://app.paseo.sh':''};
-  const inputs=[], picks=[];
+  const inputs=[], picks=[], pickOptions=[];
   let receive;
   const disposable={dispose(){}};
   const panel={webview:{html:'',postMessage:message=>posted.push(message),onDidReceiveMessage:fn=>{receive=fn;return disposable;}},reveal(){},onDidDispose(){return disposable;},dispose(){}};
@@ -16,11 +16,11 @@ function harness(connector, responses={}) {
     workspace:{isTrusted:true,getConfiguration:()=>({inspect:key=>({defaultValue:values[key]}),update:async(key,value)=>{updates.push([key,value]);values[key]=value;}}),onDidChangeConfiguration:()=>disposable},
     env:{openExternal:async url=>{opened.push(url);return true;}},
     commands:{registerCommand:(id,fn)=>{commands.set(id,fn);return disposable;},executeCommand:async(...args)=>{editorCommands.push(args);}},
-    window:{createOutputChannel:()=>({appendLine:line=>logs.push(line),dispose(){}}),registerTreeDataProvider:()=>disposable,createWebviewPanel:()=>panel,showInputBox:async options=>{inputOptions.push(options);return inputs.shift();},showQuickPick:async()=>picks.shift(),showInformationMessage:async text=>notices.push(text),showErrorMessage:async text=>notices.push(text)},
+    window:{createOutputChannel:()=>({appendLine:line=>logs.push(line),dispose(){}}),registerTreeDataProvider:()=>disposable,createWebviewPanel:()=>panel,showInputBox:async options=>{inputOptions.push(options);return inputs.shift();},showQuickPick:async(items,options)=>{pickOptions.push({items,options});return picks.shift();},showInformationMessage:async text=>notices.push(text),showErrorMessage:async text=>notices.push(text)},
   };
   const ext=createExtension(connector,{vscode,createRuntime:options=>async request=>{calls.push(request);const response=responses[request.action]??{ok:true,phase:'online'};options.onEvent({connector,action:request.action,ok:response.ok});return response;}});
   const api=ext.activate({subscriptions:[]});
-  return {ext,api,vscode,commands,calls,logs,updates,notices,opened,posted,inputs,picks,inputOptions,panel,values,editorCommands,receive:message=>receive(message)};
+  return {ext,api,vscode,commands,calls,logs,updates,notices,opened,posted,inputs,picks,pickOptions,inputOptions,panel,values,editorCommands,receive:message=>receive(message)};
 }
 test('native settings opens container machine settings in remote and browser hosts without changing configuration', async () => {
   for (const connector of ['paseo','omnigent']) {
@@ -75,6 +75,17 @@ test('verify passes selected engine and model; success requires explicit verific
   assert.deepEqual(h.calls.find(c=>c.action==='verify'),{connector:'paseo',action:'verify',engine:'codex',model:'test-model'});
   assert.equal(h.notices.some(n=>n.includes('has not reported a verified reply')),true);
   assert.equal(h.api.getPublicState().verification,'unverified');
+});
+test('Paseo Verify offers only models from the selected provider inventory', async () => {
+  const h=harness('paseo',{models:{ok:true,providers:[
+    {provider:'claude',models:[{id:'claude-sonnet-5-5',label:'Sonnet 5.5'}]},
+    {provider:'codex',models:[{id:'gpt-6.1-sol',label:'GPT-6.1-Sol'}]},
+    {provider:'pi',models:[{id:'openai-codex/gpt-6.1-sol'}]},
+  ]},verify:{ok:true,requestedPassed:true}});
+  h.picks.push({label:'Claude Code',engine:'claude'},{model:'claude-sonnet-5-5'});
+  await h.commands.get('woow.paseo.verify')();
+  assert.deepEqual(h.pickOptions[1].items.map(item=>item.model),['claude-sonnet-5-5']);
+  assert.deepEqual(h.calls.find(call=>call.action==='verify'),{connector:'paseo',action:'verify',engine:'claude',model:'claude-sonnet-5-5'});
 });
 test('webview rejects unsupported messages and connector-mismatched actions', async () => {
   const h=harness('paseo');h.commands.get('woow.paseo.open')();

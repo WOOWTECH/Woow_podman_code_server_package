@@ -129,7 +129,7 @@ function modelItems(result) {
   for (const engine of entries(source.engines ?? source.providers ?? source.agents)) {
     for (const item of entries(engine.models)) {
       const model = typeof item === 'string' ? { id: item, name: item } : item;
-      if (model) models.push({ id: String(model.id ?? model.model ?? model.name ?? ''), name: String(model.name ?? model.label ?? model.id ?? model.model ?? ''), agent: String(engine.id ?? engine.engine ?? engine.name ?? '') });
+      if (model) models.push({ id: String(model.id ?? model.model ?? model.name ?? ''), name: String(model.name ?? model.label ?? model.id ?? model.model ?? ''), agent: String(engine.id ?? engine.engine ?? engine.provider ?? engine.name ?? '') });
     }
   }
   return models.filter(m => m.id && m.id.length <= 512 && !/[\x00-\x1f]/.test(m.id)).slice(0, 500);
@@ -137,6 +137,10 @@ function modelItems(result) {
 function publicStatus(result, connector, configuration = {}) {
   const data = result?.data ?? result ?? {};
   const verification = data.verification ?? data.lastVerification ?? data.acceptance;
+  // Omnigent validates all engine receipts against the current host, CLI and
+  // shared tools. Its explicit false must override otherwise successful stale
+  // receipts; a connected host alone never establishes a verified reply.
+  const verified = typeof data.verified === 'boolean' ? data.verified : verification?.ok === true || verification?.requestedPassed === true || verification?.passed === true || verification?.status === 'passed';
   const host = data.host;
   const phase = data.phase ?? data.status ?? data.state ?? (data.online === true ? 'online' : data.daemon?.running === true ? 'daemon running; connection unverified' : data.online === false ? 'offline' : undefined);
   return {
@@ -148,7 +152,7 @@ function publicStatus(result, connector, configuration = {}) {
     mode: safeText(data.mode ?? data.managementMode),
     server: safeText(webUrl(data.server ?? data.serverUrl ?? configuration.server, { server: true }) ?? ''),
     workspace: safeText(data.workspace ?? configuration.workspace),
-    verification: verification?.ok === true || verification?.requestedPassed === true || verification?.passed === true || verification?.status === 'passed' ? 'passed' : verification ? 'incomplete' : 'unverified',
+    verification: result?.ok === true && verified ? 'passed' : verification || typeof data.verified === 'boolean' ? 'incomplete' : 'unverified',
     verifiedAt: safeText(verification?.at ?? verification?.timestamp ?? verification?.completedAt),
     engines: entries(data.engines ?? data.providers ?? data.agents).map(item => typeof item === 'string' ? { id: safeText(item), installed: 'unknown', authenticated: 'unknown' } : {
       id: safeText(item.id ?? item.engine ?? item.name ?? item.provider),
