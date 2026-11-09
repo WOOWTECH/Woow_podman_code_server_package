@@ -2,7 +2,19 @@
 
 Podman 與 HA QA 已完成 **4 個 Web 組合、每個組合各 3 個代理**的真實對話、同一對話內切換模型、保留上下文及共用 skill／MCP 驗證。HA 的真實 Supervisor Ingress 代理路徑與插件 Verify 操作也已通過。PaaS 已完成服務連線、配對與部分換版持久化檢查，**模型供應商 OAuth 尚待使用者登入，PaaS 的模型對話驗收未完成**。
 
-本紀錄適用於隔離 QA。相關變更仍在草稿審查流程，尚未正式發版或切換正式流量。最終映像版本、digest、三平台換版與開機總表由主線另行追加；以下每項結果保留其實際測試版本，不把單獨安裝新版 VSIX 視為完整映像換版驗收。
+本紀錄適用於隔離 QA。相關變更仍在草稿審查流程，尚未正式發版或切換正式流量。下表區分完整映像換版與保留容器更新；以下每項結果保留其實際測試版本，不把單獨安裝新版 VSIX 視為完整映像換版驗收。
+
+**最終套件與已完成的映像換版。** 功能來源固定於 `3f36c24`；後續文件提交不改變這 77 個共用來源檔案。GitHub Actions 的 `code-server-connectors-vsix` 產物已下載並核對，與實測的兩個 0.1.4 VSIX 完全相同，可從[該次建置](https://github.com/WOOWTECH/Woow_podman_code_server_package/actions/runs/42700359698)下載。
+
+| QA 環境 | 最終部署 | 開機後驗收 |
+| --- | --- | --- |
+| Podman | 保留 QA3 基底映像 `d3e40c90500e…`，在同一容器安裝 `3f36c24` runtime 與 VSIX 0.1.4 | 待修改檔案先備份；更新後 28 項 extension、39 項 Node backend、25 項 Python 測試通過；重啟 HTTP、版本及檔案雜湊通過，UID／GID 映射及掛載保留 |
+| HA | `20261110.connectors-ha-qa6`，映像 `sha256:0c963ae06c97405a1c840c14dd040e06e0c1c8b5f5199c5ccd5ddca4076fe93e` | HTTP、真正 Ingress 8 項、兩個 0.1.4 插件及獨立 seed receipt 通過；兩 connector 恢復在線，host 身分保留 |
+| PaaS | Helm revision 9，`20261110.connectors-paas-qa5@sha256:b2932c40d9d4333cef863f17b89371974fea790b4d82e8060725f0bae4fb2df5` | UI 6 項、兩個 0.1.4 插件及獨立 seed receipt 通過；兩 connector 恢復在線，host 身分保留 |
+
+兩個映像實際 backend 的 55 個檔案逐一符合凍結來源。PaaS 停止後，在 0／20／40／65 秒呼叫 restore 均未啟動；重新啟動沿用原 host，只有一個 host process，原 kit supervisor 保留。這批換版後檢查沒有再次呼叫模型。
+
+Podman 的整個新映像換版因 ID-mapped storage copy 需要的磁碟空間超過可用容量而回滾，原 QA3 已恢復。改以受控方式更新同一 QA 容器的 21 個來源／套件檔案，保留原基底映像及資料卷。更新後重啟與 92 項回歸測試通過；不是新的完整映像換版。若刪除並重建此容器，須套用本輪備妥的重套用程序，或在容量足夠後部署完整新映像。本輪也實際執行過備份還原，並確認原檔雜湊恢復一致。
 
 **如何安裝與開始使用。** 插件 ID 為 `woowtech.paseo`、`woowtech.omnigent`。在 code-server 的 **Extensions → Installed** 搜尋 `@installed woow`，應看到兩個獨立插件，可各自停用或移除。候選完整映像包含 backend、代理與預裝機制；單獨安裝 VSIX 只安裝介面，**不會安裝 Claude Code、Codex、Pi 或 connector backend，也不會替使用者登入模型帳號**。
 
@@ -12,6 +24,8 @@ Podman 與 HA QA 已完成 **4 個 Web 組合、每個組合各 3 個代理**的
 code-server --install-extension /opt/woow-connector-vsix/woowtech.paseo-0.1.4.vsix
 code-server --install-extension /opt/woow-connector-vsix/woowtech.omnigent-0.1.4.vsix
 ```
+
+上述 CLI 預設目錄適用於本輪 Podman／PaaS 的 coder 使用者。HA add-on 必須另外指定 `--extensions-dir /data/vscode/extensions`；可優先使用 IDE 的 Install from VSIX，確保安裝到目前使用中的目錄。
 
 需使用受信任的工作區，以及部署管理者安裝的 backend；預設絕對路徑為 `/usr/local/bin/woow-connectors`。插件不接受儲存庫的 workspace settings 覆寫 backend 路徑。在 code-server 開啟 **Remote settings** 設定目前容器的工作區與主機名稱。只有 VSIX、backend 缺失時，介面會回報 runtime unavailable，不能據此宣稱代理已部署。產物建置及 backend 合約見 [extensions 說明](../../extensions/README.md)。
 
@@ -43,7 +57,7 @@ Paseo：開啟 **WOOW Paseo**，設定工作區、啟動服務，明確選擇配
 
 **模型切換的驗收範圍是同一代理、同一對話。** 第一輪放入測試識別內容，第二輪改用另一模型並確認仍能回憶該內容。改選 Claude、Codex 或 Pi 是切換代理引擎，可能建立另一個 session；本輪不宣稱不同代理引擎自動共享完整對話歷史。
 
-共用配置位於同一部署的 `/data/pi-agent/skills` 與 `/data/pi-agent/shared/mcp.json`，修改 MCP 後由 `woow-agent-sync` 同步。驗收使用 `woow-connector-proof` skill 及 `woow_connector_proof` MCP：每個代理使用獨立 run label，核對工具端新產生的呼叫紀錄，並核對新助理訊息中的工具結果。HA 的三個 skill 路徑解析為相同檔案，檔案雜湊一致；共用 MCP registry 保留原有 8 個 server 並加入證明用 server。這證實同部署共用與實際工具調用，沒有逐一驗收原有全部 MCP 工具的功能或外部 OAuth。
+共用配置位於同一部署的 `/data/pi-agent/skills` 與 `/data/pi-agent/shared/mcp.json`，修改 MCP 後由 `woow-agent-sync` 同步。驗收使用 `woow-connector-proof` skill 及 `woow_connector_proof` MCP：每個代理使用獨立 run label，核對工具端新產生的呼叫紀錄，並核對新助理訊息中的工具結果。HA 的三個 skill 路徑解析為相同檔案，檔案雜湊一致；共用 MCP registry 保留原有 8 個 server 並加入證明用 server。這證實同部署共用與實際工具調用，沒有逐一驗收原有全部 MCP 工具的功能或外部 OAuth。 測試後已移除本輪 proof skill／MCP，保留原有 8 個 server，並執行 `woow-agent-sync`。工具設定變更會使 Omnigent 舊驗證 receipt 失效，介面重新顯示 incomplete 是預期行為；沒有改寫 receipt 或為了顯示狀態重複模型呼叫。
 
 Podman 的 Codex 公開時間線未完整暴露原生工具項目，因此另核對對應 native thread 的 skill 讀取及 MCP call/output。此處使用工具紀錄補足證據，沒有只依助理聲稱「已使用 skill」判定成功。Omnigent 的兩個 Web 驗收均使用非管理員服務帳號；成功測試 session 已停止並封存。
 
@@ -78,7 +92,7 @@ PaaS qa4（backend 來源 `1b12841`）在新 Pod Ready 後，另做了不呼叫�
 - receipt 位於各自 extension store、權限為 0600；隱藏檔不影響 CLI `--list-extensions --show-versions`。
 - 假代理資料未變，測試暫存目錄已清除；現用 extension store、代理設定與登入資料未變，模型呼叫為 0。
 
-qa4 開機後再檢查實際目錄 `/home/coder/.local/share/code-server/extensions`，已存在上述 receipt，兩個插件均記錄並列出 **0.1.3**；已安裝 seed 原始碼 SHA-256 為 `3153009e1f50af39f7a5100a3601f08e3a8b17bbd1ce93d43e18169c64a85505`。這是 qa4 的開機快照；0.1.4 最終映像開機總表另由主線補入。
+qa4 開機後再檢查實際目錄 `/home/coder/.local/share/code-server/extensions`，已存在上述 receipt，兩個插件均記錄並列出 **0.1.3**；已安裝 seed 原始碼 SHA-256 為 `3153009e1f50af39f7a5100a3601f08e3a8b17bbd1ce93d43e18169c64a85505`。這是 qa4 的開機快照；0.1.4 的後續部署結果見上方總表。
 
 **證據索引。** 公開來源內可直接讀取 [Paseo validation](../../connectors/paseo/validation.json)、[Paseo Web 驗收](../../connectors/paseo/browser-validation.json)、[Omnigent integration status](../../connectors/omnigent/integration-status.json)。下列具體 receipt 保存在本輪私有 QA archive `connector-qa/`，由 reviewer 透過既有工作區讀取，沒有連同帳號、登入檔或配對連結提交到儲存庫：
 
@@ -96,4 +110,4 @@ qa4 開機後再檢查實際目錄 `/home/coder/.local/share/code-server/extensi
 | PaaS qa4 Paseo 設定、舊配對與開機 receipt | `paseo-web-paas-qa4-persistence.json` |
 | 兩個獨立 extension store 的實際 CLI 行為 | `paseo-paas-seed-store-integration-fe33712.json` |
 
-待完成項目為 PaaS 使用者供應商登入及完整模型／工具驗收、最終候選映像的換版開機總表、審查合併與正式發版。arm64 目前有依賴解析證據，沒有三代理 runtime 實機驗收；Open VSX 公開上架也未完成。現有 QA 存取使用既有私有轉送或受驗證的 HA Ingress，未在本紀錄宣告新的公開 QA IDE 網址。
+待完成項目為 PaaS 使用者供應商登入及完整模型／工具驗收、審查合併與正式發版。Podman 完整新映像換版另受主機容量限制；本輪已完成保留容器的 runtime／VSIX 更新。arm64 目前有依賴解析證據，沒有三代理 runtime 實機驗收；Open VSX 公開上架也未完成。現有 QA 存取使用既有私有轉送或受驗證的 HA Ingress，未在本紀錄宣告新的公開 QA IDE 網址。

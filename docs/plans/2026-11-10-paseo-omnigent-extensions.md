@@ -159,4 +159,4 @@ connector 啟動代理時要傳遞相同的有效環境與設定。Omnigent nati
 
 可行方向已確定：兩個 VS Code 擴充加上可獨立於瀏覽器運作的 connector runtime，沿用 code-server 的三代理與共用工具配置。最需先解決的是 Pi 套件管理器耦合、Omnigent SDK 差異、PaaS 既有 host 管理，以及 Extensions 停用與背景程序生命週期的語義。
 
-本輪完成的是來源比對、架構與驗收設計。尚未產生／安裝新的 VSIX，未使用這兩個新擴充登入、配對或進行模型測試，也未發佈至 Open VSX。既有 code-server 三代理／ACP 的成功測試不等於新 connector 通過。
+本文件保留初始研究與設計。後續已產生並安裝 VSIX 0.1.4，Podman／HA 的兩種 Web 連線均完成三代理真實對話、模型切換及共用工具驗收；PaaS 模型供應商授權與對話仍待完成。實際部署版本與限制以[2026-11-10 驗收紀錄](../research/code-server-connectors-acceptance-20261110.md)為準。尚未發佈至 Open VSX。

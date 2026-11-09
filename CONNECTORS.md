@@ -11,9 +11,13 @@
 **Install from VSIX…**，或在該 code-server 的終端執行：
 
 ```sh
-code-server --install-extension woowtech.paseo-0.1.3.vsix
-code-server --install-extension woowtech.omnigent-0.1.3.vsix
+code-server --install-extension woowtech.paseo-0.1.4.vsix
+code-server --install-extension woowtech.omnigent-0.1.4.vsix
 ```
+
+CLI 必須指向目前 IDE 使用的 extension store。HA add-on 請在兩個指令加上
+`--extensions-dir /data/vscode/extensions`；其他部署若自訂目錄，也要帶入相同參數。
+直接使用目前 IDE 的 **Install from VSIX…** 可避免裝入另一個目錄。
 
 VSIX 本身只提供介面；既有的普通 code-server 映像還需要安裝本儲存庫的
 runtime。缺少 runtime 時介面會明確顯示，不會宣稱已連線。
@@ -81,3 +85,5 @@ runtime 狀態位於 `/data/pi-agent/connectors/`，隨既有資料卷備份。
 [Paseo runtime](connectors/paseo/README.md)、[Omnigent runtime](connectors/omnigent/README.md)。
 單元測試或主機在線不代表三代理真實對話、模型切換及工具調用均已通過；
 部署驗收必須記錄各環境的實際結果。
+
+本輪實際測試範圍與待完成項目見[驗收紀錄](docs/research/code-server-connectors-acceptance-20261110.md)。
