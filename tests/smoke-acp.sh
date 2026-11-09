@@ -51,6 +51,20 @@ else
     bad "Claude Code CLI = ${CLAUDE_VERSION:-unavailable} (expected 2.1.285)"
 fi
 
+# Expansions intentionally run inside the container.
+# shellcheck disable=SC2016
+if CX sh -lc 'test "$(codex --version)" = "codex-cli 0.167.0" && command -v codex-acp >/dev/null && command -v codex-code >/dev/null'; then
+    ok "Codex CLI 0.167.0 and ACP adapter installed"
+else
+    bad "Codex CLI or ACP adapter missing"
+fi
+# shellcheck disable=SC2016
+if CX sh -lc 'data=${PI_AGENT_DATA_DIR:-${PI_CODING_AGENT_DIR:-/data/pi-agent}}; test "$(readlink -f "$CLAUDE_CONFIG_DIR/skills")" = "$(readlink -f "$data/skills")" && test "$(readlink -f "$CODEX_HOME/skills")" = "$(readlink -f "$data/skills")"'; then
+    ok "Pi, Claude and Codex resolve the same skills directory"
+else
+    bad "agent skills directories are not shared"
+fi
+
 echo
 echo "== settings.json required keys (${SETTINGS}) =="
 if CX test -f "${SETTINGS}"; then
@@ -64,9 +78,9 @@ if CX test -f "${SETTINGS}"; then
             bad "${desc}"
         fi
     }
+    check_jq 'acp.agents.codex.command == "codex-code"' '.["acp.agents"].codex.command == "codex-code"'
     check_jq 'acp.agents.pi.command == "pi-code"'            '.["acp.agents"].pi.command == "pi-code"'
     check_jq 'acp.agents.claude.command == "claude-agent-acp"' '.["acp.agents"].claude.command == "claude-agent-acp"'
-    check_jq 'acp.agents.codex.command == "codex-acp"'     '.["acp.agents"].codex.command == "codex-acp"'
     check_jq 'security.workspace.trust.enabled == false'      '.["security.workspace.trust.enabled"] == false'
     check_jq 'security.workspace.trust.startupPrompt == "never"' '.["security.workspace.trust.startupPrompt"] == "never"'
     check_jq 'security.workspace.trust.banner == "never"'      '.["security.workspace.trust.banner"] == "never"'

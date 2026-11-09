@@ -119,18 +119,9 @@ RUN npm install -g --omit=dev --no-fund --no-audit \
 ENV CLAUDE_CONFIG_DIR=/data/pi-agent/claude \
     DISABLE_AUTOUPDATER=1
 
-# Codex is a separate terminal CLI and ACP sidebar agent. Keep its login in
-# this deployment's private, backed-up pi volume; the IDE and login shells
-# must point at the same directory. The ACP package bundles a compatible
-# Codex dependency, and the explicit CLI pin keeps the terminal version fixed.
+# Codex CLI and ACP versions are locked with the shared tools below.
 ARG CODEX_CLI_VERSION=0.167.0
 ARG CODEX_ACP_VERSION=2.6.0
-RUN npm install -g --omit=dev --no-fund --no-audit \
-      "@openai/codex@${CODEX_CLI_VERSION}" \
-      "@agentclientprotocol/codex-acp@${CODEX_ACP_VERSION}" \
- && test "$(codex --version)" = "codex-cli ${CODEX_CLI_VERSION}" \
- && test "$(codex-acp --version)" = "@agentclientprotocol/codex-acp ${CODEX_ACP_VERSION}"
-ENV CODEX_HOME=/data/pi-agent/codex
 
 # --- Stop silent Unicode-space path corruption ---------------------------
 # pi folds U+00A0, U+2000-200A, U+202F, U+205F and U+3000 to an ASCII space
@@ -206,6 +197,16 @@ ENV NPM_CONFIG_PREFIX=/opt/npm-global
 RUN mkdir -p /opt/npm-global/bin /opt/npm-global/lib \
  && chown -R coder:coder /opt/npm-global
 
+# Codex CLI + maintained ACP adapter. npm lock also pins transitive dependencies.
+COPY rootfs/opt/woow-agent-tools/package*.json /opt/woow-agent-tools/
+RUN npm ci --prefix /opt/woow-agent-tools --omit=dev \
+ && ln -sf /opt/woow-agent-tools/node_modules/.bin/codex /usr/local/bin/codex \
+ && ln -sf /opt/woow-agent-tools/node_modules/.bin/codex-acp /usr/local/bin/codex-acp \
+ && test "$(codex --version)" = "codex-cli ${CODEX_CLI_VERSION}" \
+ && test "$(codex-acp --version)" = "@agentclientprotocol/codex-acp ${CODEX_ACP_VERSION}"
+ENV CODEX_HOME=/data/pi-agent/codex \
+    CODEX_PATH=/opt/woow-agent-tools/node_modules/.bin/codex
+
 # --- Rootfs overlay ------------------------------------------------------
 # Contains:
 #   - /usr/local/bin/pi-code — the HOME-scoping wrapper used as the ACP
@@ -223,6 +224,7 @@ RUN mkdir -p /opt/npm-global/bin /opt/npm-global/lib \
 #     $HOME on first run.
 COPY rootfs/ /
 RUN chmod +x /usr/local/bin/pi-code /usr/local/bin/pi-seed \
+             /usr/local/bin/codex-code /usr/local/bin/woow-agent-sync /usr/local/bin/woow-code-server-entry \
  && sha256sum -c /opt/SHA256SUMS
 
 # --- pi state skeleton -----------------------------------------------------
@@ -367,3 +369,9 @@ LABEL org.opencontainers.image.title="Woow Podman code-server" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.version="${BUILD_VERSION}" \
       org.opencontainers.image.created="${BUILD_DATE}"
+
+ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/woow-code-server-entry", "--bind-addr", "0.0.0.0:8080", "."]
+
+# Direct CLI/SDK calls must use the same store as login shells and ACP.
+ENV PI_AGENT_DATA_DIR=/data/pi-agent \
+    PI_CODING_AGENT_DIR=/data/pi-agent
