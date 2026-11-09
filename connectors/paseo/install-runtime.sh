@@ -8,7 +8,11 @@ if [[ "$target_dir" != /* ]]; then
   exit 2
 fi
 node -e 'const [major,minor]=process.versions.node.split(".").map(Number); if(major<22||(major===22&&minor<19)) process.exit(1)'
-command -v flock >/dev/null
+node --input-type=module - "$source_dir" <<'NODE'
+import { pathToFileURL } from 'node:url';
+const { requireSystemTools } = await import(pathToFileURL(process.argv[2] + '/src/system-tools.mjs'));
+await requireSystemTools();
+NODE
 mkdir -p "$target_dir/runtime"
 if [[ "$source_dir/runtime" != "$target_dir/runtime" ]]; then
   cp "$source_dir/runtime/package.json" "$source_dir/runtime/package-lock.json" "$target_dir/runtime/"
@@ -18,7 +22,9 @@ node --input-type=module - "$source_dir" "$target_dir/runtime" <<'NODE'
 import { pathToFileURL } from 'node:url';
 const [source, root] = process.argv.slice(2);
 const { applyPidLockPatch } = await import(pathToFileURL(source + '/src/pid-lock-patch.mjs'));
+const { applyClaudeRootPatch } = await import(pathToFileURL(source + '/src/claude-root-patch.mjs'));
 const { runtimeReady } = await import(pathToFileURL(source + '/src/runtime-layout.mjs'));
 applyPidLockPatch(root);
+applyClaudeRootPatch(root);
 if (!runtimeReady({ runtimeDir: root })) throw new Error('PASEO_RUNTIME_VALIDATION_FAILED');
 NODE

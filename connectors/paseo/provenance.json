@@ -84,5 +84,15 @@
     "retain guarded PID patch and process birth verification",
     "child-only private umask for daemon PID and auth files",
     "semantic provider-config comparison after Paseo schema serialization"
+  ],
+  "runtimePatches": [
+    {
+      "recipe": "src/claude-root-patch.mjs",
+      "package": "@getpaseo/server@0.11.2",
+      "file": "dist/server/server/agent/providers/claude/agent.js",
+      "originalSha256": "519318ffe2c3427e9478ebd3e29e2d28835558c9fb40ff3136f3557c1a077060",
+      "patchedSha256": "197cab82770baa1f6dfdef0f7765688e3983a45afec82e003750376a2dafc1da",
+      "behavior": "Root does not request bypass-permission launch capability; normal permissions remain active. No upstream source vendored."
+    }
   ]
 }

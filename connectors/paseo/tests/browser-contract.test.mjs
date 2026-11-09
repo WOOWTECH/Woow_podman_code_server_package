@@ -30,6 +30,12 @@ test('shared proof requires an explicit deployment prefix and boolean opt-in', (
   assert.equal(validatePlan({ ...plan(), sharedProof: true, proofRunPrefix: 'paseo-podman' }).sharedProof, true);
 });
 
+test('targeted retries retain the three-engine plan and reject unknown or duplicate engines', () => {
+  assert.deepEqual(validatePlan({ ...plan(), runProviders: ['claude'] }).runProviders, ['claude']);
+  assert.throws(() => validatePlan({ ...plan(), runProviders: ['other'] }), { code: 'INVALID_PROVIDER_RETRY' });
+  assert.throws(() => validatePlan({ ...plan(), runProviders: ['pi', 'pi'] }), { code: 'INVALID_PROVIDER_RETRY' });
+});
+
 test('pair URL rejects origin changes and userinfo without disclosing its fragment', () => {
   assert.equal(validatePairUrl(pairUrl), pairUrl);
   assert.throws(() => validatePairUrl('https://other.invalid/#sensitive-fragment'), { code: 'INVALID_PAIR_URL' });

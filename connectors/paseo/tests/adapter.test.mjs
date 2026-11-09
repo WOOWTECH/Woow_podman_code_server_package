@@ -9,6 +9,8 @@ import { configureProviders, resolveProviderLaunchers, providerEnvironment } fro
 import { chatResult, latestAssistantCursor } from '../src/chat-result.mjs';
 import { applyVerifiedModel, statusPhase } from '../src/runtime.mjs';
 import { runProcess } from '../src/process.mjs';
+import { requireSystemTools } from '../src/system-tools.mjs';
+import { patchClaudeRootSource } from '../src/claude-root-patch.mjs';
 
 function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'woow-paseo-test-'));
@@ -28,6 +30,17 @@ test('installed runtime without configuration is not reported as uninstalled', (
   assert.equal(statusPhase({}, false, false), 'not_installed');
   assert.equal(statusPhase({ phase: 'running' }, true, false), 'stopped');
   assert.equal(statusPhase({ phase: 'disabled' }, true, false), 'disabled');
+});
+
+test('Linux provider probes require procps ps before starting a daemon', async () => {
+  const common = { platform: 'linux', discover: name => '/usr/bin/' + name };
+  await assert.rejects(requireSystemTools({ ...common, discover: name => name === 'ps' ? null : '/usr/bin/' + name }), { code: 'PROCPS_REQUIRED' });
+  await assert.rejects(requireSystemTools({ ...common, run: async () => 'BusyBox ps' }), { code: 'PROCPS_REQUIRED' });
+  await requireSystemTools({ ...common, run: async () => 'ps from procps-ng 4.0.2' });
+});
+
+test('Claude root compatibility patch rejects unknown upstream source', () => {
+  assert.throws(() => patchClaudeRootSource('allowDangerouslySkipPermissions: true,'), { code: 'CLAUDE_ROOT_SOURCE_MISMATCH' });
 });
 
 test('fresh status and periodic restore neither write state nor start/install runtime', async t => {

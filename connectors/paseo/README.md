@@ -13,9 +13,12 @@ Copy this directory to `/opt/woow-connectors/paseo`, then run during image build
 bash /opt/woow-connectors/paseo/install-runtime.sh /opt/woow-connectors/paseo
 ```
 
-Requires Node 22.19+ and util-linux `flock`. The installer uses the vendored npm
+Requires Node 22.19+, util-linux `flock`, and Linux `procps` (`ps --ppid`). The installer uses the vendored npm
 lock for `@getpaseo/cli`/server **0.11.2**, validates both pinned PID-lock modules
 before applying the upstream WOOWTECH transition patch, and never starts a daemon.
+Revision r2 also applies a hash-checked Claude SDK launch fix: root keeps normal
+permission handling and does not request the optional bypass-permission capability.
+An older running revision requires an owned-daemon stop/start after upgrading.
 There is no package-level install/postinstall hook. Dependencies remain in
 `runtime/node_modules`; the runtime is architecture-specific and must be built
 in each target image. Do not put `runtime/node_modules` in Git or a VSIX.
@@ -63,6 +66,8 @@ All examples are JSON sent on stdin to `/usr/local/bin/woow-connectors`:
   Changes do not implicitly start a daemon. Stop before changing a live port.
   Display name is a connector label; Paseo itself rejects `daemon.name`.
 - `start`: enables persistent desired state, starts or safely reuses one daemon.
+  Linux images require `procps` (`ps --ppid`) and util-linux `flock`; the installer
+  and activation check these dependencies before provider probes can crash.
   Existing engine binaries remain image-pinned: `DISABLE_AUTOUPDATER=1` is forced
   during discovery and explicitly forwarded in Claude's provider/SDK environment.
 - `stop`: writes disabled state before stopping the owned daemon. Restore respects
@@ -151,8 +156,13 @@ remote-directory opening succeeded. Therefore no extra self-hosted Web server or
 proxy assets were added. See `browser-validation.json` for the separate Podman
 QA run: all three authenticated providers passed two model turns, switching
 models inside the same conversation, a shared MCP proof turn, and archive cleanup.
-The tested Podman container used the parent's directly installed pinned runtime;
-this result does not validate a newly built image or the HA/PaaS deployments.
+The HA QA run also passed all three agents after repairing a missing `procps`
+dependency and the root Claude launch flag. Codex/Pi passed the initial run;
+Claude alone was retried after applying revision r2. All conversations, including
+the failed initial Claude attempt, were archived. Shared proof skill paths resolve
+to one file, each provider recorded a fresh MCP proof, and Claude remained 2.1.285.
+Both environments used the parent's directly installed pinned runtime in existing
+QA containers. These results do not validate a newly built image or PaaS.
 
 `tests/browser-acceptance.mjs` is the live three-agent harness. Put its JSON plan
 in a current-user-owned **0600 file outside this Git checkout**; it contains the
@@ -176,6 +186,9 @@ secret pairing URL. Set `WOOW_PASEO_WEB_PLAN` to that absolute path. Example sha
 Use `"mode":"pair"` with just `pairUrl` and `workspace` for a no-model pairing and
 directory test. Full mode requires all three providers, two distinct models each,
 and `allowModelCalls:true`; it does not silently choose cheaper/other models.
+For a focused retry after fixing one provider, `runProviders:["claude"]` limits
+execution while retaining the full catalog plan. Its result names the requested
+providers and must not be presented as a new complete three-provider run.
 
 The full harness creates every conversation through the Web UI, chooses the first
 model, sends a marker, switches to the second model in the same conversation, and
@@ -215,8 +228,8 @@ By default Playwright is loaded from the sibling `browser-tools/node_modules` an
 Chrome from `/usr/bin/google-chrome`; overrides are `WOOW_PLAYWRIGHT_MODULE`
 (absolute module entry path) and `WOOW_CHROME_PATH`. Run the real journey on each
 assigned deployment; the harness and its synthetic contract tests alone do not
-establish successful model conversations. Podman evidence does not transfer to
-HA/PaaS or different provider credentials.
+establish successful model conversations. Podman/HA evidence does not transfer to
+PaaS or different provider credentials.
 
 ## Source and license
 

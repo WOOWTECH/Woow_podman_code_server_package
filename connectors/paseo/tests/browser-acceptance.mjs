@@ -21,6 +21,7 @@ export function validatePlan(value) {
   if (value.turnTimeoutMs !== undefined && (!Number.isInteger(value.turnTimeoutMs) || value.turnTimeoutMs < 1000 || value.turnTimeoutMs > 600000)) fail('INVALID_TIMEOUT');
   if (value.sharedProof !== undefined && typeof value.sharedProof !== 'boolean') fail('INVALID_SHARED_PROOF_PLAN');
   if (value.sharedProof && !/^paseo-(podman|ha|paas)$/.test(value.proofRunPrefix || '')) fail('INVALID_SHARED_PROOF_PREFIX');
+  if (value.runProviders !== undefined && (!Array.isArray(value.runProviders) || !value.runProviders.length || new Set(value.runProviders).size !== value.runProviders.length || value.runProviders.some(id => !providers.includes(id)))) fail('INVALID_PROVIDER_RETRY');
   return value;
 }
 
@@ -99,7 +100,8 @@ export async function runAcceptance(page, plan, inspect, onProgress = () => {}) 
   if (plan.mode === 'pair') return { ok: true, pairingConfirmedInBrowser: true, remoteDirectoryOpenedThroughBrowser: true, realModelsTested: false };
   if (typeof inspect !== 'function') fail('RUNTIME_INSPECTOR_REQUIRED');
   const results = [];
-  for (const selection of plan.providers) {
+  const requested = plan.providers.filter(row => !plan.runProviders || plan.runProviders.includes(row.id));
+  for (const selection of requested) {
     const row = { provider: selection.id, passed: false, uiCreated: false, twoTurns: false, modelSwitch: false, runtimeVerified: false, cleanupConfirmed: false };
     let id, submitted = false, priorTabs = [], stage = 'open_new_conversation';
     onProgress({ provider: selection.id, stage });
@@ -178,7 +180,7 @@ export async function runAcceptance(page, plan, inspect, onProgress = () => {}) 
       onProgress({ provider: selection.id, stage: 'completed', passed: row.passed, failedStage: row.failedStage });
     }
   }
-  return { ok: results.length === 3 && results.every(row => row.passed), pairingConfirmedInBrowser: true, realModelsTested: true, providers: results };
+  return { ok: results.length === requested.length && results.every(row => row.passed), requestedProviders: requested.map(row => row.id), pairingConfirmedInBrowser: true, realModelsTested: true, providers: results };
 }
 
 export async function main() {

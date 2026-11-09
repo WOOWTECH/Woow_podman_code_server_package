@@ -15,6 +15,7 @@ import {usingAcceptanceAgent} from './acceptance-agent.mjs';
 import {acceptanceWorkspace} from './acceptance-workspace.mjs';
 import {runtimeDirectory,runtimeReady,RUNTIME_REVISION} from './runtime-layout.mjs';
 import { assertNoHomeSupervisor, observeOwnedInstance, rememberOwnedInstance, recoverStaleInstance } from './daemon-identity.mjs';
+import { requireSystemTools } from './system-tools.mjs';
 export { locations, readState, updateState } from './state.mjs';
 export const PASEO_VERSION = '0.11.2';
 const PROVIDERS = ['claude', 'codex', 'pi'];
@@ -137,6 +138,7 @@ export async function activate(options = {}) {
       if (current.daemon.running && current.daemon.reachable) return current;
     }
     requireRuntime();
+    await requireSystemTools({ env: inheritedEnv() });
     ensureOwnedHome(); updateState({ desiredEnabled: true, phase: 'starting', lastError: null });
     try {
       const [major, minor] = process.versions.node.split('.').map(Number);
