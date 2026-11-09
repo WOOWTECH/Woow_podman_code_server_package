@@ -1,0 +1,188 @@
+{
+  "schemaVersion": 1,
+  "observedOn": "2026-11-10",
+  "purpose": "Source review for proposed code-server Paseo and Omnigent VSIX extensions; not deployment or conversation-test evidence.",
+  "branch": "feat/paseo-omnigent-extensions",
+  "codeServerBaseline": "41d01bd31b7c2bcd481132d3f1af36a2ea42633d",
+  "sources": [
+    {
+      "repository": "https://github.com/WOOWTECH/pi-paseo-plugin",
+      "commit": "2d5531fd65f80a58a15ed19c709a4f29e52d3723",
+      "files": {
+        "package.json": {
+          "sha256": "6870909791315489e9115e145e18ac94816c9a16cf87974b9304edc83c339161"
+        },
+        "LICENSE": {
+          "sha256": "1b05bfafc14067beabe8885c164528c122ebf545eabe97984b222fe377143a69"
+        },
+        "runtime/package.json": {
+          "sha256": "1b02d3a98d86f83c4162b3cfb2c000c6f041f9ab730cbefb23952644f20a5c95"
+        },
+        "runtime/package-lock.json": {
+          "sha256": "6d8dbe5154790bbbb0b1281e991871b6f354919022fb55a1235162e969779526"
+        },
+        "src/host-api.mjs": {
+          "sha256": "c9cb558d92859711ea70fb45969988ff8f41a79eebbaeced4b67464e313a5da2"
+        },
+        "src/supervisor.mjs": {
+          "sha256": "76195fb34a7b1ff05d64d17de9d594a2f81134d897a090ac9e7cd144d1b4d4c4"
+        },
+        "src/runtime.mjs": {
+          "sha256": "a9c696ddb4a620bfed29fc7221568a42b9ecc8ec18d92a23fd36921e64f6f1b3"
+        },
+        "src/state.mjs": {
+          "sha256": "e0232bbef2fbec24821377ba0dbce59489f9fff3cb14c1e0fb66c64aed1142d0"
+        },
+        "src/provider-launchers.mjs": {
+          "sha256": "9307187453ee6a2c1001aaf2050ecd4ea1c1a129a46edc11276122351c3ef275"
+        }
+      }
+    },
+    {
+      "repository": "https://github.com/WOOWTECH/pi-omnigent-plugin",
+      "commit": "3243b231c9862f36d480c5144775f585c1305207",
+      "files": {
+        "package.json": {
+          "sha256": "8bd8cd57ac7d3060d6bce1a19dc2a9b673007280286f5190e01c044276ba026d"
+        },
+        "LICENSE": {
+          "sha256": "f6980fa254a9734d6bac74df136fa8a931f3dae4dd11bfc7e5f50454a021a218"
+        },
+        "src/runtime.mjs": {
+          "sha256": "a9aeecb7413d54938101fa5892d7c0f6a7354d079b3dc4f8519f48b1f4d1cc59"
+        },
+        "src/installer.mjs": {
+          "sha256": "562f90f50a95e6c1fa9aca96eb7246249ad93c0e4fb0c05e873a97889f53e556"
+        },
+        "src/connect.mjs": {
+          "sha256": "256207d1626896cef6a979a060b95c403929897f001e4e91ac4480ce5dc90432"
+        },
+        "src/locate.mjs": {
+          "sha256": "508b12dfb5328993cd8ade07ec16ca465de5fcc392ea33298a87df06be3c6e2e"
+        },
+        "src/omnigent.py": {
+          "sha256": "252b2a3aa75ec53402c437af1c6331d6a18e4078d5cdd96dc111577b1ccf7b88"
+        }
+      }
+    },
+    {
+      "repository": "https://github.com/WOOWTECH/hermes-paseo-plugin",
+      "commit": "1101a5da63178e08bd0fdf849db8e2a5de4d6ef1",
+      "files": {
+        "plugin.yaml": {
+          "sha256": "29bf2aa66b491c5b7440b6be01ea07cf25c84868027e453dca8eca92b8c68329"
+        },
+        "LICENSE": {
+          "sha256": "1b05bfafc14067beabe8885c164528c122ebf545eabe97984b222fe377143a69"
+        },
+        "dashboard/manifest.json": {
+          "sha256": "bd7480864cac95074be128eb7ffc71507b4b038d68233abe881913e0b0c17f83"
+        },
+        "dashboard/plugin_api.py": {
+          "sha256": "6f2d1db9ef6d3c9ca8022ad39a53b801086075b7d51619bc97a2a848008c8d22"
+        },
+        "runtime/package.json": {
+          "sha256": "3ab050909a057271df13d7359a252e7711616d4ec02eee736eb51eae5969ba4a"
+        },
+        "src/runtime.mjs": {
+          "sha256": "ca6a87e3edce4d8997fe6ef50559eec72d6920e2b027e0e827a4a5cf7b408b29"
+        }
+      }
+    },
+    {
+      "repository": "https://github.com/WOOWTECH/hermes-omnigent-plugin",
+      "commit": "5df9acd3c1b676428d1a949aa33a982356639526",
+      "files": {
+        "plugin.yaml": {
+          "sha256": "05ec0561bf246e8694ffca4611e4648f50c54e05e9263b74279ad26cc2a47141"
+        },
+        "LICENSE": {
+          "sha256": "f6980fa254a9734d6bac74df136fa8a931f3dae4dd11bfc7e5f50454a021a218"
+        },
+        "dashboard/manifest.json": {
+          "sha256": "568d16070e992bd722f9379eef9d55bdb89550ffb3161a2541555ad8dba8edca"
+        },
+        "hermes_omnigent/runtime.py": {
+          "sha256": "33982b569eee571a23336a04163eb37a958e598a1f45c521e0e241eb6cb4e0fe"
+        },
+        "hermes_omnigent/adapter.py": {
+          "sha256": "324cc3bd48a9b05d87846bf56dabe6fb173ce7f727f02d4859d967ac845ebabe"
+        },
+        "hermes_omnigent/dependencies.py": {
+          "sha256": "0809aeef1002dd89be68a9391cd69e679e009604187139a241e123ad2e838619"
+        }
+      }
+    },
+    {
+      "repository": "https://github.com/WOOWTECH/opendesign-paseo-plugin",
+      "commit": "3b86730b1e3c9c72cb1f5d6f567502aae37a26df",
+      "files": {
+        "package.json": {
+          "sha256": "04f0d6e770612326888701b474df6bd3cf07487a79b14aa335f114b8f3712535"
+        },
+        "LICENSE": {
+          "sha256": "1b05bfafc14067beabe8885c164528c122ebf545eabe97984b222fe377143a69"
+        },
+        "host/adapter.mjs": {
+          "sha256": "6a97959f698502ebbb08fcadf35672851f6feac04355444524475a386d5a8409"
+        },
+        "host/native-mcp.mjs": {
+          "sha256": "2005ecde217da5ff857281f7fb92e234df2ba2cd28a78fe0446baff429577a7c"
+        },
+        "src/manager.mjs": {
+          "sha256": "6d5ce1c29de2ad782ebf47d90a9e065c3fc2f2c4659357a9551d19bf9a7717e1"
+        },
+        "src/owned-supervisor.mjs": {
+          "sha256": "e9b63f2f0c095f119064d83f051918c6f5e3fe34f801a46ffa2d88cf32c66514"
+        }
+      }
+    },
+    {
+      "repository": "https://github.com/WOOWTECH/opendesign-omnigent",
+      "commit": "6ebc63aacc582251b8bebe42b51d3056ff3374d2",
+      "files": {
+        "package.json": {
+          "sha256": "5ce9a6fda29d25981bbb93e010920b077df05416ebf821785b952604f90c1984"
+        },
+        "LICENSE": {
+          "sha256": "9d95806a26532623360eb84bb17d298f394b55ef73fb4c0796d99b4319b2b0da"
+        },
+        "apps/daemon/src/integrations/omnigent/service.ts": {
+          "sha256": "d61b416a239014fcce05d09b98c4335fea91133ee2378be8cd06e61b3c2c0e21"
+        },
+        "apps/daemon/src/integrations/omnigent/dependencies.ts": {
+          "sha256": "3f8af1d8e8c5d3a5deeba822820bab1725974c53173c253a486ca7e145f65c76"
+        },
+        "apps/daemon/src/integrations/omnigent/onboarding.ts": {
+          "sha256": "33e94932b0b72015fcd66a6c515beb8370c41949b282d04109926653401d3af5"
+        },
+        "apps/daemon/src/integrations/omnigent/adapter.py": {
+          "sha256": "6e1ea9cbfd8b685a2027394f14c38fcce345b14e66ce2cada693cf6581a175e3"
+        },
+        "deploy/omnigent/sdk-patches/manifest.json": {
+          "sha256": "cb06290e4f1c88b169c3b52de256290ee97a52085c21c7ec5a9315f81ebd280c"
+        }
+      }
+    }
+  ],
+  "deploymentReferences": [
+    {
+      "name": "HA add-on",
+      "commit": "c8de7908d2d3a259bf31ac8a2d7f376f1e2c2b31",
+      "path": "Dockerfile"
+    },
+    {
+      "name": "PaaS image",
+      "commit": "c93004eceaa3c3761eaec2290321c34e060e56cf",
+      "path": "code-server/Dockerfile"
+    },
+    {
+      "name": "PaaS chart and host kit",
+      "commit": "9d783fce5098243be5bf6117c15ed9d2ea6c86b6",
+      "paths": [
+        "charts/code-server/values.yaml",
+        "shared/omnigent-host/README.md"
+      ]
+    }
+  ]
+}
