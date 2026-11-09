@@ -9,11 +9,12 @@ export SEED_PATH=$REPO/rootfs/etc/skel/.local/share/code-server/User/settings.js
 export SETTINGS_PATH=$scratch/User/settings.json
 
 [[ $(sh "$REPO/scripts/merge-settings.sh") == changed ]]
-jq -e '.["acp.agents"].pi.command == "pi-code" and .["acp.agents"].claude.command == "claude-agent-acp"' "$SETTINGS_PATH" >/dev/null
+jq -e '.["acp.agents"].pi.command == "pi-code" and .["acp.agents"].claude.command == "claude-agent-acp" and .["acp.agents"].codex.command == "codex-acp"' "$SETTINGS_PATH" >/dev/null
 
 updated=$scratch/updated.json
 jq '.["acp.agents"].custom = {"command":"my-agent"} |
     .["acp.agents"].pi.command = "stale-pi" |
+    .["acp.agents"].codex.command = "stale-codex" |
     .["extensions.autoUpdate"] = "on" |
     .["my.setting"] = 42' "$SETTINGS_PATH" > "$updated"
 mv "$updated" "$SETTINGS_PATH"
@@ -21,6 +22,7 @@ mv "$updated" "$SETTINGS_PATH"
 [[ $(sh "$REPO/scripts/merge-settings.sh") == changed ]]
 jq -e '.["acp.agents"].pi.command == "pi-code" and
        .["acp.agents"].claude.command == "claude-agent-acp" and
+       .["acp.agents"].codex.command == "codex-acp" and
        .["acp.agents"].custom.command == "my-agent" and
        .["extensions.autoUpdate"] == "off" and
        .["security.workspace.trust.enabled"] == false and
