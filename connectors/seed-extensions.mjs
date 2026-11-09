@@ -31,10 +31,12 @@ function save(file, data) {
 
 export function seed({env = process.env, run = execFileSync} = {}) {
   const bundleDir = env.WOOW_CONNECTOR_VSIX_DIR || '/opt/woow-connector-vsix';
-  const stateDir = env.WOOW_CONNECTOR_DATA_DIR || path.join(env.PI_AGENT_DATA_DIR || '/data/pi-agent', 'connectors');
   const extensionsDir = env.WOOW_CODE_EXTENSIONS_DIR || path.join(env.HOME || '/home/coder', '.local/share/code-server/extensions');
-  safePath(stateDir); fs.mkdirSync(stateDir, {recursive: true, mode: 0o700});
-  const receipt = path.join(stateDir, 'extensions.json'); safePath(receipt);
+  // The receipt belongs to the installed extensions, not the agent data volume.
+  // A recreated IDE (or a second IDE sharing agent data) can have a fresh
+  // extension store. Its missing files must not be mistaken for an uninstall.
+  safePath(extensionsDir); fs.mkdirSync(extensionsDir, {recursive: true, mode: 0o755});
+  const receipt = path.join(extensionsDir, '.woow-connector-seed.json'); safePath(receipt);
   const previous = fs.existsSync(receipt) ? JSON.parse(fs.readFileSync(receipt, 'utf8')) : {};
   const manifest = JSON.parse(fs.readFileSync(path.join(bundleDir, 'manifest.json'), 'utf8'));
   const entries = Array.isArray(manifest) ? manifest : manifest.extensions;
