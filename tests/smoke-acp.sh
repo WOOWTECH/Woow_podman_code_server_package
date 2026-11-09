@@ -31,6 +31,8 @@ if CX sh -lc 'command -v claude-agent-acp >/dev/null && command -v claude >/dev/
 else
     bad "Claude Code or claude-agent-acp missing from PATH"
 fi
+# Expand CODEX_HOME inside the container's login shell, not on the host.
+# shellcheck disable=SC2016
 if CX sh -lc 'command -v codex-acp >/dev/null && command -v codex >/dev/null && test "$CODEX_HOME" = /data/pi-agent/codex'; then
     ok "Codex CLI and ACP adapter share the persistent state path"
 else
