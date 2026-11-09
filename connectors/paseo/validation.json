@@ -1,0 +1,33 @@
+{
+  "checkedAt": "2026-11-09T19:18:10.919Z",
+  "platform": "linux",
+  "arch": "x64",
+  "node": "22.23.4",
+  "paseoVersion": "0.11.2",
+  "behavioralTests": {
+    "command": "node --test connectors/paseo/tests/adapter.test.mjs connectors/paseo/tests/browser-contract.test.mjs",
+    "passed": 17,
+    "failed": 0
+  },
+  "isolatedDaemonIntegration": {
+    "command": "WOOW_PASEO_RUNTIME_DIR=<prebuilt-0.11.2-runtime> node connectors/paseo/tests/live-daemon.mjs",
+    "passed": true,
+    "concurrentSingleDaemon": true,
+    "pairingProduced": true,
+    "pairingPersisted": false,
+    "healthyRestoreReadOnly": true,
+    "stoppedRestoreRespected": true,
+    "enabledRestoreWorks": true,
+    "cleanupPassed": true
+  },
+  "notVerified": [
+    "new-image npm ci install step",
+    "real Claude/Codex/Pi model replies",
+    "real model switching",
+    "shared skill/MCP invocation",
+    "Podman/HA/PaaS deployment",
+    "arm64 runtime",
+    "three-agent real Paseo Web conversations and model switching"
+  ],
+  "browserValidation": "browser-validation.json"
+}

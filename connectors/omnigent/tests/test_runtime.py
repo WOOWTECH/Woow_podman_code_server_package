@@ -1,0 +1,77 @@
+"""Run with the installed private runtime's Python for real SDK contracts."""
+import importlib.metadata
+import json
+import os
+from pathlib import Path
+import tempfile
+import unittest
+from unittest.mock import patch
+
+try:
+    AVAILABLE = importlib.metadata.version("omnigent") == "0.16.0"
+except importlib.metadata.PackageNotFoundError:
+    AVAILABLE = False
+
+
+@unittest.skipUnless(AVAILABLE, "run with installed Omnigent 0.16.0 runtime")
+class RuntimeContracts(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.source = self.root / "source"
+        self.target = self.root / "session"
+        self.source.mkdir()
+        self.target.mkdir()
+        (self.source / "skills" / "shared-proof").mkdir(parents=True)
+        (self.source / "skills" / "shared-proof" / "SKILL.md").write_text("# Shared fixture\n")
+        self.env = patch.dict(os.environ, {"WOOW_OMNIGENT_SHARED_TOOLS": "1", "PI_CODING_AGENT_DIR": str(self.source)})
+        self.env.start()
+        self.addCleanup(self.env.stop)
+
+    def test_codex_private_home_gets_shared_skills_and_mcp_but_model_edits_stay_private(self):
+        from omnigent.inner.codex_executor import _populate_codex_home_config
+        config = 'model = "first-model"\n[mcp_servers.shared_fixture]\ncommand = "echo"\nargs = ["fixture"]\n'
+        (self.source / "config.toml").write_text(config)
+        _populate_codex_home_config(self.target, self.source, minimal_config=False, include_credentials=False)
+        # Credentials=False intentionally suppresses config copy. Run the ordinary
+        # subscribed native path with an entirely credential-free fixture home.
+        _populate_codex_home_config(self.target, self.source, minimal_config=False)
+        self.assertEqual((self.target / "skills").resolve(), (self.source / "skills").resolve())
+        self.assertIn("mcp_servers.shared_fixture", (self.target / "config.toml").read_text())
+        self.assertFalse((self.target / "config.toml").is_symlink())
+        (self.target / "config.toml").write_text(config.replace("first-model", "second-model"))
+        self.assertEqual((self.source / "config.toml").read_text(), config)
+
+    def test_pi_managed_provider_home_inherits_effective_directory_and_mcp(self):
+        from omnigent.inner.pi_settings import prepare_managed_pi_agent_dir
+        (self.source / "settings.json").write_text(json.dumps({"theme": "test-theme", "defaultThinkingLevel": "high"}))
+        (self.source / "mcp.json").write_text(json.dumps({"mcpServers": {"fixture": {"command": "echo"}}}))
+        (self.source / "extensions").mkdir()
+        (self.target / "models.json").write_text('{"managed":true}')
+        prepare_managed_pi_agent_dir(self.target, overlay={"defaultThinkingLevel": None})
+        self.assertEqual(json.loads((self.target / "settings.json").read_text()), {"theme": "test-theme", "defaultThinkingLevel": None})
+        self.assertEqual((self.target / "skills").resolve(), (self.source / "skills").resolve())
+        self.assertEqual((self.target / "mcp.json").resolve(), (self.source / "mcp.json").resolve())
+        self.assertEqual(json.loads((self.target / "models.json").read_text()), {"managed": True})
+        prepare_managed_pi_agent_dir(self.target)  # repeated launch is idempotent
+
+    def test_pi_conflicting_private_tool_path_fails_before_launch(self):
+        from omnigent.inner.pi_settings import prepare_managed_pi_agent_dir
+        (self.target / "skills").mkdir()
+        with self.assertRaisesRegex(ValueError, "conflicts"):
+            prepare_managed_pi_agent_dir(self.target)
+
+    def test_pi_resource_helper_existing_same_symlink_is_reused(self):
+        from omnigent.inner import pi_settings
+        (self.source / "extensions").mkdir()
+        # Exercise the real native helper creating those links before the WOOW
+        # hook, exactly the ordering an expanded SDK resource list would use.
+        with patch.object(pi_settings, "_PI_AGENT_RESOURCE_DIRS", ("npm", "git", "skills", "extensions")):
+            pi_settings.prepare_managed_pi_agent_dir(self.target)
+            pi_settings.prepare_managed_pi_agent_dir(self.target)
+        self.assertEqual((self.target / "skills").resolve(), (self.source / "skills").resolve())
+
+
+if __name__ == "__main__":
+    unittest.main()

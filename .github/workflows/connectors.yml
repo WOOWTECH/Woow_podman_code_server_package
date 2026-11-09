@@ -1,0 +1,41 @@
+name: code-server connectors
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  connectors:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: extensions/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned packaging dependencies
+        run: npm ci --ignore-scripts --prefix extensions
+      - name: Extension protocol and runtime behavior
+        run: |
+          npm test --prefix extensions
+          node --test connectors/paseo/tests/*.test.mjs connectors/omnigent/tests/*.test.mjs
+          python3 -m unittest discover -s connectors/omnigent/tests -p 'test_*.py'
+          if [ -f tests/connectors-cli.test.mjs ]; then
+            node --test tests/connectors-cli.test.mjs tests/connector-extension-seed.test.mjs
+          fi
+      - name: Build installable VSIX packages
+        run: npm run package --prefix extensions
+      - uses: actions/upload-artifact@v4
+        with:
+          name: code-server-connectors-vsix
+          path: extensions/dist/*
+          if-no-files-found: error

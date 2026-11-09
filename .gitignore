@@ -17,3 +17,9 @@ node_modules
 
 # Build/runtime npm dependencies
 node_modules
+extensions/dist/
+connectors/omnigent/runtime/
+connectors/python/
+connectors/bootstrap/
+__pycache__/
+*.pyc

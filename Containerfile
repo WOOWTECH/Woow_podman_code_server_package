@@ -23,6 +23,12 @@
 # `pi login` inside this container (see README "First run").
 
 ARG CODE_SERVER_VERSION=4.139.1
+FROM docker.io/library/node:22.23.2-bookworm-slim AS connector-vsix
+WORKDIR /build/extensions
+RUN apt-get update && apt-get install -y --no-install-recommends python3 && rm -rf /var/lib/apt/lists/*
+COPY extensions/ ./
+RUN npm ci --ignore-scripts --no-audit --no-fund && npm run package
+
 FROM docker.io/codercom/code-server:${CODE_SERVER_VERSION}
 
 # All apt / npm / extension work runs as root; the ENTRYPOINT drops back to
@@ -207,6 +213,17 @@ RUN npm ci --prefix /opt/woow-agent-tools --omit=dev \
 ENV CODEX_HOME=/data/pi-agent/codex \
     CODEX_PATH=/opt/woow-agent-tools/node_modules/.bin/codex
 
+# --- Paseo / Omnigent connector runtimes and installable VSIX -------------
+COPY connectors/ /opt/woow-connectors/
+COPY --from=connector-vsix /build/extensions/dist/ /opt/woow-connector-vsix/
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends tmux bubblewrap util-linux \
+ && rm -rf /var/lib/apt/lists/* \
+ && chmod +x /opt/woow-connectors/install-runtime.sh \
+             /opt/woow-connectors/paseo/install-runtime.sh \
+             /opt/woow-connectors/omnigent/install-runtime.sh \
+ && /opt/woow-connectors/install-runtime.sh
+
 # --- Rootfs overlay ------------------------------------------------------
 # Contains:
 #   - /usr/local/bin/pi-code — the HOME-scoping wrapper used as the ACP
@@ -225,6 +242,7 @@ ENV CODEX_HOME=/data/pi-agent/codex \
 COPY rootfs/ /
 RUN chmod +x /usr/local/bin/pi-code /usr/local/bin/pi-seed \
              /usr/local/bin/codex-code /usr/local/bin/woow-agent-sync /usr/local/bin/woow-code-server-entry \
+             /usr/local/bin/woow-connectors /usr/local/bin/woow-connectors-service \
  && sha256sum -c /opt/SHA256SUMS
 
 # --- pi state skeleton -----------------------------------------------------

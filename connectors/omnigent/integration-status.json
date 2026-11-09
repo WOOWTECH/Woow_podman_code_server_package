@@ -1,0 +1,26 @@
+{
+  "status": "runtime-packaging-ready",
+  "runtimeVersion": "0.16.0",
+  "installer": "install-runtime.sh PREFIX",
+  "paasEntry": "python3 /opt/woow-connectors/omnigent/kit-entry.py /usr/local/bin/omnigent-host-entry NORMAL_ARGS",
+  "noCanonicalKitChanges": true,
+  "tests": {
+    "isolatedRuntimeInstall": "passed linux amd64 CPython3.12.3, 94 hash-locked packages",
+    "sdkSessionHomes": "passed Codex skills/copied MCP/private model edits and Pi shared resources",
+    "kitOverlay": "passed real supervisor pause/restart/restore; canonical source unchanged",
+    "liveModelConversation": "not performed by scoped adapter agent",
+    "arm64WheelResolution": "passed uv --dry-run --python-platform aarch64-unknown-linux-gnu --only-binary :all: --require-hashes (not arm64 runtime execution)",
+    "nodeAdapter": "5 passed",
+    "processOwnership": "passed own-host SIGTERM/reaping and unrelated-process refusal",
+    "pythonSuite": "22 passed, 0 skipped with private runtime and canonical kit fixture"
+  },
+  "files": {
+    "index.mjs": "8c9f43e333746e0379ff4d804c60dbdac2e05c29d588c98a2ba806797ff16b99",
+    "bridge.py": "5a8b017889de8d58e9dfbcf276ea274c25f2d80fdd39feb78953c88625447824",
+    "install-runtime.sh": "a6637e5694311e6e5605cfdbe57053aed33bc56605952e588f75e823f319b2bc",
+    "patch-runtime.py": "374ccb57af9abbd58766f01dd105991ba8858d74885b38e9a5b439f20187b72b",
+    "patch-kit.py": "5986807b685939fd508b9c1329e9eeff1f7144ae12ab50ded4104e0ab38e9a34",
+    "kit-entry.py": "8e81313cf70b920aa315c71ff19d4125033203037d6afea134b6ca2b0958eeaf",
+    "requirements.lock": "74e3f6298ce131bc987b5800a7c8fadab62223fe55d5faa47772787bd9320e50"
+  }
+}
