@@ -30,7 +30,11 @@ def prepare(source):
             if item.name.startswith(".."):
                 continue  # Kubernetes projection bookkeeping is not a kit entry.
             if item.name == "supervisor.sh":
-                shutil.copy2(item, stage / item.name)
+                target = stage / item.name
+                shutil.copy2(item, target)
+                # ConfigMap scripts are commonly projected as 0555. Only the
+                # private, owned copy must be writable for the scoped patch.
+                target.chmod((target.stat().st_mode & 0o777) | 0o200)
             else:
                 (stage / item.name).symlink_to(item.resolve(), target_is_directory=item.is_dir())
         patcher.patch(stage / "supervisor.sh")

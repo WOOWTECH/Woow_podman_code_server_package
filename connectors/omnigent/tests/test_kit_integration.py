@@ -37,6 +37,31 @@ class KitEnvironment(unittest.TestCase):
 
 @unittest.skipUnless(KIT, "set WOOW_TEST_KIT_SOURCE to the canonical kit")
 class KitLifecycle(unittest.TestCase):
+    def test_overlay_accepts_readonly_configmap_projection(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            projected = Path(temporary)
+            revision = projected / "..revision"
+            revision.mkdir()
+            source = revision / "supervisor.sh"
+            original = (Path(KIT) / "supervisor.sh").read_bytes()
+            source.write_bytes(original)
+            source.chmod(0o555)
+            (revision / "helper.sh").write_text("#!/bin/sh\n")
+            (revision / "helper.sh").chmod(0o555)
+            (projected / "..data").symlink_to(revision, target_is_directory=True)
+            (projected / "supervisor.sh").symlink_to("..data/supervisor.sh")
+            (projected / "helper.sh").symlink_to("..data/helper.sh")
+            stage = entry.prepare(projected)
+            self.addCleanup(lambda: shutil.rmtree(stage, ignore_errors=True))
+            self.assertEqual(source.read_bytes(), original)
+            self.assertEqual(source.stat().st_mode & 0o777, 0o555)
+            self.assertEqual(stage.stat().st_mode & 0o777, 0o700)
+            self.assertTrue((stage / "supervisor.sh").stat().st_mode & 0o200)
+            self.assertFalse((stage / "supervisor.sh").is_symlink())
+            self.assertIn("WOOW_CONNECTOR_PAUSE_V1", (stage / "supervisor.sh").read_text())
+            self.assertEqual((stage / "helper.sh").resolve(), revision / "helper.sh")
+            entry.patcher.patch(stage / "supervisor.sh")  # Integrity receipt remains valid.
+
     def test_overlay_pauses_without_restarting_and_survives_supervisor_restart(self):
         import yaml
         original = Path(KIT)

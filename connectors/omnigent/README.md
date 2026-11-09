@@ -28,6 +28,8 @@ For PaaS, the preferred scoped integration is to put
 private temporary overlay of the mounted canonical kit and exports `OG_KIT_DIR`
 to the existing launcher and product. Only the overlay supervisor is patched;
 canonical chart sources, ConfigMaps, other charts and host identity do not change.
+The owned supervisor copy gains owner-write permission so a non-root image can
+patch a ConfigMap projected with mode `0555`; the mounted source remains read-only.
 Unknown source hashes fall back to the original kit with pause unsupported.
 It also adds shared-tools names to `OG_PASSTHROUGH` so native runners inherit the
 same engine homes. There is still exactly one supervisor.

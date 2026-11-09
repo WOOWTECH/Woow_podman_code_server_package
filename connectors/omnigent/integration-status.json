@@ -7,13 +7,14 @@
   "tests": {
     "isolatedRuntimeInstall": "passed linux amd64 CPython3.12.3, 94 hash-locked packages",
     "sdkSessionHomes": "passed Codex skills/copied MCP/private model edits and Pi shared resources",
-    "kitOverlay": "passed real supervisor pause/restart/restore; canonical source unchanged",
-    "liveModelConversation": "HA isolated existing QA container: Claude, Codex and Pi Web two-model same-session context plus actual shared skill/MCP proof passed; Podman/PaaS not performed by scoped adapter agent",
+    "kitOverlay": "passed real supervisor pause/restart/restore and non-root read-only 0555 Kubernetes ConfigMap projection; actual PaaS pod prepare check passed without changing its running supervisor",
+    "liveModelConversation": "HA and Podman isolated QA: Claude, Codex and Pi Web two-model same-session context plus actual shared skill/MCP proof passed; PaaS model acceptance pending",
     "arm64WheelResolution": "passed uv --dry-run --python-platform aarch64-unknown-linux-gnu --only-binary :all: --require-hashes (not arm64 runtime execution)",
     "nodeAdapter": "5 passed",
     "processOwnership": "passed own-host SIGTERM/reaping and unrelated-process refusal",
-    "pythonSuite": "24 passed, 0 skipped with private runtime and canonical kit fixture",
-    "nativeCliPinGuard": "passed actual SDK runner env filter; HA live Claude received DISABLE_AUTOUPDATER=1 and remained 2.1.285 after full conversation/model-switch/MCP proof"
+    "pythonSuite": "25 passed, 0 skipped with private runtime and canonical kit fixture",
+    "nativeCliPinGuard": "passed actual SDK runner env filter; HA live Claude received DISABLE_AUTOUPDATER=1 and remained 2.1.285 after full conversation/model-switch/MCP proof",
+    "paasReadOnlyProjectionFix": "source updated after live QA exposed copy2 preserving 0555; regression reproduced PermissionError before fix and passes afterward; new PaaS image rollout still required"
   },
   "files": {
     "index.mjs": "887b6f02659fab2990547464295bb4f0181b708e70b62694148dc69eeda8e10f",
@@ -21,7 +22,7 @@
     "install-runtime.sh": "a6637e5694311e6e5605cfdbe57053aed33bc56605952e588f75e823f319b2bc",
     "patch-runtime.py": "374ccb57af9abbd58766f01dd105991ba8858d74885b38e9a5b439f20187b72b",
     "patch-kit.py": "5986807b685939fd508b9c1329e9eeff1f7144ae12ab50ded4104e0ab38e9a34",
-    "kit-entry.py": "a3bf02b9a7558a66894a7723aa7e3f1f82a46f2a2acca975944361978e7477af",
+    "kit-entry.py": "5c57e54d4d95c8f1db95a505bd2a31a814626f068a19f45f846d6e774ede7b03",
     "requirements.lock": "74e3f6298ce131bc987b5800a7c8fadab62223fe55d5faa47772787bd9320e50"
   }
 }
