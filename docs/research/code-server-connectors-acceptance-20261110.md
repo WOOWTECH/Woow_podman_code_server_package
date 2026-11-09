@@ -8,7 +8,7 @@ Podman 與 HA QA 已完成 **4 個 Web 組合、每個組合各 3 個代理**的
 
 | QA 環境 | 最終部署 | 開機後驗收 |
 | --- | --- | --- |
-| Podman | 保留 QA3 基底映像 `d3e40c90500e…`，在同一容器安裝 `3f36c24` runtime 與 VSIX 0.1.4 | 待修改檔案先備份；更新後 28 項 extension、39 項 Node backend、25 項 Python 測試通過；重啟 HTTP、版本及檔案雜湊通過，UID／GID 映射及掛載保留 |
+| Podman | 保留 QA3 基底映像 `d3e40c90500e…`，在同一容器安裝 `3f36c24` runtime 與 VSIX 0.1.4 | 待修改檔案先備份；更新後 28 項 extension、39 項 Node backend、25 項 Python 測試通過；重啟 HTTP、版本及 60 個檔案雜湊通過；UI 8 項、獨立 seed receipt、原 Omnigent host 及原 Paseo Web 配對皆通過，UID／GID 映射及掛載保留 |
 | HA | `20261110.connectors-ha-qa6`，映像 `sha256:0c963ae06c97405a1c840c14dd040e06e0c1c8b5f5199c5ccd5ddca4076fe93e` | HTTP、真正 Ingress 8 項、兩個 0.1.4 插件及獨立 seed receipt 通過；兩 connector 恢復在線，host 身分保留 |
 | PaaS | Helm revision 9，`20261110.connectors-paas-qa5@sha256:b2932c40d9d4333cef863f17b89371974fea790b4d82e8060725f0bae4fb2df5` | UI 6 項、兩個 0.1.4 插件及獨立 seed receipt 通過；兩 connector 恢復在線，host 身分保留 |
 
@@ -109,5 +109,10 @@ qa4 開機後再檢查實際目錄 `/home/coder/.local/share/code-server/extensi
 | PaaS provider 登入與 proof fixture 缺口 | `omnigent-paas-native-preflight.json`、`paseo-web-paas-preflight.json` |
 | PaaS qa4 Paseo 設定、舊配對與開機 receipt | `paseo-web-paas-qa4-persistence.json` |
 | 兩個獨立 extension store 的實際 CLI 行為 | `paseo-paas-seed-store-integration-fe33712.json` |
+| 三平台 0.1.4 最終 UI／seed | `vsix-0.1.4/final-rollout-ui-summary.json` |
+| Podman 保留容器更新、回復與重套用 | `podman-inplace-3f36c24-result.json`、`reapply-podman-inplace-3f36c24.py` |
+| Podman 原配對、Omnigent host 保留 | `paseo-web-podman-final-persistence.json`、`omnigent-podman-review-ready.json` |
+| HA／PaaS 實際 host 與來源雜湊 | `omnigent-ha-final-readonly.json`、`omnigent-paas-final-readonly.json` |
+| GitHub VSIX 產物與實測套件相同 | `github-vsix-0.1.4-verified.json` |
 
 待完成項目為 PaaS 使用者供應商登入及完整模型／工具驗收、審查合併與正式發版。Podman 完整新映像換版另受主機容量限制；本輪已完成保留容器的 runtime／VSIX 更新。arm64 目前有依賴解析證據，沒有三代理 runtime 實機驗收；Open VSX 公開上架也未完成。現有 QA 存取使用既有私有轉送或受驗證的 HA Ingress，未在本紀錄宣告新的公開 QA IDE 網址。
