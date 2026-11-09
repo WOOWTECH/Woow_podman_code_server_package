@@ -1,0 +1,6 @@
+# User-installed editor extensions. The first mount copies the pinned image
+# extensions into this private volume; further installs survive recreation.
+[Volume]
+VolumeName=woow-code-server-extensions
+Label=app=woow-code-server
+Label=io.woowtech.app=woow-code-server

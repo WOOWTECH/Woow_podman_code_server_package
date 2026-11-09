@@ -32,7 +32,7 @@ cross-platform contract.
 | **Agent** | pi 0.99.1 available in the ACP right-side chat panel, and as `pi` on the terminal PATH |
 | **Claude Code** | Claude Code 2.1.285: `claude` on the terminal PATH, a second **Claude Code** agent in the ACP chat panel (`claude-agent-acp` 0.84.0), and the official extension. One `claude` login (or `ANTHROPIC_API_KEY`) serves all three; its state lives in `/data/pi-agent/claude` on the pi volume |
 | **Workspace** | Host `~/Desktop` bind-mounted at `/workspace` — edit files and they land back on the host owned by you |
-| **Persistence** | pi state lives in the internal `woow-code-server-pi-data` volume; IDE settings live in `woow-code-server-ide`; both survive container recreate + reboots. **VS Code extensions and runtime `npm install -g` do not** — they live in the container's writable layer and are lost on recreate. For a package that must survive, install it with an explicit prefix on the state volume: `npm install -g --prefix /data/pi-agent/npm-global <pkg>` (that bin dir is already on `PATH`). |
+| **Persistence** | Pi state, IDE settings, and user-installed VS Code extensions live in separate private volumes (`woow-code-server-pi-data`, `woow-code-server-ide`, `woow-code-server-extensions`) and survive container recreation. Runtime `npm install -g` still lives in the image's writable layer; for a persistent CLI, use `npm install -g --prefix /data/pi-agent/npm-global <pkg>` (that bin dir is on `PATH`). |
 | **Supervision** | `systemd --user` via Quadlet, `Restart=always`, 30s healthcheck timer |
 
 ---
@@ -196,7 +196,8 @@ scripts/restore.sh ~/backups/woow-code-server/<timestamp>      # asks first; --y
 ```
 
 The backup exports `woow-code-server-pi-data` (pi login, sessions, skills),
-`woow-code-server-ide` (IDE settings) and the sidecar state when it exists, each with a
+`woow-code-server-ide` (IDE settings), `woow-code-server-extensions` (user-installed extensions),
+and the sidecar state when it exists, each with a
 `.sha256`, plus a copy of the env file. `restore.sh` stops the IDE, replaces those volumes,
 starts it again and runs the smoke test.
 
@@ -352,6 +353,7 @@ quadlet/
   code-server.container      the container, its mounts and its health check (@@VAR@@ tokens)
   woow-code-server-pi.volume internal pi state volume
   woow-code-server-ide.volume internal IDE user-data volume
+  woow-code-server-extensions.volume  persistent user-installed extensions
   render-vars                the variables install.sh may substitute
   optional/                  the tailscale sidecar, installed with --with-tailscale
 config/
@@ -368,6 +370,7 @@ systemd/
 scripts/
   lib/quadlet-lib.sh        the shared WOOWTECH Quadlet library (vendored, checksum-pinned)
   install.sh                render + validate + build + install + restart what changed
+  merge-settings.sh         preserve user settings while adding pinned ACP agents
   upgrade.sh                snapshot + backup + install + smoke, with automatic rollback
   uninstall.sh              stop + remove (keeps data unless --purge)
   backup.sh / restore.sh    volume exports and imports

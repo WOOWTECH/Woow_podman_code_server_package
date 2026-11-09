@@ -50,6 +50,8 @@ echo "== podman deployment at $BASE"
 check "unit $UNIT is active" systemctl --user is-active --quiet "$UNIT"
 check "code-server-health.timer is active" systemctl --user is-active --quiet code-server-health.timer
 check "container health is healthy" test "$(podman inspect --format '{{.State.Health.Status}}' "$C" 2>/dev/null)" = healthy
+extensions_volume=$(podman inspect --format '{{range .Mounts}}{{if eq .Destination "/home/coder/.local/share/code-server/extensions"}}{{.Name}}{{end}}{{end}}' "$C" 2>/dev/null)
+check "user extensions use the persistent volume" test "$extensions_volume" = woow-code-server-extensions
 check "GET /healthz -> 200" test "$(curl -s -o /dev/null -w '%{http_code}' -m 10 "$BASE/healthz" 2>/dev/null)" = 200
 
 listeners=$(ss -ltnH "sport = :$PORT" 2>/dev/null | awk '{print $4}' | sort -u | tr '\n' ' ')
