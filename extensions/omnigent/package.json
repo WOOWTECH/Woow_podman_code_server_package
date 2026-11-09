@@ -2,7 +2,7 @@
   "name": "omnigent",
   "displayName": "WOOW Omnigent",
   "description": "Connect code-server\u2019s Claude Code, Codex and Pi agents to Omnigent. Configure, pair or sign in, and verify real conversations.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "woowtech",
   "license": "MIT",
   "engines": {
@@ -133,7 +133,13 @@
         "woow.omnigent.server": {
           "type": "string",
           "default": "",
-          "description": "Omnigent server URL without credentials. Apply with Configure Workspace after editing.",
+          "description": "Omnigent server URL reachable from this container, such as an internal Podman/Kubernetes URL. Sign-in credentials are sent only here. No credentials, query, or fragment in the URL. Apply with Configure Workspace after editing.",
+          "scope": "machine"
+        },
+        "woow.omnigent.webUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Optional Omnigent Web URL reachable from your browser. Open Web uses this URL, or server when empty. Allows explicitly configured HTTP(S), including loopback/private addresses; no credentials, query, or fragment. No server credentials are forwarded to the browser.",
           "scope": "machine"
         }
       }

@@ -18,11 +18,11 @@ function safeText(value, max = 240) {
     .replace(/[\x00-\x1f\x7f]/g, ' ').slice(0, max);
 }
 function webUrl(value, { server = false } = {}) {
-  if (typeof value !== 'string' || value.length > 8192) return undefined;
+  if (typeof value !== 'string' || value.length > 8192 || /[\x00-\x1f\x7f]/.test(value)) return undefined;
   try {
     const u = new URL(value);
     if (!['https:', 'http:'].includes(u.protocol) || u.username || u.password) return undefined;
-    if (server && (u.search || u.hash)) return undefined;
+    if (server && (u.search || u.hash || value.includes('?') || value.includes('#'))) return undefined;
     return u.toString();
   } catch { return undefined; }
 }
@@ -38,7 +38,7 @@ function settingsFrom(configuration) {
 }
 function configureFields(connector, input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Invalid configuration.');
-  const allowed = ['workspace', 'hostName', ...(connector === 'omnigent' ? ['server'] : ['webUrl'])];
+  const allowed = ['workspace', 'hostName', 'webUrl', ...(connector === 'omnigent' ? ['server'] : [])];
   if (Object.keys(input).some(key => !allowed.includes(key))) throw new Error('Unknown configuration field.');
   const result = {};
   for (const key of ['workspace', 'hostName']) {
@@ -50,9 +50,10 @@ function configureFields(connector, input) {
   if (connector === 'omnigent') {
     result.server = webUrl(input.server, { server: true });
     if (!result.server) throw new Error('Server must be an HTTP(S) URL without credentials, query, or fragment.');
-  } else if (input.webUrl) {
-    result.webUrl = webUrl(input.webUrl);
-    if (!result.webUrl || new URL(result.webUrl).search || new URL(result.webUrl).hash) throw new Error('Paseo Web URL must not contain pairing credentials.');
+  }
+  if (input.webUrl !== undefined && input.webUrl !== '') {
+    result.webUrl = webUrl(input.webUrl, { server: true });
+    if (!result.webUrl) throw new Error('Web URL must be an HTTP(S) URL without credentials, query, or fragment.');
   }
   return result;
 }
@@ -145,7 +146,7 @@ function publicStatus(result, connector, configuration = {}) {
     error: result?.ok === false ? publicCode(result.error?.code) : '',
     host: safeText(typeof host === 'object' && host ? host.name ?? host.id : host ?? data.hostName),
     mode: safeText(data.mode ?? data.managementMode),
-    server: safeText(webUrl(data.server ?? data.serverUrl ?? configuration.server) ?? ''),
+    server: safeText(webUrl(data.server ?? data.serverUrl ?? configuration.server, { server: true }) ?? ''),
     workspace: safeText(data.workspace ?? configuration.workspace),
     verification: verification?.ok === true || verification?.requestedPassed === true || verification?.passed === true || verification?.status === 'passed' ? 'passed' : verification ? 'incomplete' : 'unverified',
     verifiedAt: safeText(verification?.at ?? verification?.timestamp ?? verification?.completedAt),
@@ -156,7 +157,7 @@ function publicStatus(result, connector, configuration = {}) {
       version: safeText(item.version),
     }).slice(0, 20),
     models: modelItems(data).map(m => ({ id: safeText(m.id), name: safeText(m.name), agent: safeText(m.agent) })),
-    settings: Object.fromEntries(['workspace', 'hostName', ...(connector === 'omnigent' ? ['server'] : ['webUrl'])].map(key => [key, safeText(configuration[key], key === 'workspace' ? 4096 : 512)])),
+    settings: Object.fromEntries(['workspace', 'hostName', 'webUrl', ...(connector === 'omnigent' ? ['server'] : [])].map(key => [key, safeText(['server', 'webUrl'].includes(key) ? webUrl(configuration[key], { server: true }) ?? '' : configuration[key], key === 'workspace' ? 4096 : 512)])),
   };
 }
 module.exports = { DEFAULT_RUNTIME, createRuntime, failure, publicCode, safeText, settingsFrom, configureFields, validMessage, webUrl, modelItems, publicStatus };

@@ -17,8 +17,8 @@ npm run package --prefix extensions
 
 ```json
 [
-  {"id":"woowtech.paseo","version":"0.1.1","file":"woowtech.paseo-0.1.1.vsix","sha256":"<sha256>"},
-  {"id":"woowtech.omnigent","version":"0.1.1","file":"woowtech.omnigent-0.1.1.vsix","sha256":"<sha256>"}
+  {"id":"woowtech.paseo","version":"0.1.2","file":"woowtech.paseo-0.1.2.vsix","sha256":"<sha256>"},
+  {"id":"woowtech.omnigent","version":"0.1.2","file":"woowtech.omnigent-0.1.2.vsix","sha256":"<sha256>"}
 ]
 ```
 
@@ -61,7 +61,7 @@ The renderer tolerates absent fields, a `data` wrapper, and arrays/maps for engi
 
 Missing auth/installation/verification data remains unknown/unverified. Model inventory may also be under each engine's `models`. For verification the UI sends `engine` (`claude`, `codex`, `pi`) and optional `model`. The runtime should return explicit `verification.ok`, `verification.passed`, or `verification.status:"passed"` (also accepts Paseo `acceptance.requestedPassed`/`passed`) and persist that receipt for a subsequent status request. Merely `{ok:true}` means the request completed, not that an assistant replied.
 
-Paseo pair responds with `{ok:true,url:"https://app.paseo.sh/#<private-offer>"}` (also accepts `pairingUrl`, `pairUrl`, `pairing.url`, `offer.url`). This URL is never sent to the webview or output channel; only the explicit command opens it. Only the official origin or the user's explicitly configured Paseo Web origin is accepted. The local `webUrl` editor setting is not sent to runtime configure.
+Paseo pair responds with `{ok:true,url:"https://app.paseo.sh/#<private-offer>"}` (also accepts `pairingUrl`, `pairUrl`, `pairing.url`, `offer.url`). This URL is never sent to the webview or output channel; only the explicit command opens it. Only the official origin or the user's explicitly configured Paseo Web origin is accepted. The local `webUrl` editor setting is not sent to runtime configure or connect. Omnigent has separate machine-scoped `server` (container/backend reachability) and optional `webUrl` (browser reachability) settings; Open Web selects `webUrl || server`. Both configuration URLs and normal Open Web calls reject URL userinfo, query strings, fragments, and control characters. Explicit HTTP private/loopback URLs are supported. Omnigent credentials remain bound to `server`; browser opening forwards no authentication material.
 
 ## Tests and remaining deployment evidence
 

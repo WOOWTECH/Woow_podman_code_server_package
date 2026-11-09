@@ -4,10 +4,10 @@ Connect this code-server deployment’s **Claude Code, Codex and Pi Agent** to O
 
 ## Install
 
-Install `woowtech.omnigent-0.1.1.vsix` through **Extensions → … → Install from VSIX**, or run inside the container:
+Install `woowtech.omnigent-0.1.2.vsix` through **Extensions → … → Install from VSIX**, or run inside the container:
 
 ```sh
-code-server --install-extension /opt/woow-connector-vsix/woowtech.omnigent-0.1.1.vsix
+code-server --install-extension /opt/woow-connector-vsix/woowtech.omnigent-0.1.2.vsix
 ```
 
 This is a normal installed extension, not a built-in. It appears in **Extensions → Installed** with ID `woowtech.omnigent`. It does not require a marketplace account or another gallery extension. The default marketplace has not been used to publish this package.
@@ -16,11 +16,17 @@ This is a normal installed extension, not a built-in. It appears in **Extensions
 
 1. Open **WOOW Omnigent: Open Connection Panel** from the command palette, or select the Omnigent icon in the activity bar.
 2. Enter the container workspace and host name, then **Save configuration**.
-3. Enter the Omnigent server URL, then **Sign in & connect**. Username and password are requested through native editor prompts; the password is masked.
+3. Enter the Omnigent **server URL reachable from the container**. If your browser needs a different address, also set **Browser Web URL**. Save configuration, then select **Sign in & connect**. Username and password are requested through native editor prompts; the password is masked.
 4. In Omnigent Web, select this host/workspace and choose Claude Code, Codex or Pi, then select an available model and start a conversation.
 5. Use **Refresh models** to inspect the available inventory. **Verify a conversation** asks for an agent and model, then requests a real runtime verification. It may consume model quota. Each provider needs its own existing login in this deployment.
 
 Change models within the selected agent’s Web conversation. A different agent may need a new conversation; this extension does not claim cross-agent context transfer. Switching the UI’s selected agent or seeing “online” does not prove that an assistant replied.
+
+## Separate backend and browser URLs
+
+For Podman, `server` may be `http://omnigent-server:8000` while `webUrl` is a public HTTPS hostname or an explicitly forwarded browser-loopback URL. For PaaS, `server` may use a `*.svc.cluster.local` hostname while `webUrl` is the external Ingress address. **Open Omnigent Web** opens `webUrl` when set and falls back to `server` when empty. Changing `webUrl` does not change the server receiving login credentials.
+
+Both settings accept HTTP(S), including explicit private/loopback HTTP endpoints, and reject URL usernames/passwords, query strings and fragments. The extension never appends credentials or tokens when opening the browser.
 
 ## Runtime requirement
 

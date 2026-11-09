@@ -5,7 +5,7 @@ const { createExtension } = require('../shared/extension.cjs');
 const { html } = require('../shared/ui.cjs');
 function harness(connector, responses={}) {
   const commands=new Map(), calls=[], logs=[], updates=[], notices=[], opened=[], posted=[], inputOptions=[];
-  const values={runtimePath:'/usr/local/bin/woow-connectors',workspace:'/workspace',hostName:'test',server:'https://omnigent.example.org',webUrl:'https://app.paseo.sh'};
+  const values={runtimePath:'/usr/local/bin/woow-connectors',workspace:'/workspace',hostName:'test',server:'https://omnigent.example.org',webUrl:connector==='paseo'?'https://app.paseo.sh':''};
   const inputs=[], picks=[];
   let receive;
   const disposable={dispose(){}};
@@ -20,7 +20,7 @@ function harness(connector, responses={}) {
   };
   const ext=createExtension(connector,{vscode,createRuntime:options=>async request=>{calls.push(request);const response=responses[request.action]??{ok:true,phase:'online'};options.onEvent({connector,action:request.action,ok:response.ok});return response;}});
   const api=ext.activate({subscriptions:[]});
-  return {ext,api,vscode,commands,calls,logs,updates,notices,opened,posted,inputs,picks,inputOptions,panel,receive:message=>receive(message)};
+  return {ext,api,vscode,commands,calls,logs,updates,notices,opened,posted,inputs,picks,inputOptions,panel,values,receive:message=>receive(message)};
 }
 test('activation and window deactivation do not start or stop backend processes', () => {
   for(const name of ['paseo','omnigent']) {const h=harness(name);assert.equal(h.calls.length,0);assert.ok(h.commands.has(`woow.${name}.configure`));h.ext.deactivate();assert.equal(h.calls.length,0);}
@@ -80,4 +80,39 @@ test('activity-bar container IDs meet the live VS Code contribution schema', () 
     assert.match(id,/^[a-zA-Z0-9_-]+$/);
     assert.ok(manifest.contributes.views[id].some(view=>view.id===`woow.${connector}.statusView`));
   }
+});
+test('Omnigent routes login to internal server and browser opening to separate Web URL without forwarding auth', async () => {
+  const h=harness('omnigent');
+  await h.api.perform('configure',{workspace:'/workspace/team',hostName:'qa',server:'http://omnigent-server:8000',webUrl:'http://127.0.0.1:18080'});
+  assert.deepEqual(h.calls.find(c=>c.action==='configure'),{connector:'omnigent',action:'configure',workspace:'/workspace/team',hostName:'qa',server:'http://omnigent-server:8000/'});
+  h.inputs.push('operator','fixture-password-private');await h.commands.get('woow.omnigent.connect')();
+  const connect=h.calls.find(c=>c.action==='connect');assert.equal(connect.server,'http://omnigent-server:8000/');assert.equal(connect.webUrl,undefined);assert.equal(connect.password,'fixture-password-private');
+  await h.commands.get('woow.omnigent.openWeb')();assert.deepEqual(h.opened,['http://127.0.0.1:18080/']);
+  assert.equal(JSON.stringify([h.opened,h.logs,h.posted,h.updates,h.api.getPublicState()]).includes('fixture-password-private'),false);
+  assert.equal(h.api.getPublicState().settings.webUrl,'http://127.0.0.1:18080/');
+});
+test('clearing optional Omnigent Web URL restores server fallback without changing the backend destination', async () => {
+  const h=harness('omnigent');
+  await h.api.perform('configure',{workspace:'/workspace',hostName:'qa',server:'http://omnigent.ns.svc.cluster.local:8000',webUrl:'https://omnigent.example.org'});
+  await h.api.perform('configure',{workspace:'/workspace',hostName:'qa',server:'http://omnigent.ns.svc.cluster.local:8000',webUrl:''});
+  await h.commands.get('woow.omnigent.openWeb')();assert.deepEqual(h.opened,['http://omnigent.ns.svc.cluster.local:8000/']);
+  assert.ok(h.updates.some(([key,value])=>key==='webUrl'&&value===undefined));
+});
+test('native Omnigent configuration asks for a separate optional browser URL and cancellation does not save partial settings', async () => {
+  const h=harness('omnigent');h.inputs.push('/workspace','qa','http://omnigent-server:8000','https://omnigent.example.org');
+  await h.commands.get('woow.omnigent.configure')();
+  assert.equal(h.inputOptions.at(-1).title,'Omnigent: browser Web URL (optional)');assert.ok(h.updates.some(([key,value])=>key==='webUrl'&&value==='https://omnigent.example.org/'));
+  const cancel=harness('omnigent');cancel.inputs.push('/workspace','qa','http://omnigent-server:8000',undefined);
+  await cancel.commands.get('woow.omnigent.configure')();assert.equal(cancel.calls.some(c=>c.action==='configure'),false);assert.equal(cancel.updates.length,0);
+});
+test('normal Open Web rejects sensitive URL components even when inserted directly in machine settings', async () => {
+  for(const connector of ['paseo','omnigent']) for(const bad of ['https://operator:fixture-private@example.org','https://example.org/?token=fixture-private','https://example.org/#fixture-private','https://example.org/?','https://example.org/#','javascript:alert(1)','https://exa\nmple.org']) {
+    const h=harness(connector);h.values.webUrl=bad;
+    const result=await h.commands.get(`woow.${connector}.openWeb`)();assert.equal(result.ok,false);assert.equal(h.opened.length,0);
+    assert.equal(JSON.stringify([h.logs,h.notices,h.posted,h.api.getPublicState()]).includes('fixture-private'),false);
+  }
+});
+test('Omnigent form and machine settings expose backend and browser URLs separately', () => {
+  const markup=html('omnigent');assert.ok(markup.includes('name="server"'));assert.ok(markup.includes('name="webUrl"'));assert.ok(markup.includes('Browser Web URL (optional)'));
+  const property=require('../omnigent/package.json').contributes.configuration.properties['woow.omnigent.webUrl'];assert.equal(property.scope,'machine');assert.equal(property.default,'');
 });

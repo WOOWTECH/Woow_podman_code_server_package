@@ -36,6 +36,11 @@ function createExtension(connector, dependencies = {}) {
       const url = await vscode.window.showInputBox({ title: `${name}: ${connector === 'omnigent' ? 'server URL' : 'Web URL'}`, value: existing[key], ignoreFocusOut: true });
       if (url === undefined) return;
       fields = { workspace, hostName, [key]: url };
+      if (connector === 'omnigent') {
+        const browserUrl = await vscode.window.showInputBox({ title: 'Omnigent: browser Web URL (optional)', prompt: 'URL your browser can reach. Leave empty to open the server URL. No credentials, query, or fragment.', value: existing.webUrl, ignoreFocusOut: true });
+        if (browserUrl === undefined) return;
+        fields.webUrl = browserUrl;
+      }
     }
     const normalized = configureFields(connector, fields);
     const { webUrl: localWebUrl, ...runtimeFields } = normalized;
@@ -43,7 +48,7 @@ function createExtension(connector, dependencies = {}) {
     if (result.ok) {
       const config = vscode.workspace.getConfiguration(prefix);
       for (const [key, value] of Object.entries(normalized)) await config.update(key, value, vscode.ConfigurationTarget.Global);
-      if (connector === 'paseo' && !localWebUrl) await config.update('webUrl', undefined, vscode.ConfigurationTarget.Global);
+      if (!localWebUrl) await config.update('webUrl', undefined, vscode.ConfigurationTarget.Global);
     }
     return result;
   }
@@ -98,9 +103,12 @@ function createExtension(connector, dependencies = {}) {
       url = webUrl(data.url ?? data.pairingUrl ?? data.pairUrl ?? data.pairing?.url ?? data.offer?.url);
       // Pairing carries authorization. Only the explicit configured Web origin or
       // official Paseo Web may receive it; never post this URL to a webview or log.
-      const configured = webUrl(configuration().webUrl);
+      const configured = webUrl(configuration().webUrl, { server: true });
       if (!url || !['https://app.paseo.sh', ...(configured ? [new URL(configured).origin] : [])].includes(new URL(url).origin)) return { ok: false, error: { code: 'INVALID_PAIRING_URL' } };
-    } else url = webUrl(connector === 'omnigent' ? configuration().server : configuration().webUrl);
+    } else {
+      const config = configuration();
+      url = webUrl(connector === 'omnigent' ? config.webUrl || config.server : config.webUrl, { server: true });
+    }
     if (!url) return { ok: false, error: { code: 'WEB_URL_REQUIRED' } };
     const opened = await vscode.env.openExternal(vscode.Uri.parse(url));
     url = '';
@@ -145,7 +153,7 @@ function createExtension(connector, dependencies = {}) {
       return result;
     } catch (error) {
       // Only our validation errors are shown; runtime stderr is never forwarded.
-      const message = error instanceof Error && /^(Invalid |Unknown configuration|Workspace must |Server must |Paseo Web URL|Unsupported action)/.test(error.message) ? safeText(error.message) : 'Connector operation could not be completed.';
+      const message = error instanceof Error && /^(Invalid |Unknown configuration|Workspace must |Server must |Web URL must |Unsupported action)/.test(error.message) ? safeText(error.message) : 'Connector operation could not be completed.';
       notice(message, true);
       await vscode.window.showErrorMessage(message);
       return { ok: false, error: { code: 'CLIENT_ERROR' } };

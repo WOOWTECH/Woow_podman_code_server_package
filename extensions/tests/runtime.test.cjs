@@ -96,3 +96,11 @@ test('Paseo daemon is not online evidence, and acceptance is separate verificati
   const passed=publicStatus({...base,online:true,acceptance:{requestedPassed:true,at:'2026-11-10'}},'paseo');
   assert.equal(passed.phase,'online');assert.equal(passed.verification,'passed');
 });
+test('Omnigent URL validation accepts explicit HTTP private/loopback routes and rejects auth/query/fragment fields', () => {
+  const base={workspace:'/workspace',hostName:'qa',server:'http://omnigent-server:8000'};
+  assert.equal(configureFields('omnigent',{...base,webUrl:'http://127.0.0.1:18080'}).webUrl,'http://127.0.0.1:18080/');
+  assert.equal(configureFields('omnigent',{...base,server:'http://omnigent.ns.svc.cluster.local:8000',webUrl:'https://omnigent.example.org'}).server,'http://omnigent.ns.svc.cluster.local:8000/');
+  assert.equal(configureFields('omnigent',{...base,webUrl:''}).webUrl,undefined);
+  for(const key of ['server','webUrl'])for(const bad of ['https://operator:fixture-private@example.org','https://example.org/?token=fixture-private','https://example.org/#fixture-private','https://example.org/?','https://example.org/#','https://exa\nmple.org',null])assert.throws(()=>configureFields('omnigent',{...base,[key]:bad}));
+  const state=publicStatus({ok:true},'omnigent',{server:base.server,webUrl:'https://operator:fixture-private@example.org'});assert.equal(state.settings.webUrl,'');assert.equal(JSON.stringify(state).includes('fixture-private'),false);
+});

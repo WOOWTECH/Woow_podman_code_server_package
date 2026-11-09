@@ -11,8 +11,8 @@
 **Install from VSIX…**，或在該 code-server 的終端執行：
 
 ```sh
-code-server --install-extension woowtech.paseo-0.1.1.vsix
-code-server --install-extension woowtech.omnigent-0.1.1.vsix
+code-server --install-extension woowtech.paseo-0.1.2.vsix
+code-server --install-extension woowtech.omnigent-0.1.2.vsix
 ```
 
 VSIX 本身只提供介面；既有的普通 code-server 映像還需要安裝本儲存庫的
@@ -36,7 +36,7 @@ runtime。缺少 runtime 時介面會明確顯示，不會宣稱已連線。
 
 ## 連接 Omnigent
 
-1. 在插件設定 Omnigent URL、工作區及主機名稱。
+1. 在插件設定 Omnigent 後端 URL、工作區及主機名稱。若瀏覽器需要不同的公開入口，另填 Web URL。
 2. 選擇登入，輸入該 **Omnigent 服務** 的帳號及密碼。
 3. 檢查主機是否在線，再開啟該 Omnigent Web。
 4. 在新對話選擇此主機與 Claude Code、Codex 或 Pi，選擇可用模型後送出訊息。
