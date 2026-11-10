@@ -179,6 +179,7 @@ async def launch_pi_strict(ctx, *, authorized_info, busy, epoch, expected=None):
     """
     from omnigent.harnesses.pi_native.bridge import pi_native_env_unset
     from omnigent.inner.datamodel import OSEnvSpec, TerminalEnvSpec
+    from omnigent.native.native_bridge_common import bridge_dir_preparation_lock
     from omnigent.runner.resource_registry import PI_NATIVE_TERMINAL_ROLE
     try:
         from .woow_pi_native_resume import _exchange
@@ -187,9 +188,13 @@ async def launch_pi_strict(ctx, *, authorized_info, busy, epoch, expected=None):
 
     require(not busy(), 'SESSION_BUSY')
     generation = epoch()
-    prepared = prepare_pi_cold_resume(ctx.session_id, authorized_info, expected=expected)
-    spec = prepared['body']['spec']
     bridge = Path(_bridge(ctx.session_id))
+    with bridge_dir_preparation_lock(bridge):
+        prepared = prepare_pi_cold_resume(ctx.session_id, authorized_info, expected=expected)
+        # The cold runner now owns this bridge. A dead prior owner marker would
+        # let periodic maintenance delete the live resumed process's history.
+        _write(bridge / 'owner.pid', str(os.getpid()).encode())
+    spec = prepared['body']['spec']
     agent = getattr(ctx.agent_spec, 'spec', ctx.agent_spec)
     agent_os = getattr(agent, 'os_env', None)
     require(agent_os is not None, 'PI_RESUME_ENV_UNAVAILABLE')

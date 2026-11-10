@@ -150,6 +150,7 @@ class StrictPiTests(unittest.TestCase):
         self.assertEqual(launches[0]['parent_os_env'], ctx.agent_spec.os_env)
         self.assertEqual(launches[0]['spec'].os_env.sandbox, ctx.agent_spec.os_env.sandbox)
         self.assertEqual(self.history.read_bytes(), self.data)
+        self.assertEqual((self.bridge / 'owner.pid').read_text(), str(os.getpid()))
         # Exercise Bohr's exact adapter signature with actual pinned context,
         # resource serialization and terminal spec classes. No ordinary launch.
         async def get(*args, **kwargs):

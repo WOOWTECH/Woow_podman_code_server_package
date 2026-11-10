@@ -48,6 +48,8 @@ wrong harness/workspace/UUID, missing/empty/malformed/old-version history, unsaf
 owners or symlinks, existing native processes, and undelivered inbox entries.
 It records every byte and entry, snapshots native history under the configured
 persistent PI_AGENT_DATA_DIR, and issues a two-minute private launch ticket.
+Under the SDK bridge-preparation lock, the callback updates only `owner.pid` to
+the new runner PID so orphan maintenance cannot reap the resumed live history.
 Concurrent preparation uses flock; concurrent launcher starts use an exclusive
 private directory claim. A killed process can leave that claim behind; recovery
 must prove the original process is absent before removing only that claim.
