@@ -11,6 +11,8 @@ Fields
 - trim (optional boolean, default true): trim string keys for matching.
 - caseSensitive (optional boolean, default false): preserve string-key case.
 - rejectDuplicates (optional boolean, default false): throw on any duplicated normalized key.
+  Omission defaults to false; an explicitly supplied value must be boolean.
+  null is rejected with "rejectDuplicates must be boolean", even for empty records.
 
 Behavior
 Every record must contain every key field. Key values may be strings, numbers,
@@ -104,7 +106,7 @@ throws Error with a useful message. All examples are synthetic. No credentials,
 external dependencies, network access, eval or production certification claims.
 
 Tests
-11 independent cases in cases.json, including correct outputs and useful
+17 independent cases in cases.json, including correct outputs and useful
 rejections. test.mjs also checks example execution, repeatability, JSON-safe
 outputs, input immutability, cycles, nonfinite values, oversize strings and depth.
 

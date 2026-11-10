@@ -398,5 +398,36 @@
         }
       ]
     }
+  },
+  {
+    "name": "rejectDuplicates rejects null with empty records",
+    "input": {
+      "records": [],
+      "keys": [
+        "id"
+      ],
+      "rejectDuplicates": null
+    },
+    "error": true,
+    "errorContains": "rejectDuplicates must be boolean"
+  },
+  {
+    "name": "rejectDuplicates rejects null before deduplicating",
+    "input": {
+      "records": [
+        {
+          "id": " A "
+        },
+        {
+          "id": "a"
+        }
+      ],
+      "keys": [
+        "id"
+      ],
+      "rejectDuplicates": null
+    },
+    "error": true,
+    "errorContains": "rejectDuplicates must be boolean"
   }
 ]
