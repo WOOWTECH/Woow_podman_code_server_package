@@ -65,6 +65,12 @@ pi
 # 在 Pi 輸入 /login
 ```
 
+Pi 也可以使用 LiteLLM 等 OpenAI 相容閘道，不必執行 OAuth `/login`。
+在本部署的 `/data/pi-agent/models.json` 設定 provider 與模型，並將 API key
+保存在私有 `auth.json` 的同名 provider；不要把 key 寫入 VSIX 或 Git。
+Omnigent 會列出已設定原生授權的自訂 provider，模型 ID 保留完整的
+`provider/model` 路徑。登入完成後重載即時模型目錄，再驗證真實回覆。
+
 三代理共用 `/data/pi-agent/skills` 及 `/data/pi-agent/shared/mcp.json`。
 修改 MCP 後執行 `woow-agent-sync`，再開新的代理對話。原生 Claude、Codex、Pi
 仍保有自己的登入及個別設定；不會把供應商憑證複製到其他部署。

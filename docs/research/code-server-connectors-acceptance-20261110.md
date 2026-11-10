@@ -1,118 +1,85 @@
 # code-server Paseo／Omnigent 驗收紀錄（2026-11-10）
 
-Podman 與 HA QA 已完成 **4 個 Web 組合、每個組合各 3 個代理**的真實對話、同一對話內切換模型、保留上下文及共用 skill／MCP 驗證。HA 的真實 Supervisor Ingress 代理路徑與插件 Verify 操作也已通過。PaaS 已完成服務連線、配對與部分換版持久化檢查，**模型供應商 OAuth 尚待使用者登入，PaaS 的模型對話驗收未完成**。
+Podman、HA、PaaS 的 **6 個 Web 組合、每組各 3 個代理**均已取得真實助理回覆、同一代理對話內切換模型、上下文保留，以及共用 skill／MCP 實際調用證據。**PaaS Paseo 的 Codex 完整工具測試使用 Full Access；預設 Auto review 模式的 shell 測試未通過**，限制詳見下文。這是 QA 驗收，相關 PR 尚未合併，主要服務尚未換版。
 
-本紀錄適用於隔離 QA。相關變更仍在草稿審查流程，尚未正式發版或切換正式流量。下表區分完整映像換版與保留容器更新；以下每項結果保留其實際測試版本，不把單獨安裝新版 VSIX 視為完整映像換版驗收。
+使用者已完成 PaaS Claude Code 與 Codex 授權。Pi 依使用者指定改用 LiteLLM API key，預設為 `woow-litellm/apporo/gpt-6-sol`，不需要 Pi OAuth。PaaS qa6 換版後，三份登入檔的位元組、Pi 預設與模型設定，以及原 Omnigent host 身分均保留；沒有複製其他環境的登入檔。
 
-**最終套件與已完成的映像換版。** 功能來源固定於 `3f36c24`；後續文件提交不改變這 77 個共用來源檔案。GitHub Actions 的 `code-server-connectors-vsix` 產物已下載並核對，與實測的兩個 0.1.4 VSIX 完全相同，可從[該次建置](https://github.com/WOOWTECH/Woow_podman_code_server_package/actions/runs/42700359698)下載。
+## Web 真實模型與工具驗收
 
-| QA 環境 | 最終部署 | 開機後驗收 |
-| --- | --- | --- |
-| Podman | 保留 QA3 基底映像 `d3e40c90500e…`，在同一容器安裝 `3f36c24` runtime 與 VSIX 0.1.4 | 待修改檔案先備份；更新後 28 項 extension、39 項 Node backend、25 項 Python 測試通過；重啟 HTTP、版本及 60 個檔案雜湊通過；UI 8 項、獨立 seed receipt、原 Omnigent host 及原 Paseo Web 配對皆通過，UID／GID 映射及掛載保留 |
-| HA | `20261110.connectors-ha-qa6`，映像 `sha256:0c963ae06c97405a1c840c14dd040e06e0c1c8b5f5199c5ccd5ddca4076fe93e` | HTTP、真正 Ingress 8 項、兩個 0.1.4 插件及獨立 seed receipt 通過；兩 connector 恢復在線，host 身分保留 |
-| PaaS | Helm revision 9，`20261110.connectors-paas-qa5@sha256:b2932c40d9d4333cef863f17b89371974fea790b4d82e8060725f0bae4fb2df5` | UI 6 項、兩個 0.1.4 插件及獨立 seed receipt 通過；兩 connector 恢復在線，host 身分保留 |
-
-兩個映像實際 backend 的 55 個檔案逐一符合凍結來源。PaaS 停止後，在 0／20／40／65 秒呼叫 restore 均未啟動；重新啟動沿用原 host，只有一個 host process，原 kit supervisor 保留。這批換版後檢查沒有再次呼叫模型。
-
-Podman 的整個新映像換版因 ID-mapped storage copy 需要的磁碟空間超過可用容量而回滾，原 QA3 已恢復。改以受控方式更新同一 QA 容器的 21 個來源／套件檔案，保留原基底映像及資料卷。更新後重啟與 92 項回歸測試通過；不是新的完整映像換版。若刪除並重建此容器，須套用本輪備妥的重套用程序，或在容量足夠後部署完整新映像。本輪也實際執行過備份還原，並確認原檔雜湊恢復一致。
-
-**如何安裝與開始使用。** 插件 ID 為 `woowtech.paseo`、`woowtech.omnigent`。在 code-server 的 **Extensions → Installed** 搜尋 `@installed woow`，應看到兩個獨立插件，可各自停用或移除。候選完整映像包含 backend、代理與預裝機制；單獨安裝 VSIX 只安裝介面，**不會安裝 Claude Code、Codex、Pi 或 connector backend，也不會替使用者登入模型帳號**。
-
-目前 UI 修正版為 0.1.4。使用與目標部署匹配且經驗證的 VSIX，在 Extensions 的 `…` 選單選擇 **Install from VSIX…**。原始碼打包產物在 `extensions/dist/`；映像內的安裝來源在 `/opt/woow-connector-vsix/`。若該部署已提供 0.1.4 產物，也可執行：
-
-```sh
-code-server --install-extension /opt/woow-connector-vsix/woowtech.paseo-0.1.4.vsix
-code-server --install-extension /opt/woow-connector-vsix/woowtech.omnigent-0.1.4.vsix
-```
-
-上述 CLI 預設目錄適用於本輪 Podman／PaaS 的 coder 使用者。HA add-on 必須另外指定 `--extensions-dir /data/vscode/extensions`；可優先使用 IDE 的 Install from VSIX，確保安裝到目前使用中的目錄。
-
-需使用受信任的工作區，以及部署管理者安裝的 backend；預設絕對路徑為 `/usr/local/bin/woow-connectors`。插件不接受儲存庫的 workspace settings 覆寫 backend 路徑。在 code-server 開啟 **Remote settings** 設定目前容器的工作區與主機名稱。只有 VSIX、backend 缺失時，介面會回報 runtime unavailable，不能據此宣稱代理已部署。產物建置及 backend 合約見 [extensions 說明](../../extensions/README.md)。
-
-Paseo：開啟 **WOOW Paseo**，設定工作區、啟動服務，明確選擇配對後開啟 [官方 Paseo Web](https://app.paseo.sh/)，確認信任主機，再選工作區、代理及模型。Omnigent：開啟 **WOOW Omnigent**，設定容器可達的後端 URL；若使用者瀏覽器的入口不同，另設 Web URL，再登入該 Omnigent 服務並選擇此 host。Omnigent 服務帳號與模型供應商帳號是兩種登入；Paseo 配對也不會完成模型供應商登入。
-
-模型登入須在各自部署的終端完成；不複製其他部署的憑證。Claude 使用 `claude auth login`，Codex 使用 `codex login --device-auth`，Pi 啟動後輸入 `/login`。本輪 PaaS 僅等待使用者授權，未替使用者啟動新 OAuth 流程。一般操作見 [CONNECTORS.md](../../CONNECTORS.md)。
-
-**4 個 Web 組合的實際結果。** 測試均從真正的 Paseo Web 或 Omnigent Web 建立代理對話，核對新的助理訊息與後端實際模型，切換後再驗證先前上下文，最後執行共用工具證明並清理測試對話。僅有使用者提示文字、模型清單或 host 在線均不算通過。
-
-| 環境與 Web | Claude Code | Codex | Pi Agent | 同一對話切換模型、上下文、共用工具 |
+| 環境與 Web | Claude Code | Codex | Pi Agent | 同一對話模型切換、上下文、skill／MCP |
 | --- | --- | --- | --- | --- |
 | Podman QA／Paseo Web | PASS | PASS | PASS | PASS |
 | HA QA／Paseo Web | PASS | PASS | PASS | PASS |
 | Podman QA／Omnigent Web | PASS | PASS | PASS | PASS |
 | HA QA／Omnigent Web | PASS | PASS | PASS | PASS |
-| PaaS QA／Paseo Web | 待供應商登入 | 待供應商登入 | 待供應商登入 | 未執行 |
-| PaaS QA／Omnigent Web | 待供應商登入 | 待供應商登入 | 待供應商登入 | 未執行 |
+| PaaS QA／Paseo Web | PASS | PASS（Full Access） | PASS（LiteLLM） | PASS，保留預設模式限制 |
+| PaaS QA／Omnigent Web | PASS | PASS | PASS（LiteLLM） | PASS |
 
-下表是當次目錄與 runtime 回報的模型 ID，非未來帳號可用模型的保證。各 Web 在 Podman 與 HA 使用相同的模型配對：
+PaaS Paseo 的三代理對話使用 qa5；Omnigent Claude／Codex 使用 qa5，Pi 使用修正後的 qa6。Podman、HA 的原始模型驗收保留其當次版本，不把後續安裝套件或不呼叫模型的檢查當成重新執行全部對話。
 
-| Web | 代理 | 第一個模型 → 第二個模型 |
+| Web | 代理 | 實際測試的第一模型 → 第二模型 |
 | --- | --- | --- |
 | Paseo | Claude Code | `claude-sonnet-5-5` → `claude-opus-5-5` |
 | Paseo | Codex | `gpt-6.1-sol` → `gpt-6-sol` |
-| Paseo | Pi Agent | `openai-codex/gpt-6.1-sol` → `openai-codex/gpt-6-sol` |
-| Omnigent | Claude Code | `haiku` → `sonnet`；實際解析為 `claude-haiku-4-5-20251001` → `claude-sonnet-5-5` |
+| Omnigent | Claude Code | `haiku` → `sonnet`，實際為 `claude-haiku-4-5-20251001` → `claude-sonnet-5-5` |
 | Omnigent | Codex | `gpt-6.1-sol` → `gpt-6-astra` |
-| Omnigent | Pi Agent | `openai-codex/gpt-6.1-sol` → `openai-codex/gpt-6-astra` |
+| PaaS，兩個 Web | Pi | `woow-litellm/apporo/gpt-6-sol` → `woow-litellm/apporo/gpt-6.1-sol` |
+| Podman／HA，Paseo | Pi | `openai-codex/gpt-6.1-sol` → `openai-codex/gpt-6-sol` |
+| Podman／HA，Omnigent | Pi | `openai-codex/gpt-6.1-sol` → `openai-codex/gpt-6-astra` |
 
-**模型切換的驗收範圍是同一代理、同一對話。** 第一輪放入測試識別內容，第二輪改用另一模型並確認仍能回憶該內容。改選 Claude、Codex 或 Pi 是切換代理引擎，可能建立另一個 session；本輪不宣稱不同代理引擎自動共享完整對話歷史。
+每次驗收核對新產生的 **assistant** 訊息、後端有效模型與先前上下文；提示文字回顯、模型清單與 host 在線都不算成功。模型切換範圍是同一代理、同一 session；改選 Claude／Codex／Pi 可建立另一個 session，本輪沒有證明不同代理引擎自動共用完整對話歷史。
 
-共用配置位於同一部署的 `/data/pi-agent/skills` 與 `/data/pi-agent/shared/mcp.json`，修改 MCP 後由 `woow-agent-sync` 同步。驗收使用 `woow-connector-proof` skill 及 `woow_connector_proof` MCP：每個代理使用獨立 run label，核對工具端新產生的呼叫紀錄，並核對新助理訊息中的工具結果。HA 的三個 skill 路徑解析為相同檔案，檔案雜湊一致；共用 MCP registry 保留原有 8 個 server 並加入證明用 server。這證實同部署共用與實際工具調用，沒有逐一驗收原有全部 MCP 工具的功能或外部 OAuth。 測試後已移除本輪 proof skill／MCP，保留原有 8 個 server，並執行 `woow-agent-sync`。工具設定變更會使 Omnigent 舊驗證 receipt 失效，介面重新顯示 incomplete 是預期行為；沒有改寫 receipt 或為了顯示狀態重複模型呼叫。
+共用來源是同部署的 `/data/pi-agent/skills` 與 `/data/pi-agent/shared/mcp.json`，修改 registry 後執行 `woow-agent-sync`，並建立新代理 session。驗收的 `woow-connector-proof` skill 與 `woow_connector_proof` MCP 會為每次呼叫產生新證明，核對實際工具端紀錄與助理回覆。技能證據來自完成的 Skill 工具／檔案讀取及其回傳內容，不能只靠助理聲稱已載入。公開時間線不足時，另核對對應的原生 transcript。PaaS Omnigent 初版驗收程式漏認原生紀錄，原始失敗 receipt 保留，校正後以原生 skill 內容及 MCP call/output 補足證據，未因此重複 Claude／Codex 模型測試。
 
-Podman 的 Codex 公開時間線未完整暴露原生工具項目，因此另核對對應 native thread 的 skill 讀取及 MCP call/output。此處使用工具紀錄補足證據，沒有只依助理聲稱「已使用 skill」判定成功。Omnigent 的兩個 Web 驗收均使用非管理員服務帳號；成功測試 session 已停止並封存。
+PaaS Paseo Codex 在 Auto review 模式無法建立 bubblewrap user namespace，shell 讀取 skill 失敗。僅該次測試 session 改選 Web 提供的 Full Access 後，重新完成雙模型、上下文、skill 及 MCP 證明；未變更 Pod 安全設定或全域預設。**預設模式完整工具能力仍未通過，不宣稱所有權限模式都已可用。** 其他原有 MCP server 的每項外部功能與 OAuth 也未逐一驗收。
 
-測試後固定版本為 Claude Code **2.1.285**、Codex **0.167.0**、Pi **0.99.1**。Paseo runtime 為 **0.11.2**，Omnigent host SDK 為 **0.16.0**。HA Paseo 初測因缺少 `procps` 及 root Claude launch flag 發現問題；Codex／Pi 在補齊 `procps` 後通過，Claude 在 r2 修補後單獨重測通過，失敗的初始對話也已封存。Claude updater guard 明確傳至 SDK 子程序，驗收後仍為固定版本。詳細順序見 [Paseo browser validation](../../connectors/paseo/browser-validation.json) 與 [Omnigent integration status](../../connectors/omnigent/integration-status.json)。
+## 套件、修正與部署
 
-**真正的 HA Ingress 已通過，主要 add-on 未更動。** 本次路徑為：
+兩個插件為 **WOOW Paseo 0.1.4**、**WOOW Omnigent 0.1.4**，已能在 Extensions 頁面看到、安裝及開啟設定／連線面板。可由 [GitHub Actions VSIX 建置](https://github.com/WOOWTECH/Woow_podman_code_server_package/actions/runs/42700359698)下載已核對過的套件；本輪 backend 更新沒有變更 VSIX。
 
-```text
-瀏覽器
-  → Home Assistant／Supervisor 的已驗證 Ingress
-  → 本次隔離 nginx proxy add-on
-  → 既有 code-server QA 容器
-```
+- Paseo VSIX SHA-256：`c09813dad4615ac0a13e44733212c377be311986192d9c0fb519d6acc4677bd7`。
+- Omnigent VSIX SHA-256：`c103f205378770c681166aa8f522b29fdd71792d2b9449afa045a756a13ee119`。
+- 原生 CLI：Claude Code **2.1.285**、Codex **0.167.0**、Pi **0.99.1**；Paseo **0.11.2**、Omnigent SDK **0.16.0**。
 
-proxy 為本次建立、手動啟動的 QA add-on；code-server QA 容器仍由既有 QA 流程管理。首次檢查中，未持有效 Ingress session 回應 401，合法 session 可開啟工作台；兩個插件卡片、Remote settings、webview 及即時 runtime 狀態共 8 項檢查通過。兩條 WebSocket 收到 435 個資料 frame，CSP／service worker 錯誤為 0。主要 add-on 公開狀態與容器指紋未變。此結果涵蓋真正 Supervisor Ingress 的代理路徑，沒有宣稱已完成主要 add-on 原地升級。
+本輪功能來源固定於 `49ef49a`，包含 Omnigent 自訂 Pi 模型目錄修正。原 SDK 只讀 `models-store.json`，漏掉 LiteLLM 等 `models.json` 自訂 provider；修正後只列出原生 auth 中已設定的 provider，保留完整巢狀模型 ID，不把 URL 或憑證加入目錄。兩項回歸在修正前失敗、修正後通過；完整 **30 項 Python（零跳過）、39 項 Node、28 項 extension** 測試通過。PaaS qa6 的實際 Web 模型切換另證明此修正有效。
 
-**HA 插件的 6 次 Verify 也有實際模型回覆。** 透過上述 Ingress，在兩個插件分別選 Claude、Codex、Pi，共 6 次 Verify，6 份 runtime receipt 均成功，未出現非預期 runtime 失敗。這是插件命令與 receipt 路徑的驗收；完整的雙模型、上下文與 skill／MCP 驗收另由前述 4 個 Web 組合提供。
+HA 升版比較曾攔下 23 項新增、可修正的 Critical／High 弱點；已將 CPython 改為 **3.12.16**、uv **0.13.7**，並鎖定 esbuild **0.28.2**。Paseo 相容性測試通過。[新映像的升版比較與 runtime 啟動檢查均已通過](https://github.com/WOOWTECH/Woow_ha_code_server_add_on/actions/runs/42721240766)，沒有以豁免或舊 SBOM 當成修正通過。
 
-這 6 次實際呼叫使用 VSIX **0.1.3**。當時 Omnigent 的 runtime 已有有效成功 receipt，介面仍可能顯示 `Conversation: incomplete`。**0.1.4**（來源 `3f36c24`）修正權威 `verified` 狀態的解讀，包含 `verified:false` 優先於舊 receipt 的情形，並修正 Paseo 模型清單依所選代理篩選。0.1.4 的 **28 項測試通過**，兩次打包可重現；在真正 Ingress 更新兩個插件後，**14 項 UI 檢查通過**，兩個面板正確顯示既有成功結果，三代理的模型選單均正確。模型選單測試以取消結束，沒有再送出 Verify 或新增模型呼叫。
-
-**PaaS 的已完成事項與登入缺口。** 已建立並確認專用非管理員 Omnigent 服務帳號登入成功，使用既有 host kit 的 `deployment-managed` 模式。連線 receipt 記錄 host `489eaa5e…`、`connected:true`、`pauseSupported:true`、`modelCallsMade:0`；它是服務與 host 連線證據，不是供應商模型授權或對話成功證據。
-
-PaaS 登入前檢查顯示 Claude 沒有 credentials 檔，Codex 沒有 auth 檔，Pi auth 檔為空；亦未發現檢查範圍內的 API 憑證環境變數。當時 Paseo 模型清單顯示 Claude 16 項、Codex 9 項、Pi 0 項，前兩者有清單仍不代表帳號已可使用。PaaS 的共用 proof skill／MCP fixture 當時也尚未配置；後續須在使用者登入完成後，補齊 fixture 並執行兩個 Web 的完整三代理、雙模型與工具證明。
-
-PaaS qa4（backend 來源 `1b12841`）在新 Pod Ready 後，另做了不呼叫模型的 Paseo 持久化檢查：工作區、主機名稱與 port 設定和 qa3 相同；原本啟用的 daemon 自動恢復在線；直接重用 qa3 的私有配對連結，官方 Web 仍可開啟原工作區與新對話輸入框。沒有重新 configure、start、產生新配對連結或啟動 provider OAuth。本紀錄不包含私有配對內容。
-
-**預裝 receipt 已改成各 IDE 擴充套件目錄獨立保存。** `fe33712` 修正後的位置為 `<實際 extensions 目錄>/.woow-connector-seed.json`，不再以共用代理資料目錄決定所有 IDE 是否安裝過插件。使用 PaaS 實際 code-server CLI **4.139.1**、VSIX **0.1.3**，在獨立暫存 HOME／XDG 與假代理資料下確認：
-
-- A、B 兩個不同 extension store 共用同一假代理資料目錄，兩者各安裝兩個插件成功。
-- 用 CLI 從 A 解除安裝 Paseo 後，reseed 保存解除安裝狀態；再次 reseed 仍不強制裝回，B 保留兩個插件。
-- 刪除整個 A extension store 後，fresh seed 重新安裝兩個插件；B 不受影響。
-- receipt 位於各自 extension store、權限為 0600；隱藏檔不影響 CLI `--list-extensions --show-versions`。
-- 假代理資料未變，測試暫存目錄已清除；現用 extension store、代理設定與登入資料未變，模型呼叫為 0。
-
-qa4 開機後再檢查實際目錄 `/home/coder/.local/share/code-server/extensions`，已存在上述 receipt，兩個插件均記錄並列出 **0.1.3**；已安裝 seed 原始碼 SHA-256 為 `3153009e1f50af39f7a5100a3601f08e3a8b17bbd1ce93d43e18169c64a85505`。這是 qa4 的開機快照；0.1.4 的後續部署結果見上方總表。
-
-**證據索引。** 公開來源內可直接讀取 [Paseo validation](../../connectors/paseo/validation.json)、[Paseo Web 驗收](../../connectors/paseo/browser-validation.json)、[Omnigent integration status](../../connectors/omnigent/integration-status.json)。下列具體 receipt 保存在本輪私有 QA archive `connector-qa/`，由 reviewer 透過既有工作區讀取，沒有連同帳號、登入檔或配對連結提交到儲存庫：
-
-| 驗收項目 | 私有 archive 內的 receipt |
+| QA 環境 | 目前部署與驗證 |
 | --- | --- |
-| Podman／Paseo 三代理 Web | `paseo-web-podman-result.json` |
-| HA／Paseo 三代理 Web 與重測順序 | `paseo-web-ha-result.json` |
-| Podman／Omnigent 三代理 Web | `omnigent-podman-acceptance.json` |
-| HA／Omnigent 三代理 Web | `omnigent-ha-acceptance.json` |
-| HA 真正 Ingress 拓撲與主要服務未變 | `ha-ingress-isolated/completion-receipt.json` |
-| HA 六次真實 Verify | `ha-ingress-isolated/ui-verification/six-valid-receipts-summary.json` |
-| 0.1.4 測試、可重現打包與 14 項 UI 檢查 | `vsix-0.1.4/package-report.json`、`vsix-0.1.4/ha-ingress-browser-report.json` |
-| PaaS managed host 已連線且無模型呼叫 | `omnigent-paas-connect.json` |
-| PaaS provider 登入與 proof fixture 缺口 | `omnigent-paas-native-preflight.json`、`paseo-web-paas-preflight.json` |
-| PaaS qa4 Paseo 設定、舊配對與開機 receipt | `paseo-web-paas-qa4-persistence.json` |
-| 兩個獨立 extension store 的實際 CLI 行為 | `paseo-paas-seed-store-integration-fe33712.json` |
-| 三平台 0.1.4 最終 UI／seed | `vsix-0.1.4/final-rollout-ui-summary.json` |
-| Podman 保留容器更新、回復與重套用 | `podman-inplace-3f36c24-result.json`、`reapply-podman-inplace-3f36c24.py` |
-| Podman 原配對、Omnigent host 保留 | `paseo-web-podman-final-persistence.json`、`omnigent-podman-review-ready.json` |
-| HA／PaaS 實際 host 與來源雜湊 | `omnigent-ha-final-readonly.json`、`omnigent-paas-final-readonly.json` |
-| GitHub VSIX 產物與實測套件相同 | `github-vsix-0.1.4-verified.json` |
+| PaaS | Helm revision 11，`20261110.connectors-paas-qa6@sha256:710f82be57ac0c8547b988a4f37e14230fc8dcee7095c1da037710e29a90a362`；映像內 39 Node＋30 Python 通過。換版後三代理授權與 Pi 設定保留，8 項插件 UI 通過、53 個 backend 檔案符合固定來源；原 host 在線且只有一個 kit supervisor。 |
+| HA | `20261110.connectors-ha-qa7`，映像 `sha256:7e6e95c354809135acdac135bf1e7179793468587ef3d4ed8e00d1e2122918c5`；映像內 28 extension＋39 Node＋30 Python 通過。換版後 HTTP、原 host、53 個來源檔案與真正 Ingress 的 8 項 UI 檢查通過，原 QA6 保留作為回復容器。 |
+| Podman | 保留 QA3 基底映像與同一容器，原地更新至 `49ef49a`，Python／uv／esbuild 已對齊；暫存與換版後各 97 項測試通過、56 個來源檔案核對通過，共用登入設定及主要容器身分保留。最低剩餘空間約 3.01 GB，原 runtime 的備份與回復程序保留。最終 8 項插件 UI 通過，兩個 connector 在線；Paseo 原配對仍可在瀏覽器開啟工作目錄與新對話輸入框，未再呼叫模型。 |
 
-待完成項目為 PaaS 使用者供應商登入及完整模型／工具驗收、審查合併與正式發版。Podman 完整新映像換版另受主機容量限制；本輪已完成保留容器的 runtime／VSIX 更新。arm64 目前有依賴解析證據，沒有三代理 runtime 實機驗收；Open VSX 公開上架也未完成。現有 QA 存取使用既有私有轉送或受驗證的 HA Ingress，未在本紀錄宣告新的公開 QA IDE 網址。
+Podman 原地更新的備份／回復程序另有 8 項回歸測試。一次換版後的測試將暫存檔放在 `/opt` 下，被私有配對計畫的目錄保護檢查攔下；更新程序已實際自動回復並核對雜湊。將測試暫存位置改到 `/tmp` 後重試，97 項換版後測試全部通過，原始失敗與回復證據均保留。
+
+Podman 完整新映像換版先前因 ID-mapped storage copy 所需空間超過容量而回滾，原 QA3 已恢復。保留容器更新不等同新映像；重建容器必須重套更新，或待空間足夠時使用完整映像。Podman QA 與原 code-server 共用代理資料卷，因此不宣稱正式資料完全隔離；本輪沒有更換主要服務映像。
+
+HA 已驗證真正 Supervisor Ingress：經本輪手動啟動的隔離 nginx proxy add-on 連到 QA code-server。主要 add-on 仍為原版本。真實 Ingress 的插件介面檢查通過；先前 VSIX 0.1.3 的兩插件共 6 次 Verify 均有實際模型回覆，0.1.4 修正成功 receipt 顯示與依代理篩選模型後，14 項 UI 檢查通過。Verify 只是單次回覆檢查，完整雙模型與工具證明由上述 Web 測試提供。
+
+預裝 receipt 儲存於各自的 `<extensionsDir>/.woow-connector-seed.json`。實際 code-server CLI 已驗證：兩個獨立 extension store 共用代理資料仍各自安裝；使用者解除安裝後不強制裝回；新建 store 能重新 seed，另一個 store 不受影響。PaaS kit 的唯讀 ConfigMap 以私有 overlay 修正，停止／restore／重啟測試保留原 host，未新增第二個 supervisor。
+
+PaaS 的本輪 proof fixture 已移除並同步三代理。換版後保留原有 `woow_shared_probe`，重啟後另可見 8 個 cloud MCP 配置；三代理的 9 個 server 名稱相同、skills 解析至同一目錄，臨時 proof server 不在其中。此項是配置共用檢查，不等於逐項驗證 9 個服務的外部功能。
+
+整理證據時，子代理曾將 QA IDE 密碼帶入工具輸出；已更換該 QA 密碼並確認舊密碼無法取得登入 cookie、新密碼可登入。Helm revision 11 僅完成此密碼更換與 QA Pod 重啟，映像不變；三代理登入檔、Pi 設定及原 host 身分再次核對保留。LiteLLM key 未涉及此事件。新 QA 存取值僅保留在工作區私有設定中。
+
+## 證據與發布狀態
+
+所有私有 receipt 位於本輪工作區 `connector-qa/`；登入檔、API key、配對連結及原生對話原文未提交到儲存庫。儲存庫內較早的 integration JSON 為該次來源固定時的快照；本報告提供後續實機結果。
+
+| 項目 | 私有 receipt |
+| --- | --- |
+| Podman／HA Paseo 完整 Web 驗收 | `paseo-web-podman-result.json`、`paseo-web-ha-result.json` |
+| Podman／HA Omnigent 完整 Web 驗收 | `omnigent-podman-acceptance.json`、`omnigent-ha-acceptance.json` |
+| PaaS Paseo 完整驗收與權限限制 | `paseo-web-paas-qa5-final-result.json`、`paseo-web-paas-qa5-final-skill-audit.json` |
+| PaaS Omnigent 三代理及校正證據 | `omnigent-paas-acceptance.json`、`omnigent-paas-claude-codex-finalized.json`、`omnigent-paas-runs/` |
+| PaaS 換版、授權與來源保留 | `paas-rollout.json`、`paas-auth-after-restart.json`、`omnigent-paas-49ef49a-readonly.json` |
+| Podman 原地更新、實際回復與最終成功 | `podman-refresh49/result-refresh49-5ef55bbc2fb9-apply.json`、`podman-refresh49/result-refresh49-88c6c1a32ab3-apply.json`、`podman-refresh49-v2-rollback-evidence.tar.gz` |
+| HA qa7 換版與真正 Ingress | `ha-qa7-rollout.json`、`omnigent-ha-49ef49a-readonly.json`、`runtime-49ef49a-ui/ha-final-image-browser-report.json` |
+| PaaS 更新後插件 UI | `runtime-49ef49a-ui/paas-candidate-ui.json` |
+| Podman 更新後插件 UI 與原配對 | `runtime-49ef49a-ui/podman-candidate-ui.json`、`paseo-web-podman-49ef49a-persistence.json` |
+| PaaS QA IDE 密碼更換與最終持久性 | `qa-ide-password-rotation.json`、`paas-final-persistence.json`、`paas-final-shared-tools.json` |
+| HA 真實 Ingress／Verify | `ha-ingress-isolated/completion-receipt.json`、`ha-ingress-isolated/ui-verification/six-valid-receipts-summary.json` |
+| VSIX 可重現打包／GitHub 產物 | `vsix-0.1.4/package-report.json`、`github-vsix-0.1.4-verified.json` |
+
+來源已推送至 [Podman PR #16](https://github.com/WOOWTECH/Woow_podman_code_server_package/pull/16)、[HA PR #16](https://github.com/WOOWTECH/Woow_ha_code_server_add_on/pull/16)、[PaaS image PR #622](https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/pulls/622)、[PaaS chart PR #330](https://git-prod.woowtech.io/woow-paas/woow-paas-charts/pulls/330) 及 [k3s PR #6](https://github.com/WOOWTECH/Woow_k3s_code_server_package/pull/6)。尚未合併或正式發版。arm64 有依賴解析與映像建置證據，沒有三代理 runtime 實機驗收；Open VSX 公開上架未完成。QA 存取沿用私有轉送／已驗證 Ingress，沒有新增公開 QA IDE 入口。操作方式見 [CONNECTORS.md](../../CONNECTORS.md)。
