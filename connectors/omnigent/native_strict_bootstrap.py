@@ -37,7 +37,7 @@ def read_request(path):
         now = time.time()
         if not isinstance(value, dict) or type(value.get("version")) is not int or value["version"] != 1:
             fail("STRICT_REQUEST_INVALID")
-        if value.get("engine") not in ("claude", "pi") or not re.fullmatch(r"[A-Za-z0-9_-]{8,128}", str(value.get("sessionId", ""))):
+        if value.get("engine") not in ("claude", "pi", "codex") or not re.fullmatch(r"[A-Za-z0-9_-]{8,128}", str(value.get("sessionId", ""))):
             fail("STRICT_REQUEST_INVALID")
         if not re.fullmatch(r"[0-9a-f]{32}", str(value.get("requestId", ""))) or not re.fullmatch(r"[0-9a-f]{64}", str(value.get("originalSHA256", ""))):
             fail("STRICT_REQUEST_INVALID")
@@ -66,7 +66,10 @@ async def strict_cold_launch(harness_name, ctx, **launch_kwargs):
             fail("STRICT_REQUEST_ALREADY_USED")
         if request["sessionId"] != ctx.session_id or harness_name != request["engine"] + "-native":
             fail("STRICT_SESSION_INVALID")
-        if request["engine"] == "pi":
+        if request["engine"] == "codex":
+            from omnigent.runner.native.woow_codex_strict_resume import cold_resume
+            result, receipt = await cold_resume(ctx, request, launch_kwargs=launch_kwargs)
+        elif request["engine"] == "pi":
             # Added by the separate Pi strict launcher package. A missing
             # helper is an error, never permission to invoke ordinary ensure.
             from omnigent.runner.native.woow_pi_strict_resume import cold_resume

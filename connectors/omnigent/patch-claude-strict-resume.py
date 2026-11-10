@@ -13,11 +13,13 @@ HASHES = {
     "runner/app.py": "9dde9dc61b4e8068702657862c298e0dac028e882eea004d177b742fcf3025db",
     "runner/native/orchestration.py": "c7bf262233ecc4a8a90c25499ab581d3c0c93c24e9fc8a88a712f96f9edd8fb8",
 }
+LEGACY_TARGETS = {'runner/app.py': 'ed052f0e0f19858bea8af627d08ec0996e3e3147c89afd8bd4753afd21ad45a3', 'runner/native/orchestration.py': 'ba822f5202004d6b70b6bef33c2e187ea8fcd289a8c81c0ee75ff1d63df31b34'}
 HELPER = "runner/native/woow_claude_strict_resume.py"
 HELPERS = {HELPER: "claude_strict_resume.py", "runner/native/woow_native_strict_bootstrap.py": "native_strict_bootstrap.py",
     "runner/native/woow_pi_strict_resume.py": "pi_strict_resume.py",
     "runner/native/pi_strict_launcher.mjs": "pi_strict_launcher.mjs",
-    "runner/native/woow_pi_native_resume.py": "native_resume.py"}
+    "runner/native/woow_pi_native_resume.py": "native_resume.py",
+    "runner/native/woow_codex_strict_resume.py": "codex_strict_resume.py"}
 RECEIPT = ".woow-claude-strict-resume-v1.json"
 MARKER = "WOOW_CLAUDE_STRICT_RESUME_V1"
 
@@ -162,6 +164,40 @@ def transform(name, source):
         raise StrictResumeError("STRICT_BOOTSTRAP_REQUIRED")
     await _cancel_auto_forwarder_task(session_id)
 '''))
+        def codex_creator(part):
+            part = once(part, ') -> SessionResourceView:\n', '    woow_strict_resume: object | None = None,\n) -> SessionResourceView:\n')
+            part = once(part, '    import socket as _socket\n',
+                '    # WOOW_CODEX_STRICT_RESUME_V1: no ordinary fallback while armed.\n'
+                '    if woow_strict_resume is None and os.environ.get("WOOW_NATIVE_STRICT_RESUME_REQUEST"):\n'
+                '        from omnigent.runner.native.woow_claude_strict_resume import StrictResumeError\n'
+                '        raise StrictResumeError("STRICT_BOOTSTRAP_REQUIRED")\n'
+                '    import socket as _socket\n')
+            part = once(part, '    original_external_session_id = launch_config.external_session_id\n',
+                '    if woow_strict_resume is not None:\n'
+                '        woow_strict_resume.before_prepare(launch_config)\n'
+                '    original_external_session_id = launch_config.external_session_id\n')
+            part = once(part, '    if codex_binding is None and (\n',
+                '    if woow_strict_resume is None and codex_binding is None and (\n')
+            # Reaping is not an admissible way to make a strict original cold.
+            part = once(part, '    if launch_config.external_session_id is not None:\n        from omnigent.harnesses.codex_native.process_registry import (\n',
+                '    if woow_strict_resume is None and launch_config.external_session_id is not None:\n        from omnigent.harnesses.codex_native.process_registry import (\n')
+            part = once(part, '    if launch_config.external_session_id is not None and original_external_session_id is not None:\n',
+                '    if woow_strict_resume is not None:\n'
+                '        woow_strict_resume.resume_existing(launch_config, codex_home)\n'
+                '    elif launch_config.external_session_id is not None and original_external_session_id is not None:\n')
+            part = once(part, '        trust_project=True,\n', '        trust_project=woow_strict_resume is None,\n')
+            part = once(part, '        trust_all_hooks=True,\n', '        trust_all_hooks=woow_strict_resume is None,\n')
+            part = once(part, '    await app_server.start()\n',
+                '    if woow_strict_resume is not None:\n'
+                '        woow_strict_resume.before_server(app_server, launch_config, pick_to_reset)\n'
+                '    await app_server.start()\n')
+            part = once(part, '            if not isinstance(exc, Exception) or not is_unreadable_thread_error(exc):\n',
+                '            if woow_strict_resume is not None or not isinstance(exc, Exception) or not is_unreadable_thread_error(exc):\n')
+            return part
+        result = scoped(result, 'async def _auto_create_codex_terminal(\n', '\n\nasync def ', codex_creator)
+        result = scoped(result, 'async def _launch_codex(ctx:', '\n\nasync def _launch_antigravity(',
+            lambda part: once(part, '        ensure_comment_relay=ctx.ensure_comment_relay,\n',
+                '        ensure_comment_relay=ctx.ensure_comment_relay,\n        woow_strict_resume=ctx.woow_strict_resume,\n'))
     compile(result, name, 'exec')
     return result
 
@@ -194,12 +230,20 @@ def patch(site, *, check=False):
                 raise ValueError("STRICT_PATCH_SOURCE_MISMATCH")
             inflater = zlib.decompressobj()
             original = inflater.decompress(base64.b64decode(encoded, validate=True), 2 * 1024 * 1024)
-            if not inflater.eof or digest(original) != expected or transform(name, original.decode()).encode() != raw:
+            if not inflater.eof or digest(original) != expected:
+                raise ValueError("STRICT_PATCH_SOURCE_MISMATCH")
+            replacement = transform(name, original.decode()).encode()
+            if replacement != raw and digest(raw) != LEGACY_TARGETS[name]:
                 raise ValueError("STRICT_PATCH_SOURCE_MISMATCH")
             if row.get("original") != expected or row.get("patched") != digest(raw):
                 raise ValueError("STRICT_PATCH_RECEIPT_MISMATCH")
-            targets[name] = row
-            states.append("patched")
+            if replacement == raw:
+                targets[name] = row
+                states.append("patched")
+            else:
+                targets[name] = {**row, "patched": digest(replacement)}
+                prepared[name] = replacement
+                states.append("legacy")
         else:
             if digest(raw) != expected:
                 raise ValueError("STRICT_PATCH_SOURCE_MISMATCH")
@@ -213,9 +257,20 @@ def patch(site, *, check=False):
         if receipt != expected_receipt or any((package / p).is_symlink() or not (package / p).is_file() or (package / p).read_bytes() != raw for p, raw in helpers.items()):
             raise ValueError("STRICT_PATCH_HELPER_MISMATCH")
         return {"state": "already-applied"}
-    if "patched" in states:
+    upgrading = "legacy" in states and "original" not in states
+    if upgrading:
+        previous_helpers = set(HELPERS) - {"runner/native/woow_codex_strict_resume.py"}
+        if set((receipt or {}).get("helpers", {})) != previous_helpers:
+            raise ValueError("STRICT_PATCH_HELPER_MISMATCH")
+        for name in previous_helpers:
+            path = package / name
+            if path.is_symlink() or not path.is_file() or digest(path.read_bytes()) != receipt["helpers"][name]:
+                raise ValueError("STRICT_PATCH_HELPER_MISMATCH")
+        if (package / "runner/native/woow_codex_strict_resume.py").exists() or (package / "runner/native/woow_codex_strict_resume.py").is_symlink():
+            raise ValueError("STRICT_PATCH_DESTINATION_CONFLICT")
+    elif "patched" in states or "legacy" in states:
         raise ValueError("STRICT_PATCH_PARTIAL")
-    if receipt is not None or any((package / p).exists() or (package / p).is_symlink() for p in helpers):
+    elif receipt is not None or any((package / p).exists() or (package / p).is_symlink() for p in helpers):
         raise ValueError("STRICT_PATCH_DESTINATION_CONFLICT")
     if check:
         return {"state": "verified"}
@@ -237,7 +292,7 @@ def patch(site, *, check=False):
     finally:
         for temp, _ in staged:
             Path(temp).unlink(missing_ok=True)
-    return {"state": "applied"}
+    return {"state": "upgraded" if upgrading else "applied"}
 
 
 if __name__ == "__main__":
