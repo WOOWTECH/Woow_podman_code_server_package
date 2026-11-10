@@ -21,6 +21,28 @@ HASHES = {
 }
 HELPER = "resources/pi_native/woow_pi_mcp_refresh.cjs"
 BRIDGE_ANCHOR = '    _atomic_text(extension_path(bridge_dir), _extension_source())\n'
+RETENTION_MARKER = 'WOOW_PI_NATIVE_HISTORY_RETENTION_V1'
+PRUNE_ANCHOR = '    return native_bridge_common.prune_orphaned_dirs(bridge_root())\n'
+PRUNE_REPLACEMENT = '''    return native_bridge_common.prune_orphaned_dirs(
+        bridge_root(), should_prune=_woow_pi_bridge_has_no_native_history,
+    )
+'''
+RETENTION_HELPER = '''def _woow_pi_bridge_has_no_native_history(directory: Path) -> bool:
+    # WOOW_PI_NATIVE_HISTORY_RETENTION_V1: JSONL is durable conversation data.
+    # This predicate runs under the SDK's existing cleanup/preparation lock.
+    # Explicit conversation deletion is unchanged; only orphan GC is narrowed.
+    sessions = directory / _SESSIONS_DIR
+    try:
+        if sessions.is_symlink():
+            return False
+        return not any(entry.name.endswith(".jsonl") for entry in sessions.iterdir())
+    except FileNotFoundError:
+        return True
+    except OSError:
+        return False
+
+
+'''
 BRIDGE_HOOK = '''    # WOOW_PI_MCP_REFRESH_V1: only the build-time packaged helper, never user code.
     _atomic_text(
         bridge_dir / "woow_pi_mcp_refresh.cjs",
@@ -64,6 +86,12 @@ def transformed(name, source):
     if source.count(anchor) != 1:
         raise ValueError("MCP_NATIVE_PATCH_ANCHOR_MISMATCH")
     result = source.replace(anchor, anchor + hook, 1)
+    if name == 'harnesses/pi_native/bridge.py':
+        if result.count(PRUNE_ANCHOR) != 1 or result.count('def prune_orphaned_bridge_dirs() -> int:\n') != 1:
+            raise ValueError('MCP_NATIVE_PATCH_ANCHOR_MISMATCH')
+        result = result.replace(PRUNE_ANCHOR, PRUNE_REPLACEMENT, 1)
+        result = result.replace('def prune_orphaned_bridge_dirs() -> int:\n',
+                                RETENTION_HELPER + 'def prune_orphaned_bridge_dirs() -> int:\n', 1)
     return JS_PREAMBLE + result if name.endswith(".js") else result
 
 
@@ -87,6 +115,7 @@ def patch(site_packages, *, check=False):
     receipt_path = package / RECEIPT
     prepared = []
     targets = {}
+    prior_targets = {}
     states = []
     for name, expected in HASHES.items():
         file = package / name
@@ -94,14 +123,19 @@ def patch(site_packages, *, check=False):
         if MARKER.encode() in original:
             hook = HOOKS[name][1].encode()
             restored = original.replace(hook, b"", 1)
+            if name == 'harnesses/pi_native/bridge.py' and RETENTION_MARKER.encode() in restored:
+                if restored.count(RETENTION_HELPER.encode()) != 1 or restored.count(PRUNE_REPLACEMENT.encode()) != 1:
+                    raise ValueError('MCP_NATIVE_PATCH_SOURCE_MISMATCH')
+                restored = restored.replace(RETENTION_HELPER.encode(), b'', 1)
+                restored = restored.replace(PRUNE_REPLACEMENT.encode(), PRUNE_ANCHOR.encode(), 1)
             if name.endswith(".js"):
                 if not restored.startswith(JS_PREAMBLE.encode()):
                     raise ValueError("MCP_NATIVE_PATCH_SOURCE_MISMATCH")
                 restored = restored[len(JS_PREAMBLE):]
             if original.count(hook) != 1 or digest(restored) != expected:
                 raise ValueError("MCP_NATIVE_PATCH_SOURCE_MISMATCH")
-            replacement = original
-            states.append("patched")
+            replacement = transformed(name, restored.decode()).encode()
+            states.append("patched" if replacement == original else "upgrade")
         else:
             if digest(original) != expected:
                 raise ValueError("MCP_NATIVE_PATCH_SOURCE_MISMATCH")
@@ -110,17 +144,21 @@ def patch(site_packages, *, check=False):
         if name.endswith(".py"):
             compile(replacement, "omnigent/" + name, "exec")
         targets[name] = {"original": expected, "patched": digest(replacement)}
+        prior_targets[name] = {"original": expected, "patched": digest(original)}
         prepared.append((file, replacement, file.stat().st_mode & 0o777))
     receipt = {"version": VERSION, "marker": MARKER, "targets": targets, "helper": digest(helper)}
-    if states == ["patched"] * len(HASHES):
-        if json.loads(_read(receipt_path)) != receipt or _read(package / HELPER) != helper:
+    if all(state in {'patched', 'upgrade'} for state in states):
+        prior_receipt = {"version": VERSION, "marker": MARKER, "targets": prior_targets, "helper": digest(helper)}
+        if json.loads(_read(receipt_path)) != prior_receipt or _read(package / HELPER) != helper:
             raise ValueError("MCP_NATIVE_PATCH_RECEIPT_MISMATCH")
-        return {"state": "already-applied", **receipt}
-    if any(state == "patched" for state in states):
+        if all(state == 'patched' for state in states):
+            return {"state": "already-applied", **receipt}
+    elif any(state != "original" for state in states):
         raise ValueError("MCP_NATIVE_PATCH_PARTIAL")
-    for path in (package / HELPER, receipt_path):
-        if path.exists() or path.is_symlink():
-            raise ValueError("MCP_NATIVE_PATCH_DESTINATION_CONFLICT")
+    else:
+        for path in (package / HELPER, receipt_path):
+            if path.exists() or path.is_symlink():
+                raise ValueError("MCP_NATIVE_PATCH_DESTINATION_CONFLICT")
     if check:
         return {"state": "verified", **receipt}
     prepared.insert(0, (package / HELPER, helper, 0o644))
