@@ -99,7 +99,7 @@ function createExtension(connector, dependencies = {}) {
       title: `${name}: refresh shared MCP in an existing conversation`,
       prompt: connector === 'paseo'
         ? 'Enter the existing Paseo agent ID. Only an idle conversation can resume; history and permissions are retained.'
-        : 'Enter the Omnigent conversation ID from /c/ID. Safe native reload currently supports Codex; other harnesses remain unchanged.',
+        : 'Enter the Omnigent conversation ID from /c/ID. Native reload supports Codex and Pi with an updated runtime; an unavailable native control returns an error without replacing the conversation.',
       ignoreFocusOut: true,
       validateInput: value => /^[A-Za-z0-9_-]{8,128}$/.test(value.trim()) ? undefined : 'Enter a conversation ID, without a URL or credentials.',
     });
@@ -109,13 +109,15 @@ function createExtension(connector, dependencies = {}) {
   function refreshNotice(result) {
     if (result?.ok) return result.refresh?.state === 'queued'
       ? 'Shared MCP reload queued in the same native conversation. It takes effect at the next turn boundary; tool execution is not yet verified.'
+      : result.refresh?.state === 'applied'
+      ? 'Shared MCP configuration and tool inventory updated in the same native conversation. Tool execution is not yet verified.'
       : 'The same conversation resumed with the synchronized configuration. Tool execution is not yet verified.';
     const code = result?.error?.code;
     return ({SESSION_BUSY: 'Conversation is busy. Wait for its reply or permission prompt to finish, then retry. Nothing was interrupted.',
       MCP_REFRESH_UNSUPPORTED: 'This native harness has no verified safe reload. Its conversation was not changed.',
       MCP_RESUME_UNAVAILABLE: 'This conversation has no saved native session to resume. It was not replaced.',
       RESTART_REQUIRED: 'This daemon is running the previous runtime. An operator must update it after its conversations are idle; refresh did not restart it.',
-      MCP_NATIVE_UNAVAILABLE: 'The original native process is unavailable. Reconnect the existing conversation, then retry.',
+      MCP_NATIVE_UNAVAILABLE: 'Native refresh control is unavailable. An operator must prepare the original native session before retrying; it was not replaced.',
       MCP_REFRESH_UNCONFIRMED: 'Refresh could not be confirmed. Inspect the existing conversation before retrying.',
       MCP_RELOAD_FAILED: 'Native reload failed. Inspect or reopen the existing conversation; no new conversation was created.',
       MCP_SYNC_FAILED: 'The shared MCP configuration could not be synchronized. Check it and retry.',

@@ -99,6 +99,17 @@ class LifecycleTests(unittest.TestCase):
             request.assert_called_once_with("GET", "/v1/sessions/existing-session")
             refresh.assert_awaited_once_with("existing-session", info)
 
+    def test_pi_refresh_uses_existing_native_control_and_keeps_sync_callback_private(self):
+        import native_resume, mcp_refresh
+        plugin = self.plugin("refreshMcp", sessionId="existing-pi-session")
+        self.authorize(plugin)
+        info = {"permission_level": 2, "host_id": "my-host", "harness": "pi-native", "status": "idle", "external_session_id": "same-native"}
+        with patch.object(self.client, "request", return_value=info) as request, \
+                patch.object(native_resume, "refresh_pi", new_callable=AsyncMock, return_value={"sessionId":"existing-pi-session", "refresh":{"state":"applied"}}) as refresh:
+            self.assertEqual(plugin.refresh_mcp()["sessionId"], "existing-pi-session")
+            request.assert_called_once_with("GET", "/v1/sessions/existing-pi-session")
+            refresh.assert_awaited_once_with("existing-pi-session", info, sync=mcp_refresh.synchronize)
+
     def test_explicit_private_http_allowed_public_http_and_credentials_rejected(self):
         for url in ("http://192.168.2.121:8001", "http://omnigent-server:8000", "http://host.containers.internal:8000",
                     "http://svc-65b75f59-omnigent.paas-ws-ab6564da.svc.cluster.local:8000"):

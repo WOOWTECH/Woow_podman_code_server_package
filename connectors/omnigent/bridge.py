@@ -325,7 +325,8 @@ class Connector(core.Plugin):
 
     def refresh_mcp(self):
         import asyncio
-        from mcp_refresh import refresh_codex, RefreshError
+        from mcp_refresh import refresh_codex, synchronize, RefreshError
+        from native_resume import refresh_pi, NativeRefreshError
         sid = self.request.get("sessionId")
         if not isinstance(sid, str) or not re.fullmatch(r"[A-Za-z0-9_-]{8,128}", sid):
             raise Error("INVALID_SESSION_ID", "Enter the existing conversation ID.")
@@ -345,11 +346,12 @@ class Connector(core.Plugin):
         if info.get("status") != "idle":
             raise Error("SESSION_BUSY", "Wait for this conversation to become idle.")
         harness = info.get("harness") or info.get("harness_override")
-        if harness != "codex-native":
+        if harness not in ("codex-native", "pi-native"):
             raise Error("MCP_REFRESH_UNSUPPORTED", "This native harness has no verified safe MCP reload yet; the conversation was not changed.")
         try:
-            result = asyncio.run(asyncio.wait_for(refresh_codex(sid, info), timeout=90))
-        except RefreshError as error:
+            operation = refresh_codex(sid, info) if harness == "codex-native" else refresh_pi(sid, info, sync=synchronize)
+            result = asyncio.run(asyncio.wait_for(operation, timeout=90))
+        except (RefreshError, NativeRefreshError) as error:
             raise Error(error.code, error.code) from None
         except TimeoutError:
             raise Error("MCP_REFRESH_TIMEOUT", "Refresh timed out; check status before retrying.") from None

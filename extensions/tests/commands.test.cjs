@@ -158,3 +158,7 @@ test('busy MCP refresh is visible and cancellation makes no runtime request', as
   const cancelled=harness('paseo');await cancelled.commands.get('woow.paseo.refreshMcp')();
   assert.equal(cancelled.calls.length,0);
 });
+
+test('in-process inventory refresh does not claim a restart or tool execution', async()=>{
+ const h=harness('omnigent',{refreshMcp:{ok:true,refresh:{state:'applied',inventoryVerified:true,toolsVerified:false}}});h.inputs.push('existing-pi-session');await h.commands.get('woow.omnigent.refreshMcp')();assert.ok(h.notices.some(x=>x.includes('inventory updated')));assert.ok(h.notices.every(x=>!x.includes('resumed')));assert.ok(h.notices.some(x=>x.includes('not yet verified')));
+});

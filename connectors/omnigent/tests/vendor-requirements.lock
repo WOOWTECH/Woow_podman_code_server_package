@@ -1,0 +1,4 @@
+# Pristine source-only fixture; hash pins match the production runtime lock.
+omnigent==0.16.0 \
+    --hash=sha256:b11a9472a4c164d456e31c259fa25b33f0c2732076a802aebb1cb6ccbf3aa658 \
+    --hash=sha256:f0fd481ef57f0e7e0a533250e450cb954a6e35bc0173e8a685bec589b5a33ff7
