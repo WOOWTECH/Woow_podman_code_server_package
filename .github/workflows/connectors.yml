@@ -33,9 +33,9 @@ jobs:
       - name: Extension protocol and runtime behavior
         run: |
           npm test --prefix extensions
-          node --test connectors/paseo/tests/*.test.mjs connectors/omnigent/tests/*.test.mjs
           export PI_TEST_PACKAGE="$PWD/connectors/omnigent/tests/pi-runtime/node_modules/@earendil-works/pi-coding-agent"
           export OMNIGENT_TEST_SITE_PACKAGES="$PWD/connectors/omnigent/tests/vendor-fixture"
+          node --test connectors/paseo/tests/*.test.mjs connectors/omnigent/tests/*.test.mjs
           node --test connectors/omnigent/tests/pi-mcp-*.test.cjs
           python3 -m unittest discover -s connectors/omnigent/tests -p 'test_*.py'
           if [ -f tests/connectors-cli.test.mjs ]; then
