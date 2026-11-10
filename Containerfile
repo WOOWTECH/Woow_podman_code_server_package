@@ -351,6 +351,13 @@ RUN set -eu; \
       test "$(jq -r .version "$manifest")" = "${id##*-}"; \
     done
 
+# Serialize simultaneous approval prompts instead of cancelling earlier requests.
+# Applied to the built-in extension so a persistent user volume cannot hide the fix.
+RUN set -eu; \
+    acp=$(find /usr/lib/code-server/lib/vscode/extensions -mindepth 1 -maxdepth 1 -type d -name "formulahendry.acp-client-${ACP_CLIENT_VERSION}*"); \
+    test -n "$acp"; \
+    node /opt/patches/patch-acp-permission-queue.mjs "$acp/dist/extension.js"
+
 # Copy the pre-wired settings.json into the coder user's config dir. It
 # gets set up by /etc/skel on a fresh $HOME, but users who mount their
 # host $HOME as /home/coder skip /etc/skel entirely, so we also install

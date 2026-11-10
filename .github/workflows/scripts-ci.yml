@@ -38,6 +38,9 @@ jobs:
       - name: Install pinned shared-agent test dependencies
         run: npm ci --prefix rootfs/opt/woow-agent-tools --omit=dev
 
+      - name: Concurrent ACP permissions preserve every approval choice
+        run: node --test tests/acp-permission-queue.test.mjs
+
       - name: Shared skills and MCP migration
         run: node --test tests/shared-agents.test.mjs
 
