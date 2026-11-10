@@ -4,4 +4,6 @@ set -eu
 eval "$(fixuid -q)"
 /usr/local/bin/pi-seed
 /usr/local/bin/woow-agent-sync
+node /opt/woow-connectors/seed-extensions.mjs || :
+/usr/local/bin/woow-connectors-service >/dev/null 2>&1 &
 exec /usr/bin/entrypoint.sh "$@"

@@ -117,3 +117,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${{ github.event.release.tag_name }}" rootfs/opt/SHA256SUMS --clobber
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Package connector extensions
+        run: |
+          npm ci --ignore-scripts --prefix extensions
+          npm run package --prefix extensions
+          cp extensions/dist/SHA256SUMS extensions/dist/VSIX-SHA256SUMS
+
+      - name: Publish installable connector extensions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.event.release.tag_name }}" extensions/dist/*.vsix extensions/dist/VSIX-SHA256SUMS extensions/dist/manifest.json --clobber
