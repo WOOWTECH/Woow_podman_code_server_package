@@ -19,6 +19,22 @@ NATIVE_ID = "12345678-1234-1234-1234-123456789abc"
 
 
 class NativeContract(unittest.TestCase):
+    def test_pinned_settings_argument_binds_process_without_bridge_environment(self):
+        with tempfile.TemporaryDirectory() as folder:
+            bridge = Path(folder)
+            settings = bridge / 'claude-settings.json'
+            hooks = {event: [{'hooks': [{'command': 'hook --bridge-dir ' + str(bridge)}]}]
+                     for event in ('SessionStart', 'Stop')}
+            settings.write_text(json.dumps({'hooks': hooks}))
+            settings.chmod(0o600)
+            plugin._assert_process_bridge(bridge, ['claude', '--settings', str(settings)], {})
+            for args in ([], ['--settings', str(settings) + '.other']):
+                with self.assertRaises((plugin.ClaudeRefreshError, FileNotFoundError)):
+                    plugin._assert_process_bridge(bridge, args, {})
+            settings.write_text(json.dumps({'hooks': {}}))
+            with self.assertRaisesRegex(plugin.ClaudeRefreshError, 'SESSION_NOT_LOCAL'):
+                plugin._assert_process_bridge(bridge, ['--settings', str(settings)], {})
+
     def test_every_native_dependency_is_in_explicit_contract(self):
         tree = ast.parse(Path(plugin.__file__).read_text())
         used = {n.attr for n in ast.walk(tree) if isinstance(n, ast.Attribute)

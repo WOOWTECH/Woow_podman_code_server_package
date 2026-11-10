@@ -332,6 +332,26 @@ def _process_identity(pid):
     return {'pid': pid, 'startTicks': fields[19]}
 
 
+def _assert_process_bridge(bridge, args, environment):
+    """Pinned launchers bind through env or the exact private hooks settings file."""
+    declared = environment.get('HARNESS_CLAUDE_NATIVE_BRIDGE_DIR')
+    if declared:
+        _check(Path(declared).samefile(bridge), 'MCP_SESSION_NOT_LOCAL')
+        return
+    # Pinned 0.16 strict launcher passes --settings, rather than exporting the
+    # bridge directory into Claude's exec environment. Require its exact file,
+    # ownership and actual native hook binding; never infer from cwd alone.
+    _check(args.count('--settings') == 1, 'MCP_SESSION_NOT_LOCAL')
+    offset = args.index('--settings')
+    _check(offset + 1 < len(args), 'MCP_SESSION_NOT_LOCAL')
+    settings = Path(args[offset + 1])
+    _owned(settings, private=True)
+    _check(settings.samefile(bridge / 'claude-settings.json'), 'MCP_SESSION_NOT_LOCAL')
+    hooks = json.loads(settings.read_text()).get('hooks', {})
+    _check(all(str(bridge) in json.dumps(hooks.get(event, [])) for event in ('SessionStart', 'Stop')),
+           'MCP_SESSION_NOT_LOCAL')
+
+
 def _native_process(native, bridge, native_id):
     info = native._wait_for_tmux_info(bridge, timeout_s=1)
     result = subprocess.run(['tmux', '-S', info['socket_path'], 'display-message', '-p',
@@ -357,9 +377,8 @@ def _native_process(native, bridge, native_id):
     proc = Path('/proc', str(ident['pid']))
     # Read environment privately for path resolution only. Never return it.
     env = dict(part.decode().split('=', 1) for part in (proc / 'environ').read_bytes().split(b'\0') if b'=' in part)
-    _check(env.get('HARNESS_CLAUDE_NATIVE_BRIDGE_DIR') and
-           Path(env['HARNESS_CLAUDE_NATIVE_BRIDGE_DIR']).samefile(bridge), 'MCP_SESSION_NOT_LOCAL')
     args = [part.decode() for part in (proc / 'cmdline').read_bytes().split(b'\0') if part]
+    _assert_process_bridge(bridge, args, env)
     for flag in ('--resume', '--session-id'):
         if flag in args:
             offset = args.index(flag)
