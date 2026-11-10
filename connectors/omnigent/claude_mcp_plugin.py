@@ -22,11 +22,18 @@ import subprocess
 import tempfile
 import time
 import uuid
+import unicodedata
 
 RELOAD_COMMAND = "/reload-plugins --force"
 _UUID = re.compile(r"[a-fA-F0-9]{8}(?:-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}")
 _NAME = re.compile(r"[A-Za-z0-9_-]+")
 _HASH = re.compile(r"[a-f0-9]{64}")
+NATIVE_APIS = frozenset({
+    'BRIDGE_ID_LABEL_KEY', 'bridge_dir_for_bridge_id', 'read_claude_session_id',
+    'read_transcript_path', '_bridge_injection_lock', '_bridge_injection_file_lock',
+    '_serialize_bridge_injection', '_wait_for_tmux_info', 'has_pending_user_prompt',
+    '_capture_pane', '_occupying_surface', '_is_box_rule', '_CLAUDE_PROMPT_GLYPH', '_run_tmux',
+})
 
 class ClaudeRefreshError(Exception):
     def __init__(self, code):
@@ -41,6 +48,35 @@ def _check(ok, code):
 
 def _json(value):
     return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+
+
+def assert_native_contract(native):
+    """Pinned 0.16 API surface, verified against its actual installed package."""
+    _check(all(hasattr(native, name) for name in NATIVE_APIS), 'MCP_RUNTIME_UNSUPPORTED')
+    constants = {'BRIDGE_ID_LABEL_KEY', '_CLAUDE_PROMPT_GLYPH'}
+    _check(all(isinstance(getattr(native, name), str) for name in constants)
+           and all(callable(getattr(native, name)) for name in NATIVE_APIS - constants), 'MCP_RUNTIME_UNSUPPORTED')
+
+
+def claude_config_path(workspace, environment):
+    """Claude 2.1.285 path rules; does not depend on a newer runner API.
+
+    Resolve using the attached process's environment/cwd, never this connector's
+    login home. Existing legacy .config.json takes precedence. Do not expand ~,
+    interpret shell text, transfer credentials, or create a fallback config.
+    """
+    home = environment.get('HOME')
+    _check(isinstance(home, str) and os.path.isabs(home), 'MCP_CONFIG_HOME_MISSING')
+    directory = environment.get('CLAUDE_CONFIG_DIR')
+    def resolved(base, name):
+        value = os.path.normpath(os.path.join(base, name))
+        return Path(value) if os.path.isabs(value) else Path(workspace) / value
+    legacy_base = os.path.join(home, '.claude') if directory is None else directory
+    legacy = resolved(unicodedata.normalize('NFC', legacy_base), '.config.json')
+    if legacy.exists():
+        return legacy
+    suffix = '-custom-oauth' if environment.get('CLAUDE_CODE_CUSTOM_OAUTH_URL') else ''
+    return resolved(directory or home, '.claude' + suffix + '.json')
 
 def _owned(path, *, directory=False, private=False):
     s = Path(path).lstat()
@@ -338,7 +374,7 @@ def _native_process(native, bridge, native_id):
     rows = [json.loads(line) for line in raw.splitlines() if line]
     _check(rows and all(row.get('sessionId', native_id) == native_id for row in rows)
            and any(row.get('cwd') == workspace for row in rows), 'MCP_PERSISTENCE_MISMATCH')
-    config = native.claude_global_config_path(Path(workspace), env)
+    config = claude_config_path(workspace, env)
     _owned(config)
     return {'identity': ident, 'workspace': workspace, 'config': config, 'transcript': transcript,
             'size': len(raw), 'sha256': hashlib.sha256(raw).hexdigest(), 'inode': transcript.stat().st_ino}
@@ -418,6 +454,7 @@ def _prepare_direct(context, data):
 
 def _refresh_claude(session_id, info, *, sync):
     from omnigent.harnesses.claude_native import bridge as native
+    assert_native_contract(native)
     native_id = info.get('external_session_id')
     _check(isinstance(native_id, str) and _UUID.fullmatch(native_id), 'MCP_PERSISTENCE_MISSING')
     bridge_id = (info.get('labels') or {}).get(native.BRIDGE_ID_LABEL_KEY) or session_id

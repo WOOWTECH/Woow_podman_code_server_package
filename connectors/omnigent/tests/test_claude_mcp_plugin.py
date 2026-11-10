@@ -6,6 +6,8 @@ from pathlib import Path
 import tempfile
 import sys
 import threading
+import ast
+import importlib.metadata
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -14,6 +16,53 @@ spec = importlib.util.spec_from_file_location("claude_mcp_plugin", Path(__file__
 plugin = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(plugin)
 NATIVE_ID = "12345678-1234-1234-1234-123456789abc"
+
+
+class NativeContract(unittest.TestCase):
+    def test_every_native_dependency_is_in_explicit_contract(self):
+        tree = ast.parse(Path(plugin.__file__).read_text())
+        used = {n.attr for n in ast.walk(tree) if isinstance(n, ast.Attribute)
+                and isinstance(n.value, ast.Name) and n.value.id == 'native'}
+        self.assertEqual(used, plugin.NATIVE_APIS)
+        self.assertNotIn('claude_global_config_path', used)
+
+    def test_path_uses_native_environment_including_legacy_and_relative_config(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            env = {'HOME': str(root / 'home'), 'CLAUDE_CONFIG_DIR': 'private'}
+            self.assertEqual(plugin.claude_config_path(root, env), root / 'private/.claude.json')
+            (root / 'private').mkdir()
+            (root / 'private/.config.json').write_text('{}')
+            self.assertEqual(plugin.claude_config_path(root, env), root / 'private/.config.json')
+            (root / 'private/.config.json').unlink()
+            env['CLAUDE_CODE_CUSTOM_OAUTH_URL'] = 'present-not-read'
+            self.assertEqual(plugin.claude_config_path(root, env), root / 'private/.claude-custom-oauth.json')
+            self.assertEqual(plugin.claude_config_path(root, {'HOME': str(root / 'home')}), root / 'home/.claude.json')
+
+    def test_actual_installed_pinned_bridge_contract(self):
+        try:
+            version = importlib.metadata.version('omnigent')
+        except importlib.metadata.PackageNotFoundError:
+            self.skipTest('run this contract case with installed Omnigent 0.16.0')
+        self.assertEqual(version, '0.16.0')
+        from omnigent.harnesses.claude_native import bridge
+        plugin.assert_native_contract(bridge)
+        # Signature-bind the calls made by the adapter, not a fake API object.
+        import inspect
+        args = {'bridge_dir_for_bridge_id': (('id',), {}),
+                'read_claude_session_id': ((Path('/unused'),), {}),
+                'read_transcript_path': ((Path('/unused'),), {}),
+                '_bridge_injection_lock': ((Path('/unused'),), {}),
+                '_bridge_injection_file_lock': ((Path('/unused'),), {}),
+                '_serialize_bridge_injection': ((lambda: None,), {}),
+                '_wait_for_tmux_info': ((Path('/unused'),), {'timeout_s': 1}),
+                'has_pending_user_prompt': ((Path('/unused'),), {}),
+                '_capture_pane': (('socket', 'target'), {}),
+                '_occupying_surface': (('text',), {}), '_is_box_rule': (('line',), {}),
+                '_run_tmux': (('socket', 'send-keys', '-t', 'target', 'Enter'), {})}
+        self.assertEqual(set(args), plugin.NATIVE_APIS - {'BRIDGE_ID_LABEL_KEY', '_CLAUDE_PROMPT_GLYPH'})
+        for name, (positional, keyword) in args.items():
+            inspect.signature(getattr(bridge, name)).bind(*positional, **keyword)
 
 
 class DirectProjection(unittest.TestCase):
@@ -168,6 +217,7 @@ class PersistentSubmission(unittest.TestCase):
             module = SimpleNamespace(bridge=native)
             sync = Mock(return_value='a' * 64)
             with patch.dict(sys.modules, {'omnigent.harnesses.claude_native': module}), \
+                 patch.object(plugin, 'assert_native_contract'), \
                  patch.object(plugin, '_native_process', side_effect=lambda *a: dict(context)), \
                  patch.object(plugin, '_process_identity', return_value=context['identity']), \
                  patch.object(plugin, '_composer_text', return_value=''), \
