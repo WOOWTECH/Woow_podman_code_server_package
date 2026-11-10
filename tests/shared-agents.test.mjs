@@ -33,6 +33,7 @@ test('removing a managed server removes it from all clients without resurrecting
  assert.deepEqual(JSON.parse(fs.readFileSync(data+'/mcp.json')).mcpServers,{});
  assert.deepEqual(JSON.parse(fs.readFileSync(data+'/claude/.claude.json')).mcpServers,{});
  assert.doesNotMatch(fs.readFileSync(data+'/codex/config.toml','utf8'),/demo/);
+ assert.deepEqual(JSON.parse(fs.readFileSync(data+'/shared/managed.json')),{servers:[],managedServers:['demo']});
 });
 test('conflicting skills fail before replacing source dirs',t=>{
  const {data,put,env}=fixture(t);put(data+'/skills/same/SKILL.md','first');put(data+'/claude/skills/same/SKILL.md','second');

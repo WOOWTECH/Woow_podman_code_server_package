@@ -72,8 +72,15 @@ Omnigent 會列出已設定原生授權的自訂 provider，模型 ID 保留完�
 `provider/model` 路徑。登入完成後重載即時模型目錄，再驗證真實回覆。
 
 三代理共用 `/data/pi-agent/skills` 及 `/data/pi-agent/shared/mcp.json`。
-修改 MCP 後執行 `woow-agent-sync`，再開新的代理對話。原生 Claude、Codex、Pi
-仍保有自己的登入及個別設定；不會把供應商憑證複製到其他部署。
+修改 MCP 後，在擴充面板或命令選單選擇 **Refresh shared MCP**，輸入原對話 ID。
+此操作會同步共用設定，保留原對話與模型／權限／登入設定，並移除已從共用 registry
+刪除的工具。Paseo 的 Claude、Codex、Pi 會在閒置時恢復同一個原生 session；
+若有執行中回合或待處理授權，更新會拒絕且不打斷對話。已回收的 session 請先在
+Paseo 開啟原對話再更新。舊 daemon 需由操作人員安排閒置升級，按鈕不會重啟服務。
+Omnigent Codex 使用原生 MCP reload，顯示已排入下一個回合邊界；工具成功執行須另行驗證。
+Omnigent Claude／Pi 在安全更新尚未受支援的版本會明確拒絕，保留現有對話。
+同步／恢復失敗會顯示錯誤，不會另開對話或宣稱已驗證工具。
+原生 Claude、Codex、Pi 仍保有自己的登入及個別設定；不會把供應商憑證複製到其他部署。
 Omnigent 的私人 session home 會繼承本部署的共用工具設定。
 完整共用設定格式見 [THREE_AGENTS.md](THREE_AGENTS.md)。
 

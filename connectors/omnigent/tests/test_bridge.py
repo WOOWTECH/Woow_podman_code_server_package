@@ -7,9 +7,10 @@ import sys
 import tempfile
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 spec = importlib.util.spec_from_file_location("connector_bridge", ROOT / "bridge.py")
 bridge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bridge)
@@ -68,6 +69,35 @@ class LifecycleTests(unittest.TestCase):
         plugin = self.plugin()
         with patch.object(core.Plugin, "resume", side_effect=AssertionError("must not resume")):
             self.assertEqual(plugin.restore(), {"ok": True, "resumed": False, "reason": "no-saved-authority"})
+
+    def test_refresh_requires_edit_permission_local_host_idle_and_supported_harness(self):
+        import mcp_refresh
+        info = {"permission_level": 2, "host_id": "my-host", "harness": "codex-native", "status": "idle"}
+        for changes, code in [({"permission_level": 1}, "MCP_PERMISSION_DENIED"),
+                              ({"permission_level": True}, "MCP_PERMISSION_DENIED"),
+                              ({"host_id": "another-host"}, "MCP_SESSION_NOT_LOCAL"),
+                              ({"archived": True}, "SESSION_ARCHIVED"),
+                              ({"status": "running"}, "SESSION_BUSY"),
+                              ({"harness": "unsupported-native"}, "MCP_REFRESH_UNSUPPORTED")]:
+            plugin = self.plugin("refreshMcp", sessionId="existing-session")
+            self.authorize(plugin)
+            with patch.object(self.client, "request", return_value={**info, **changes}), \
+                    patch.object(mcp_refresh, "refresh_codex", new_callable=AsyncMock) as refresh:
+                with self.assertRaises(bridge.Error) as ctx:
+                    plugin.refresh_mcp()
+                self.assertEqual(ctx.exception.code, code)
+                refresh.assert_not_called()
+
+    def test_refresh_targets_existing_conversation_without_creation_or_turn(self):
+        import mcp_refresh
+        info = {"permission_level": 2, "host_id": "my-host", "harness": "codex-native", "status": "idle"}
+        plugin = self.plugin("refreshMcp", sessionId="existing-session")
+        self.authorize(plugin)
+        with patch.object(self.client, "request", return_value=info) as request, \
+                patch.object(mcp_refresh, "refresh_codex", new_callable=AsyncMock, return_value={"sessionId":"existing-session", "refresh":{"state":"queued"}}) as refresh:
+            self.assertEqual(plugin.refresh_mcp()["sessionId"], "existing-session")
+            request.assert_called_once_with("GET", "/v1/sessions/existing-session")
+            refresh.assert_awaited_once_with("existing-session", info)
 
     def test_explicit_private_http_allowed_public_http_and_credentials_rejected(self):
         for url in ("http://192.168.2.121:8001", "http://omnigent-server:8000", "http://host.containers.internal:8000",

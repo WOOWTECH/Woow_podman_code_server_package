@@ -141,3 +141,20 @@ test('Omnigent form and machine settings expose backend and browser URLs separat
   const markup=html('omnigent');assert.ok(markup.includes('name="server"'));assert.ok(markup.includes('name="webUrl"'));assert.ok(markup.includes('Browser Web URL (optional)'));
   const property=require('../omnigent/package.json').contributes.configuration.properties['woow.omnigent.webUrl'];assert.equal(property.scope,'machine');assert.equal(property.default,'');
 });
+
+test('explicit MCP refresh stays on chosen conversation and describes queued native reload', async () => {
+  const h=harness('omnigent',{refreshMcp:{ok:true,refresh:{state:'queued',toolsVerified:false}}});
+  h.inputs.push('existing-session');
+  await h.commands.get('woow.omnigent.refreshMcp')();
+  assert.deepEqual(h.calls[0],{connector:'omnigent',action:'refreshMcp',sessionId:'existing-session'});
+  assert.ok(h.notices.some(text=>text.includes('next turn boundary')));
+  assert.ok(h.notices.every(text=>!text.includes('verification passed')));
+  assert.ok(html('omnigent').includes('data-action="refreshMcp"'));
+});
+test('busy MCP refresh is visible and cancellation makes no runtime request', async () => {
+  const h=harness('paseo',{refreshMcp:{ok:false,error:{code:'SESSION_BUSY'}}});
+  h.inputs.push('existing-agent');await h.commands.get('woow.paseo.refreshMcp')();
+  assert.ok(h.notices.some(text=>text.includes('Nothing was interrupted')));
+  const cancelled=harness('paseo');await cancelled.commands.get('woow.paseo.refreshMcp')();
+  assert.equal(cancelled.calls.length,0);
+});

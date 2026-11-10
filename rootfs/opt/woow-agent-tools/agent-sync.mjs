@@ -120,7 +120,8 @@ export function sync(env=process.env) {
     const piPath=`${data}/mcp.json`, claudePath=`${claudeDir}/.claude.json`, codexPath=`${codexDir}/config.toml`;
     const pi=json(piPath), claude=json(claudePath);
     const codex=fs.existsSync(codexPath)?parse(fs.readFileSync(codexPath,'utf8')):{};
-    const previous=json(statePath).servers||[], registry=json(registryPath);
+    const managed=json(statePath);
+    const previous=managed.servers||[], registry=json(registryPath);
     const servers=registry.mcpServers??{};
     // Import local, explicitly configured servers once. Account-only Claude cloud
     // connectors and each client's OAuth tokens are deliberately outside this registry.
@@ -153,7 +154,7 @@ export function sync(env=process.env) {
     // Preserve the user's entire original TOML in a private rollback copy. Parsing
     // and serialization preserve values, including unrelated models and profiles.
     if(!same(fs.existsSync(codexPath)?parse(fs.readFileSync(codexPath,'utf8')):{},codex)) write(codexPath,stringify(codex));
-    writeJSON(statePath,{servers:Object.keys(servers).sort()});
+    writeJSON(statePath,{servers:Object.keys(servers).sort(), managedServers:[...new Set([...(managed.managedServers||previous),...Object.keys(servers)])].sort()});
     const digest=crypto.createHash('sha256').update(JSON.stringify(sort(servers))).digest('hex');
     console.log(JSON.stringify({sharedSkills:skills,sharedMcp:registryPath,servers:Object.keys(servers).sort(),configurationHash:digest}));
   } finally {fs.rmdirSync(lock);}

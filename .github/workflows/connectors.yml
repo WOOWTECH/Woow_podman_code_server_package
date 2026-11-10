@@ -24,6 +24,10 @@ jobs:
           python-version: '3.12'
       - name: Install pinned packaging dependencies
         run: npm ci --ignore-scripts --prefix extensions
+      - name: Install pinned runtime test dependencies
+        run: |
+          npm ci --ignore-scripts --prefix connectors/paseo/runtime
+          python3 -m pip install --require-hashes --no-deps -r connectors/omnigent/tests/requirements.lock
       - name: Extension protocol and runtime behavior
         run: |
           npm test --prefix extensions
