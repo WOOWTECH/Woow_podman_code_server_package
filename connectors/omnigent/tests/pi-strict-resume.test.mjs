@@ -15,7 +15,21 @@ const api = await import(bundle);
 assert.equal(api.VERSION, '0.99.1');
 function fixture(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-cold-'));
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const children = [];
+  const trackChild = child => {
+    const closed = new Promise(resolve => child.once('close', resolve));
+    children.push({ child, closed });
+    return closed;
+  };
+  t.after(async () => {
+    for (const { child, closed } of children) {
+      if (child.exitCode === null && child.signalCode === null) child.kill();
+      const deadline = setTimeout(() => child.kill('SIGKILL'), 3000);
+      try { await closed; } finally { clearTimeout(deadline); }
+    }
+    // No child can still create native config/cache files after close.
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
   const id = '01234567-89ab-4cde-8f01-23456789abcd';
   const rows = [
     { type: 'session', version: 3, id, cwd: dir, timestamp: '2026-11-10T00:00:00.000Z' },
@@ -28,7 +42,7 @@ function fixture(t) {
   fs.writeFileSync(file, bytes, { mode: 0o600 });
   const ticket = { nativeFile: file, nativeSessionId: id, nativeBytes: bytes.length,
     nativeSHA256: crypto.createHash('sha256').update(bytes).digest('hex'), entryCount: rows.length, cwd: dir };
-  return { dir, file, bytes, rows, ticket };
+  return { dir, file, bytes, rows, ticket, trackChild };
 }
 
 test('actual pinned SessionManager preserves original ID, tree, model and every byte', t => {
@@ -86,7 +100,7 @@ const timer=setInterval(()=>{if(guard.opened()){process.stderr.write('STRICT_OPE
 await api.main(['--mode','rpc','--session',${JSON.stringify(f.file)},'--session-dir',${JSON.stringify(f.dir)},'--no-extensions','--no-skills','--no-prompt-templates','--no-themes','--approve']);`);
   const child = spawn(process.execPath, [script], { cwd: f.dir,
     env: { PATH: process.env.PATH, HOME: f.dir, PI_CODING_AGENT_DIR: path.join(f.dir, 'agent') }, stdio: ['pipe', 'pipe', 'pipe'] });
-  t.after(() => child.kill());
+  const closed = f.trackChild(child);
   let stdout = '', stderr = '';
   child.stdout.on('data', c => { stdout += c; }); child.stderr.on('data', c => { stderr += c; });
   child.stdin.write(JSON.stringify({ type: 'get_state', id: 'state' }) + '\n');
@@ -104,6 +118,7 @@ await api.main(['--mode','rpc','--session',${JSON.stringify(f.file)},'--session-
   assert.match(stderr, /STRICT_OPENED/);
   assert.equal(fs.readFileSync(f.file).subarray(0, f.bytes.length).equals(f.bytes), true);
   child.kill();
+  await closed;
 });
 
 test('expired preparation and duplicate startup claims fail closed before native startup', async t => {
