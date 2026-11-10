@@ -267,6 +267,43 @@ class Attachment(Fixture,unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(claude.StrictResumeError,'STRICT_NATIVE_GENERATION_CHANGED'):await native.confirm_attachment(self.plan_value,self.registry)
         p.write_bytes(original);self.terminal.pane_pid_sync.side_effect=[202,999]
         with self.assertRaisesRegex(claude.StrictResumeError,'STRICT_NATIVE_GENERATION_CHANGED'):await native.confirm_attachment(self.plan_value,self.registry)
+    async def test_registry_detach_during_rpc_refuses_alive_cached_pane(self):
+        async def detach(method,params):
+            result=await self.rpc(method,params)
+            if method=='thread/read':self.registry.get_terminal_resource.return_value=None
+            return result
+        self.client.request.side_effect=detach
+        with self.assertRaisesRegex(claude.StrictResumeError,'STRICT_ATTACH_UNCONFIRMED'):await native.confirm_attachment(self.plan_value,self.registry)
+        self.assertTrue((self.proc/'202').exists())
+    async def test_registry_detach_during_rpc_client_close_cannot_mint_receipt(self):
+        async def detach():self.registry.terminal_registry.get=lambda *a:None
+        self.client.close.side_effect=detach
+        with self.assertRaisesRegex(claude.StrictResumeError,'STRICT_ATTACH_UNCONFIRMED'):await native.confirm_attachment(self.plan_value,self.registry)
+        self.client.close.assert_awaited_once()
+    async def test_terminal_server_and_bridge_replacement_during_rpc_refused(self):
+        for field in ['terminal','server','bridge']:
+            oldterminal=self.terminal;oldserver=self.server;oldstate=self.state
+            async def replace_binding(method,params):
+                result=await self.rpc(method,params)
+                if method=='thread/read':
+                    if field=='terminal':self.registry.terminal_registry.get=lambda *a:object()
+                    elif field=='server':self.orch._AUTO_CODEX_APP_SERVERS[SID]=object()
+                    else:self.state=types.SimpleNamespace(**{**vars(oldstate),'thread_id':'different'})
+                return result
+            self.client.request.side_effect=replace_binding
+            with self.assertRaisesRegex(claude.StrictResumeError,'STRICT_ATTACH_UNCONFIRMED'):await native.confirm_attachment(self.plan_value,self.registry)
+            self.registry.terminal_registry.get=lambda *a:oldterminal
+            self.orch._AUTO_CODEX_APP_SERVERS[SID]=oldserver;self.state=oldstate
+    async def test_unrelated_fd_close_is_tolerated_but_listening_socket_loss_is_not(self):
+        extra=self.proc/'101/fd/4';extra.symlink_to('pipe:[123]');actual=os.readlink
+        def closing(fd,*a,**kw):
+            if Path(fd)==extra:raise FileNotFoundError('descriptor closed')
+            return actual(fd,*a,**kw)
+        with patch.object(os,'readlink',side_effect=closing):
+            result=await native.confirm_attachment(self.plan_value,self.registry)
+            self.assertTrue(result['currentNativeVerified'])
+            (self.proc/'101/fd/3').unlink()
+            with self.assertRaisesRegex(claude.StrictResumeError,'STRICT_NATIVE_PROCESS_UNAVAILABLE'):await native.confirm_attachment(self.plan_value,self.registry)
     def test_matching_native_process_is_refused_without_kill(self):
         with self.assertRaisesRegex(claude.StrictResumeError,'STRICT_NATIVE_ALREADY_RUNNING'):native.assert_no_writer(self.plan_value,proc_root=self.proc)
         self.assertTrue((self.proc/'101').exists())

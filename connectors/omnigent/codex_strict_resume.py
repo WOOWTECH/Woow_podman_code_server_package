@@ -250,7 +250,14 @@ def verify_processes(plan, server, pane_pid, *, proc_root=Path('/proc')):
         if not is_codex(record) or b'app-server' not in record['args']:
             continue
         try:
-            sockets = {os.readlink(p) for p in (record['path'] / 'fd').iterdir()}
+            sockets = set()
+            for fd in (record['path'] / 'fd').iterdir():
+                try:
+                    sockets.add(os.readlink(fd))
+                except FileNotFoundError:
+                    # Unrelated descriptors may close while listing /proc.
+                    # Still require the actual listening socket below.
+                    continue
         except OSError:
             continue
         if sockets & inodes:
@@ -293,6 +300,7 @@ async def confirm_attachment(plan, registry):
     pane = await asyncio.to_thread(terminal.pane_pid_sync)
     identity = await asyncio.to_thread(verify_processes, plan, server, pane)
     client = client_for_transport(server.listen_url, client_name='woow-strict-original-codex')
+    client_closed = False
     try:
         await client.connect()
         loaded = (await client.request('thread/loaded/list', {})).get('result', {}).get('data', [])
@@ -307,6 +315,21 @@ async def confirm_attachment(plan, registry):
         again = await asyncio.to_thread(terminal.pane_pid_sync)
         if again != pane or await asyncio.to_thread(verify_processes, plan, server, again) != identity:
             fail('STRICT_NATIVE_GENERATION_CHANGED')
+        await client.close()
+        client_closed = True
+        # Deletion/rebinding can detach a terminal before async close kills
+        # its pane. Re-read authority after ALL awaited RPC/process checks;
+        # cached objects being alive does not mean this session owns them.
+        current_view = await registry.get_terminal_resource(plan.session_id, terminal_resource_id('codex', 'main'))
+        current_terminal = registry.terminal_registry.get(plan.session_id, 'codex', 'main')
+        current_state = read_bridge_state(plan.bridge)
+        if (current_view is None or current_terminal is not terminal or
+            orchestration._AUTO_CODEX_APP_SERVERS.get(plan.session_id) is not server or
+            current_state is None or current_state.session_id != plan.session_id or
+            current_state.thread_id != plan.native_id or current_state.active_turn_id or
+            Path(current_state.codex_home).resolve() != plan.home.resolve() or
+            current_state.socket_path != server.listen_url):
+            fail('STRICT_ATTACH_UNCONFIRMED')
         if plan.busy() or plan.current_epoch() != plan.epoch:
             fail('SESSION_BUSY')
         return {'state':'attached','sessionId':plan.session_id,'nativeSessionId':plan.native_id,
@@ -315,7 +338,8 @@ async def confirm_attachment(plan, registry):
             'launchStartedAt':plan.launch_started_at,'threadReadVerified':True,
             'authorityFilesUnchanged':True, **identity}
     finally:
-        await client.close()
+        if not client_closed:
+            await client.close()
 
 
 async def cold_resume(ctx, request, *, launch_kwargs):
