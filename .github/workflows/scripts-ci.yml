@@ -39,7 +39,7 @@ jobs:
         run: npm ci --prefix rootfs/opt/woow-agent-tools --omit=dev
 
       - name: Concurrent ACP permissions preserve every approval choice
-        run: node --test tests/acp-permission-queue.test.mjs
+        run: node --test tests/acp-permission-queue.test.mjs tests/pi-responses-config.test.mjs
 
       - name: Shared skills and MCP migration
         run: node --test tests/shared-agents.test.mjs

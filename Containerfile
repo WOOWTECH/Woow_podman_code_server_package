@@ -35,6 +35,9 @@ FROM docker.io/codercom/code-server:${CODE_SERVER_VERSION}
 # coder before starting code-server.
 USER root
 
+# Explicit, backed-up GPT-6 gateway migration; never runs on startup.
+COPY patches/configure-pi-responses.mjs /opt/woow-agent-tools/configure-pi-responses.mjs
+
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
