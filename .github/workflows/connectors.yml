@@ -24,11 +24,23 @@ jobs:
           python-version: '3.12'
       - name: Install pinned packaging dependencies
         run: npm ci --ignore-scripts --prefix extensions
+      - name: Install pinned runtime test dependencies
+        run: |
+          npm ci --ignore-scripts --prefix connectors/paseo/runtime
+          python3 -m pip install --require-hashes --no-deps -r connectors/omnigent/tests/requirements.lock
+          npm ci --ignore-scripts --prefix connectors/omnigent/tests/pi-runtime
+          python3 -m pip install --require-hashes --no-deps --only-binary=:all: --ignore-requires-python --target connectors/omnigent/tests/vendor-fixture -r connectors/omnigent/tests/vendor-requirements.lock
       - name: Extension protocol and runtime behavior
         run: |
           npm test --prefix extensions
+          export PI_TEST_PACKAGE="$PWD/connectors/omnigent/tests/pi-runtime/node_modules/@earendil-works/pi-coding-agent"
+          export OMNIGENT_TEST_SITE_PACKAGES="$PWD/connectors/omnigent/tests/vendor-fixture"
+          export PYTHONDONTWRITEBYTECODE=1
           node --test connectors/paseo/tests/*.test.mjs connectors/omnigent/tests/*.test.mjs
+          node --test connectors/omnigent/tests/pi-mcp-*.test.cjs
           python3 -m unittest discover -s connectors/omnigent/tests -p 'test_*.py'
+          # This source fixture verifies the upstream API; installed-image gates test all runtime patches.
+          PYTHONPATH="$OMNIGENT_TEST_SITE_PACKAGES:connectors/omnigent/tests" python3 -m unittest test_claude_mcp_plugin.NativeContract.test_actual_installed_pinned_bridge_contract
           if [ -f tests/connectors-cli.test.mjs ]; then
             node --test tests/connectors-cli.test.mjs tests/connector-extension-seed.test.mjs
           fi
