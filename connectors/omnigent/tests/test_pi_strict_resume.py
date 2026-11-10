@@ -3,6 +3,7 @@ import fcntl
 import hashlib
 import importlib.util
 import json
+import multiprocessing
 import os
 from pathlib import Path
 import tempfile
@@ -56,7 +57,7 @@ class StrictPiTests(unittest.TestCase):
         config = (self.bridge / 'config.json').read_bytes()
         info = {**self.info, 'nativeFile': '/attacker/chosen', 'command': 'bad', 'args': ['--no-session']}
         result = self.prepare(info)
-        ticket = json.loads((self.bridge / 'woow-pi-cold-ticket.json').read_text())
+        ticket = result['ticket']
         self.assertEqual(ticket['nativeFile'], str(self.history))
         self.assertEqual(result['receipt']['nativeSHA256'], hashlib.sha256(self.data).hexdigest())
         self.assertEqual(self.history.read_bytes(), self.data)
@@ -73,7 +74,7 @@ class StrictPiTests(unittest.TestCase):
                        dict(workspace='/different'), dict(terminal_launch_args=['--session','different'])]:
             with self.subTest(values=list(values)), self.assertRaises(helper.PiResumeError):
                 self.prepare({**self.info, **values})
-        self.assertFalse((self.bridge / 'woow-pi-cold-ticket.json').exists())
+        self.assertEqual(list(self.bridge.glob('woow-pi-cold-ticket-*.json')), [])
 
     def test_inbox_and_native_process_and_concurrent_preparation_refuse(self):
         (self.bridge / 'inbox/one.json').write_text('{}')
@@ -95,6 +96,49 @@ class StrictPiTests(unittest.TestCase):
             with self.assertRaises(helper.PiResumeError):
                 helper.prepare_pi_cold_resume(self.sid, self.info, expected={**expected, **change})
         self.assertEqual(self.history.read_bytes(), self.data)
+
+    def test_two_initializer_processes_refuse_loser_before_ticket_or_owner_change(self):
+        context = multiprocessing.get_context('fork')
+        receiver, sender = context.Pipe(duplex=False)
+
+        def second_initializer():
+            try:
+                with helper.reserve_attachment(self.bridge):
+                    self.prepare()
+                    helper._write(self.bridge / 'owner.pid', b'loser')
+                sender.send('UNEXPECTED_SUCCESS')
+            except helper.PiResumeError as error:
+                sender.send(error.code)
+            finally:
+                sender.close()
+
+        async def first_initializer():
+            with helper.reserve_attachment(self.bridge):
+                prepared = self.prepare()
+                helper._write(self.bridge / 'owner.pid', str(os.getpid()).encode())
+                ticket_path = Path(prepared['body']['spec']['args'][1])
+                ticket = ticket_path.read_bytes()
+                # First initializer has prepared but is awaiting child startup.
+                child = context.Process(target=second_initializer)
+                child.start()
+                await asyncio.to_thread(child.join, 5)
+                if child.is_alive(): child.kill(); child.join(); self.fail('initializer did not finish')
+                self.assertTrue(receiver.poll(1))
+                self.assertEqual(receiver.recv(), 'SESSION_BUSY')
+                self.assertEqual(ticket_path.read_bytes(), ticket)
+                self.assertEqual((self.bridge / 'owner.pid').read_text(), str(os.getpid()))
+                self.assertEqual(len(list(self.bridge.glob('woow-pi-cold-ticket-*.json'))), 1)
+                # Reservation still held through the confirmation phase.
+                with self.assertRaisesRegex(helper.PiResumeError, 'SESSION_BUSY'):
+                    with helper.reserve_attachment(self.bridge): pass
+            return prepared
+
+        first = asyncio.run(first_initializer())
+        second = self.prepare()
+        self.assertNotEqual(first['ticket']['requestId'], second['ticket']['requestId'])
+        self.assertNotEqual(first['body']['spec']['args'][1], second['body']['spec']['args'][1])
+        self.assertEqual(json.loads(Path(first['body']['spec']['args'][1]).read_text()), first['ticket'])
+        receiver.close(); sender.close()
 
     def test_missing_empty_invalid_wrong_id_old_version_and_symlink_refuse(self):
         for data in [b'', b'not-json\n', self.data.replace(b'"version": 3', b'"version": 2'), self.data.replace(self.native.encode(), b'wrong')]:
@@ -120,29 +164,37 @@ class StrictPiTests(unittest.TestCase):
         from omnigent.runner.native.orchestration import NativeLaunchContext
         import native_resume
         launches = []
+        live = [False]
+        wrong_ticket = [False]
+        pane = SimpleNamespace(pane_pid_sync=lambda: os.getpid())
         view = SessionResourceView(id='terminal_pi_main', type='terminal', session_id=self.sid, name='pi')
 
         async def launch(**kwargs):
+            with self.assertRaisesRegex(helper.PiResumeError, 'SESSION_BUSY'):
+                with helper.reserve_attachment(self.bridge): pass
             launches.append(kwargs)
-            ticket = json.loads((self.bridge / 'woow-pi-cold-ticket.json').read_text())
+            live[0] = True
+            ticket = json.loads(Path(kwargs['spec'].args[1]).read_text())
             (self.bridge / 'woow-pi-cold-opened.json').write_text(json.dumps({
-                'requestId': ticket['requestId'], 'nativeSessionId': self.native, 'sessionId': self.sid,
+                'requestId': 'another-initializer' if wrong_ticket[0] else ticket['requestId'], 'nativeSessionId': self.native, 'sessionId': self.sid,
                 'originalSHA256': ticket['nativeSHA256'], 'pid': os.getpid()}))
             (self.bridge / 'woow-pi-cold-opened.json').chmod(0o600)
             return view
 
         async def exchange(*args):
+            with self.assertRaisesRegex(helper.PiResumeError, 'SESSION_BUSY'):
+                with helper.reserve_attachment(self.bridge): pass
             return {'state': 'ready', 'nativeSessionId': self.native}
 
         ctx = SimpleNamespace(session_id=self.sid,
             agent_spec=SimpleNamespace(os_env=OSEnvSpec(type='caller_process', cwd=str(self.root))),
-            resource_registry=SimpleNamespace(launch_required_terminal=launch))
-        with patch.object(native_resume, '_exchange', exchange):
+            resource_registry=SimpleNamespace(launch_required_terminal=launch, terminal_registry=SimpleNamespace(get=lambda *args: pane if live[0] else None)))
+        with patch.object(native_resume, '_exchange', exchange), patch.object(helper, '_socket_peer_pid', return_value=os.getpid()):
             generations = iter([0, 1])
             with self.assertRaisesRegex(helper.PiResumeError, 'SESSION_BUSY'):
                 asyncio.run(helper.launch_pi_strict(ctx, authorized_info=self.info, busy=lambda: False, epoch=lambda: next(generations)))
             self.assertEqual(launches, [])
-            result = asyncio.run(helper.launch_pi_strict(ctx, authorized_info=self.info, busy=lambda: False, epoch=lambda: 0))
+            result, opened = asyncio.run(helper.launch_pi_strict(ctx, authorized_info=self.info, busy=lambda: False, epoch=lambda: 0))
         self.assertEqual(result, view)
         self.assertEqual(len(launches), 1)
         self.assertEqual(launches[0]['terminal_name'], 'pi')
@@ -151,6 +203,14 @@ class StrictPiTests(unittest.TestCase):
         self.assertEqual(launches[0]['spec'].os_env.sandbox, ctx.agent_spec.os_env.sandbox)
         self.assertEqual(self.history.read_bytes(), self.data)
         self.assertEqual((self.bridge / 'owner.pid').read_text(), str(os.getpid()))
+        wrong_ticket[0] = True
+        with patch.object(native_resume, '_exchange', exchange), patch.object(helper, '_socket_peer_pid', return_value=os.getpid()):
+            with self.assertRaisesRegex(helper.PiResumeError, 'PI_RESUME_IDENTITY_CHANGED'):
+                asyncio.run(helper.launch_pi_strict(ctx, authorized_info=self.info, busy=lambda: False, epoch=lambda: 0))
+        wrong_ticket[0] = False
+        with patch.object(native_resume, '_exchange', exchange), patch.object(helper, '_socket_peer_pid', return_value=os.getpid() + 1):
+            with self.assertRaisesRegex(helper.PiResumeError, 'PI_RESUME_IDENTITY_CHANGED'):
+                asyncio.run(helper.launch_pi_strict(ctx, authorized_info=self.info, busy=lambda: False, epoch=lambda: 0))
         # Exercise Bohr's exact adapter signature with actual pinned context,
         # resource serialization and terminal spec classes. No ordinary launch.
         async def get(*args, **kwargs):
@@ -158,14 +218,14 @@ class StrictPiTests(unittest.TestCase):
         async def resolve():
             return ctx.agent_spec
         events = []
-        ctx.resource_registry.terminal_registry = SimpleNamespace(get=lambda *args: None)
+        live[0] = False
         ctx.resource_registry.session_turn_is_active = lambda sid: False
         ctx.resource_registry.session_activity_epoch = lambda sid: 0
         native_ctx = NativeLaunchContext(session_id=self.sid, resource_registry=ctx.resource_registry,
             publish_event=lambda *args: events.append(args), server_client=SimpleNamespace(get=get))
         request = {'engine': 'pi', 'sessionId': self.sid, 'nativeSessionId': self.native,
             'workspace': str(self.root), 'originalBytes': len(self.data), 'originalSHA256': hashlib.sha256(self.data).hexdigest()}
-        with patch.object(native_resume, '_exchange', exchange):
+        with patch.object(native_resume, '_exchange', exchange), patch.object(helper, '_socket_peer_pid', return_value=os.getpid()):
             result, receipt = asyncio.run(helper.cold_resume(native_ctx, request,
                 launch_kwargs={'ensure_locks': {}, 'resolve_agent_spec': resolve}))
         self.assertTrue(result)
@@ -177,7 +237,7 @@ class StrictPiTests(unittest.TestCase):
         ctx.resource_registry.terminal_registry.get = lambda *args: object()
         with self.assertRaisesRegex(helper.PiResumeError, 'SESSION_BUSY'):
             asyncio.run(helper.cold_resume(native_ctx, request, launch_kwargs={'ensure_locks': {}}))
-        self.assertEqual(len(launches), 2)
+        self.assertEqual(len(launches), 4)
 
 
 if __name__ == '__main__':

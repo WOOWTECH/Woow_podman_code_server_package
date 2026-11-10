@@ -5,6 +5,7 @@ the shared runner cold-init dispatch before invoking this callback.
 No caller-provided native paths, command, model, auth or terminal args accepted.
 """
 import asyncio
+from contextlib import contextmanager
 from dataclasses import replace
 import fcntl
 import hashlib
@@ -13,7 +14,9 @@ import os
 from pathlib import Path
 import re
 import shutil
+import socket
 import stat
+import struct
 import tempfile
 import time
 import uuid
@@ -57,6 +60,32 @@ def _write(path, data):
     finally:
         if os.path.exists(name):
             os.unlink(name)
+
+
+@contextmanager
+def reserve_attachment(bridge):
+    """Reserve preparation, owner assignment, child spawn and confirmation."""
+    owner_path(bridge, True)
+    fd = os.open(bridge / 'woow-pi-attach.lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
+    try:
+        st = os.fstat(fd)
+        require(stat.S_ISREG(st.st_mode) and st.st_uid == os.getuid() and not st.st_mode & 0o077, 'PI_RESUME_UNSAFE_PATH')
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise PiResumeError('SESSION_BUSY') from None
+        yield
+    finally:
+        os.close(fd)
+
+
+def _socket_peer_pid(bridge):
+    with socket.socket(socket.AF_UNIX) as client:
+        client.settimeout(1)
+        client.connect(str(bridge / 'woow-mcp.sock'))
+        pid, uid, _ = struct.unpack('3i', client.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
+        require(uid == os.getuid(), 'PI_RESUME_IDENTITY_CHANGED')
+        return pid
 
 
 def _check_no_native(bridge):
@@ -148,7 +177,7 @@ def prepare_pi_cold_resume(session_id, authorized_info, *, expected=None):
                       'expiresAt': int(time.time() * 1000) + 120000}
             launcher = bridge / 'pi_strict_launcher.mjs'
             _write(launcher, Path(__file__).with_name('pi_strict_launcher.mjs').read_bytes())
-            ticket_file = bridge / 'woow-pi-cold-ticket.json'
+            ticket_file = bridge / ('woow-pi-cold-ticket-' + ticket['requestId'] + '.json')
             _write(ticket_file, json.dumps(ticket).encode())
             env = {'OMNIGENT_PI_NATIVE_CONFIG': str(config_file), 'OMNIGENT_PI_NATIVE_BRIDGE_DIR': str(bridge)}
             # Preserve resident native agent directory; never synthesize credentials.
@@ -158,7 +187,7 @@ def prepare_pi_cold_resume(session_id, authorized_info, *, expected=None):
             elif os.environ.get('PI_CODING_AGENT_DIR'):
                 env['PI_CODING_AGENT_DIR'] = str(owner_path(Path(os.environ['PI_CODING_AGENT_DIR']), True))
             require(history.read_bytes() == data and config_file.read_bytes() == config_bytes, 'PI_RESUME_HISTORY_CHANGED')
-            return {'body': {'terminal': 'pi', 'session_key': 'main', 'spec': {
+            return {'ticket': ticket, 'body': {'terminal': 'pi', 'session_key': 'main', 'spec': {
                 'command': node, 'args': [str(launcher), str(ticket_file)], 'cwd': str(cwd),
                 'env': env, 'scrollback': 100000, 'tmux_allow_passthrough': True}},
                 'receipt': {k: ticket[k] for k in ('sessionId', 'nativeSessionId', 'nativeBytes', 'nativeSHA256', 'entryCount')}}
@@ -177,6 +206,12 @@ async def launch_pi_strict(ctx, *, authorized_info, busy, epoch, expected=None):
     Return only after the native extension confirms the original ID and bytes.
     Never catch this error and run the ordinary Pi initializer as fallback.
     """
+    with reserve_attachment(Path(_bridge(ctx.session_id))):
+        return await _launch_pi_strict_reserved(ctx, authorized_info=authorized_info,
+            busy=busy, epoch=epoch, expected=expected)
+
+
+async def _launch_pi_strict_reserved(ctx, *, authorized_info, busy, epoch, expected):
     from omnigent.harnesses.pi_native.bridge import pi_native_env_unset
     from omnigent.inner.datamodel import OSEnvSpec, TerminalEnvSpec
     from omnigent.native.native_bridge_common import bridge_dir_preparation_lock
@@ -195,6 +230,7 @@ async def launch_pi_strict(ctx, *, authorized_info, busy, epoch, expected=None):
         # let periodic maintenance delete the live resumed process's history.
         _write(bridge / 'owner.pid', str(os.getpid()).encode())
     spec = prepared['body']['spec']
+    ticket = prepared['ticket']  # Immutable caller binding, never reread shared ticket state.
     agent = getattr(ctx.agent_spec, 'spec', ctx.agent_spec)
     agent_os = getattr(agent, 'os_env', None)
     require(agent_os is not None, 'PI_RESUME_ENV_UNAVAILABLE')
@@ -214,14 +250,18 @@ async def launch_pi_strict(ctx, *, authorized_info, busy, epoch, expected=None):
             probe = await _exchange(bridge, {'version': 1, 'action': 'probe', 'sessionId': ctx.session_id,
                 'nativeSessionId': native, 'deadlineMs': int(time.time() * 1000) + 2000})
             if probe.get('state') == 'ready' and probe.get('nativeSessionId') == native:
-                ticket = json.loads((bridge / 'woow-pi-cold-ticket.json').read_text())
                 data = owner_path(Path(ticket['nativeFile'])).read_bytes()
                 require(hashlib.sha256(data[:receipt['nativeBytes']]).hexdigest() == receipt['nativeSHA256'], 'PI_RESUME_HISTORY_CHANGED')
                 opened = json.loads(owner_path(bridge / 'woow-pi-cold-opened.json').read_text())
                 require(opened['nativeSessionId'] == native and opened['sessionId'] == ctx.session_id
                         and opened['originalSHA256'] == receipt['nativeSHA256']
                         and opened['requestId'] == ticket['requestId'], 'PI_RESUME_IDENTITY_CHANGED')
-                return view
+                terminal = ctx.resource_registry.terminal_registry.get(ctx.session_id, 'pi', 'main')
+                require(terminal is not None, 'PI_RESUME_ATTACH_UNCONFIRMED')
+                pane_pid = await asyncio.to_thread(terminal.pane_pid_sync)
+                require(type(opened.get('pid')) is int and opened['pid'] == pane_pid
+                        and opened['pid'] == _socket_peer_pid(bridge), 'PI_RESUME_IDENTITY_CHANGED')
+                return view, opened
         except PiResumeError:
             raise
         except Exception:
@@ -254,11 +294,10 @@ async def cold_resume(ctx, request, *, launch_kwargs):
         builder = launch_kwargs.get('build_context')
         if builder is not None:
             ctx = await builder(ctx)
-        view = await launch_pi_strict(ctx, authorized_info=info, expected=request,
+        view, opened = await launch_pi_strict(ctx, authorized_info=info, expected=request,
             busy=lambda: registry.session_turn_is_active(ctx.session_id),
             epoch=lambda: registry.session_activity_epoch(ctx.session_id))
         ctx.publish_event(ctx.session_id, {'type': 'session.resource.created', 'resource': session_resource_view_to_dict(view)})
-        opened = json.loads(owner_path(Path(_bridge(ctx.session_id)) / 'woow-pi-cold-opened.json').read_text())
         return True, {'state': 'attached', 'sessionId': ctx.session_id, 'nativeSessionId': request['nativeSessionId'],
             'historyPrefixPreserved': True, 'originalBytes': request['originalBytes'],
             'originalSHA256': request['originalSHA256'], 'pid': opened['pid'], 'sameProcess': False, 'toolsVerified': False}
