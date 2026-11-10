@@ -44,6 +44,22 @@ def owner_path(path, directory=False):
     return path
 
 
+def resident_directory(path):
+    """Accept the existing PVC root, not a caller-selected history location.
+
+    PaaS mounts /data/pi-agent root:coder 2775. Its private child files still
+    require owner_path; accepting the resident directory changes no ownership.
+    """
+    path = Path(path)
+    require(path.is_absolute(), 'PI_RESUME_UNSAFE_PATH')
+    for part in [*reversed(path.parents), path]:
+        require(not part.is_symlink(), 'PI_RESUME_UNSAFE_PATH')
+    st = path.lstat()
+    require(stat.S_ISDIR(st.st_mode) and st.st_uid in (0, os.getuid()) and not st.st_mode & 0o002
+            and (not st.st_mode & 0o020 or st.st_gid in (os.getegid(), *os.getgroups())), 'PI_RESUME_UNSAFE_PATH')
+    return path
+
+
 def _bridge(session_id):
     from omnigent.harnesses.pi_native.bridge import bridge_dir_for_session_id
     return bridge_dir_for_session_id(session_id)
@@ -130,7 +146,7 @@ def inspect_pi_recovery(session_id, info, expected):
     size = expected.get('originalBytes')
     require(re.fullmatch(r'[0-9a-f]{64}', digest) and type(size) is int and 0 < size <= 128 * 1024 * 1024,
             'PI_RESUME_INVALID_HISTORY')
-    persistent = owner_path(Path(os.environ['PI_AGENT_DATA_DIR']), True)
+    persistent = resident_directory(Path(os.environ['PI_AGENT_DATA_DIR']))
     backup = owner_path(persistent / 'connectors/native-history-backup-20261110' / session_id / (native + '-' + digest + '.jsonl'))
     require(not backup.stat().st_mode & 0o077, 'PI_RESUME_UNSAFE_PATH')
     data = backup.read_bytes()
@@ -148,10 +164,14 @@ def inspect_pi_recovery(session_id, info, expected):
     owner_path(Path(info['workspace']), True)
     # A missing bridge must not switch from lost per-session provider settings
     # to a global default. The coordinated receipt binds the prior agent dir.
-    agent = owner_path(Path(os.environ['PI_CODING_AGENT_DIR']), True)
+    agent = resident_directory(Path(os.environ['PI_CODING_AGENT_DIR']))
     require(expected.get('expectedAgentDir') == str(agent), 'PI_RESUME_ENV_UNAVAILABLE')
     bridge = Path(_bridge(session_id))
     require(not agent.is_relative_to(bridge), 'PI_RESUME_ENV_UNAVAILABLE')
+    # Normal Pi launch prefers a per-bridge agent directory. A surviving one
+    # must not override the prior persistent directory bound by this recovery.
+    local_agent = bridge / 'pi-agent'
+    require(not local_agent.exists() and not local_agent.is_symlink(), 'PI_RESUME_ENV_UNAVAILABLE')
     _check_no_native(bridge)
     return {'bridge': bridge, 'history': bridge / 'sessions' / (stamp.replace(':', '-').replace('.', '-') + '_' + native + '.jsonl'),
             'backup': backup, 'data': data}
@@ -256,9 +276,18 @@ def prepare_pi_cold_resume(session_id, authorized_info, *, expected=None):
             extension = owner_path(bridge / 'omnigent_pi_native_extension.js')
             require('woow_pi_mcp_refresh.cjs' in extension.read_text(), 'PI_RESUME_EXTENSION_NOT_READY')
             owner_path(bridge / 'woow_pi_mcp_refresh.cjs')
+            env = {'OMNIGENT_PI_NATIVE_CONFIG': str(config_file), 'OMNIGENT_PI_NATIVE_BRIDGE_DIR': str(bridge)}
+            # Preserve resident native agent directory; never synthesize credentials.
+            agent = bridge / 'pi-agent'
+            if agent.is_dir():
+                env['PI_CODING_AGENT_DIR'] = str(owner_path(agent, True))
+            elif os.environ.get('PI_CODING_AGENT_DIR'):
+                env['PI_CODING_AGENT_DIR'] = str(resident_directory(Path(os.environ['PI_CODING_AGENT_DIR'])))
+            if expected is not None and expected.get('restoreSnapshot') is True:
+                require(env.get('PI_CODING_AGENT_DIR') == expected.get('expectedAgentDir'), 'PI_RESUME_ENV_UNAVAILABLE')
             # Snapshot outside the upstream orphan-cleanup root. Never rewrite
             # native history or any provider/auth/trust configuration.
-            persistent = owner_path(Path(os.environ['PI_AGENT_DATA_DIR']), True)
+            persistent = resident_directory(Path(os.environ['PI_AGENT_DATA_DIR']))
             snapshots = persistent / 'connectors' / 'pi-resume-snapshots' / bridge.name
             snapshots.mkdir(parents=True, mode=0o700, exist_ok=True)
             owner_path(snapshots, True)
@@ -277,13 +306,6 @@ def prepare_pi_cold_resume(session_id, authorized_info, *, expected=None):
             _write(launcher, Path(__file__).with_name('pi_strict_launcher.mjs').read_bytes())
             ticket_file = bridge / ('woow-pi-cold-ticket-' + ticket['requestId'] + '.json')
             _write(ticket_file, json.dumps(ticket).encode())
-            env = {'OMNIGENT_PI_NATIVE_CONFIG': str(config_file), 'OMNIGENT_PI_NATIVE_BRIDGE_DIR': str(bridge)}
-            # Preserve resident native agent directory; never synthesize credentials.
-            agent = bridge / 'pi-agent'
-            if agent.is_dir():
-                env['PI_CODING_AGENT_DIR'] = str(owner_path(agent, True))
-            elif os.environ.get('PI_CODING_AGENT_DIR'):
-                env['PI_CODING_AGENT_DIR'] = str(owner_path(Path(os.environ['PI_CODING_AGENT_DIR']), True))
             require(history.read_bytes() == data and config_file.read_bytes() == config_bytes, 'PI_RESUME_HISTORY_CHANGED')
             return {'ticket': ticket, 'body': {'terminal': 'pi', 'session_key': 'main', 'spec': {
                 'command': node, 'args': [str(launcher), str(ticket_file)], 'cwd': str(cwd),
@@ -317,6 +339,7 @@ async def launch_pi_strict(ctx, *, authorized_info, busy, epoch, expected=None):
         # confirmation. The stable SDK lock also excludes its orphan reaper.
         with ExitStack() as reservation:
             with bridge_dir_preparation_lock(bridge):
+                plan = inspect_pi_recovery(ctx.session_id, authorized_info, expected)
                 bridge.mkdir(mode=0o700, parents=True, exist_ok=True)
                 owner_path(bridge, True)
                 require(not bridge.stat().st_mode & 0o077, 'PI_RESUME_UNSAFE_PATH')

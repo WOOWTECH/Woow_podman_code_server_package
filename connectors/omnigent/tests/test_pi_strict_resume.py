@@ -7,6 +7,7 @@ import multiprocessing
 import os
 from pathlib import Path
 import shutil
+import stat
 import tempfile
 import sys
 from types import SimpleNamespace
@@ -266,6 +267,36 @@ class StrictPiTests(unittest.TestCase):
         self.assertEqual(result['auth_headers'][RUNNER_TUNNEL_TOKEN_HEADER], 'current-fixture-binding')
         self.assertEqual(result['session_id'], self.sid)
         self.assertEqual(result['tools'], [{'name': 'current_tool'}])
+
+    def test_resident_pvc_directory_does_not_relax_private_file_ownership(self):
+        mounted = SimpleNamespace(st_mode=stat.S_IFDIR | 0o2775, st_uid=0, st_gid=os.getegid())
+        with patch.object(Path, 'lstat', return_value=mounted), patch.object(Path, 'is_symlink', return_value=False):
+            self.assertEqual(helper.resident_directory(self.root), self.root)
+            for changes in [dict(st_mode=stat.S_IFDIR | 0o2777), dict(st_gid=999999), dict(st_uid=999999)]:
+                with patch.object(Path, 'lstat', return_value=SimpleNamespace(**{**vars(mounted), **changes})):
+                    with self.assertRaisesRegex(helper.PiResumeError, 'UNSAFE_PATH'):
+                        helper.resident_directory(self.root)
+            with self.assertRaisesRegex(helper.PiResumeError, 'UNSAFE_PATH'):
+                helper.owner_path(self.root, True)
+        self.history.chmod(0o666)
+        with self.assertRaisesRegex(helper.PiResumeError, 'UNSAFE_PATH'):
+            helper.owner_path(self.history)
+
+    def test_recovery_refuses_surviving_bridge_local_agent_before_restore_and_at_launch_preparation(self):
+        request = dict(restoreSnapshot=True, sessionId=self.sid, nativeSessionId=self.native,
+                       workspace=str(self.root), originalBytes=len(self.data),
+                       originalSHA256=hashlib.sha256(self.data).hexdigest(), expectedAgentDir=str(self.root))
+        (self.bridge / 'pi-agent').mkdir(mode=0o700)
+        with self.assertRaisesRegex(helper.PiResumeError, 'ENV_UNAVAILABLE'):
+            helper.prepare_pi_cold_resume(self.sid, self.info, expected=request)
+        self.assertEqual(list(self.bridge.glob('woow-pi-cold-ticket-*.json')), [])
+        _, data, request = self.recovery_fixture()
+        self.bridge.mkdir(mode=0o700)
+        (self.bridge / 'pi-agent').mkdir(mode=0o700)
+        with self.assertRaisesRegex(helper.PiResumeError, 'ENV_UNAVAILABLE'):
+            helper.inspect_pi_recovery(self.sid, self.info, request)
+        self.assertFalse((self.bridge / 'sessions').exists())
+        self.assertFalse((self.bridge / 'config.json').exists())
 
     def test_actual_pinned_runner_spec_callback_checks_admission_and_native_receipt(self):
         vendor = os.environ.get('OMNIGENT_TEST_SITE_PACKAGES')
