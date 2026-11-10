@@ -6,11 +6,12 @@ import json
 import multiprocessing
 import os
 from pathlib import Path
+import shutil
 import tempfile
 import sys
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 SOURCE = Path(__file__).resolve().parents[1] / 'pi_strict_resume.py'
 spec = importlib.util.spec_from_file_location('pi_strict_resume_test', SOURCE)
@@ -150,6 +151,121 @@ class StrictPiTests(unittest.TestCase):
         other = self.root / 'other'; other.write_bytes(self.data); self.history.symlink_to(other)
         with self.assertRaisesRegex(helper.PiResumeError, 'UNSAFE_PATH'): self.prepare()
         self.assertEqual(other.read_bytes(), self.data)
+
+    def recovery_fixture(self):
+        rows = [json.loads(line) for line in self.data.splitlines()]
+        rows[0]['timestamp'] = '2026-11-10T08:20:42.116Z'
+        data = ('\n'.join(json.dumps(row) for row in rows) + '\n').encode()
+        digest = hashlib.sha256(data).hexdigest()
+        backup = self.root / 'connectors/native-history-backup-20261110' / self.sid / (self.native + '-' + digest + '.jsonl')
+        backup.parent.mkdir(parents=True, mode=0o700)
+        backup.write_bytes(data); backup.chmod(0o600)
+        request = dict(restoreSnapshot=True, sessionId=self.sid, nativeSessionId=self.native,
+                       workspace=str(self.root), originalBytes=len(data), originalSHA256=digest,
+                       expectedAgentDir=str(self.root))
+        shutil.rmtree(self.bridge)
+        return backup, data, request
+
+    def test_recovery_derives_exact_paths_and_refuses_bad_snapshot_and_identity(self):
+        backup, data, request = self.recovery_fixture()
+        plan = helper.inspect_pi_recovery(self.sid, self.info, {**request, 'nativeFile': '/ignored', 'backupFile': '/ignored'})
+        self.assertEqual(plan['backup'], backup)
+        self.assertEqual(plan['history'].name, '2026-11-10T08-20-42-116Z_' + self.native + '.jsonl')
+        self.assertEqual(plan['data'], data)
+        self.assertFalse(self.bridge.exists())
+        for change in [dict(restoreSnapshot=False), dict(nativeSessionId='wrong'), dict(workspace='/wrong'),
+                       dict(expectedAgentDir='/wrong'), dict(originalBytes=1), dict(originalSHA256='wrong')]:
+            with self.subTest(change=list(change)), self.assertRaises(helper.PiResumeError):
+                helper.inspect_pi_recovery(self.sid, self.info, {**request, **change})
+        backup.write_bytes(data + b'{}\n')
+        with self.assertRaisesRegex(helper.PiResumeError, 'HISTORY_CHANGED'):
+            helper.inspect_pi_recovery(self.sid, self.info, request)
+        backup.unlink(); target = self.root / 'private-history'; target.write_bytes(data); backup.symlink_to(target)
+        with self.assertRaisesRegex(helper.PiResumeError, 'UNSAFE_PATH'):
+            helper.inspect_pi_recovery(self.sid, self.info, request)
+        self.assertFalse(self.bridge.exists())
+
+    def test_recovery_never_overwrites_or_drops_inbox(self):
+        _, data, request = self.recovery_fixture()
+        plan = helper.inspect_pi_recovery(self.sid, self.info, request)
+        self.bridge.mkdir(mode=0o700)
+        helper._restore_pi_history(plan)
+        helper._restore_pi_history(plan)  # Byte-identical retry is idempotent.
+        self.assertEqual(plan['history'].read_bytes(), data)
+        plan['history'].write_bytes(data + b'{}\n')
+        with self.assertRaisesRegex(helper.PiResumeError, 'HISTORY_CHANGED'):
+            helper._restore_pi_history(plan)
+        self.assertEqual(plan['history'].read_bytes(), data + b'{}\n')
+        plan['history'].write_bytes(data)
+        (self.bridge / 'inbox/pending.json').write_bytes(b'{"content":"must-survive"}')
+        with self.assertRaisesRegex(helper.PiResumeError, 'SESSION_BUSY'):
+            helper._restore_pi_history(plan)
+        self.assertEqual((self.bridge / 'inbox/pending.json').read_bytes(), b'{"content":"must-survive"}')
+
+    def test_actual_sdk_recovery_lock_current_controls_live_owner_and_failed_preparation(self):
+        vendor = os.environ.get('OMNIGENT_TEST_SITE_PACKAGES')
+        if not vendor: self.skipTest('OMNIGENT_TEST_SITE_PACKAGES required')
+        sys.path.insert(0, vendor); self.addCleanup(lambda: sys.path.remove(vendor))
+        from omnigent.harnesses.pi_native import bridge as sdk_bridge
+        from omnigent.native import native_bridge_common as common
+        backup, data, request = self.recovery_fixture()
+        ctx = SimpleNamespace(session_id=self.sid)
+        controls = dict(session_id=self.sid, server_url='https://example.invalid', conversation_url='https://example.invalid/session',
+                        auth_headers={'X-Omnigent-Runner-Tunnel-Token': 'current-fixture-binding'}, tools=[])
+        kwargs = dict(authorized_info=self.info, expected=request, busy=lambda: False, epoch=lambda: 0)
+        with patch.object(helper, '_recovery_controls', AsyncMock(side_effect=helper.PiResumeError('PI_RESUME_ENV_UNAVAILABLE'))):
+            with self.assertRaisesRegex(helper.PiResumeError, 'ENV_UNAVAILABLE'):
+                asyncio.run(helper.launch_pi_strict(ctx, **kwargs))
+        self.assertFalse(self.bridge.exists())
+        writer = sdk_bridge.write_extension_files
+        generations = iter([0, 1])
+        with patch.object(helper, '_recovery_controls', AsyncMock(return_value=controls)):
+            with self.assertRaisesRegex(helper.PiResumeError, 'SESSION_BUSY'):
+                asyncio.run(helper.launch_pi_strict(ctx, **{**kwargs, 'epoch': lambda: next(generations)}))
+        self.assertFalse(self.bridge.exists())
+        def checked_writer(bridge, **values):
+            with common._try_bridge_dir_cleanup_lock(bridge) as acquired:
+                self.assertFalse(acquired)
+            self.assertEqual(helper.inspect_pi_recovery(self.sid, self.info, request)['data'], data)
+            return writer(bridge, **values)  # Actual pinned SDK writer, no mock configuration format.
+        async def confirmed(*args, **kw):
+            with self.assertRaisesRegex(helper.PiResumeError, 'SESSION_BUSY'):
+                with helper.reserve_attachment(self.bridge): pass
+            self.assertEqual((self.bridge / 'owner.pid').read_text(), str(os.getpid()))
+            self.assertEqual(common.prune_orphaned_dirs(self.bridge.parent), 0)
+            plan = helper.inspect_pi_recovery(self.sid, self.info, request)
+            self.assertEqual(plan['history'].read_bytes(), data)
+            config = json.loads((self.bridge / 'config.json').read_text())
+            self.assertEqual(config['authHeaders'], controls['auth_headers'])
+            self.assertEqual(config['sessionId'], self.sid)
+            return 'original-view', {'nativeSessionId': self.native}
+        with patch.object(helper, '_recovery_controls', AsyncMock(return_value=controls)), \
+             patch.object(sdk_bridge, 'write_extension_files', checked_writer), \
+             patch.object(helper, '_launch_pi_strict_reserved', confirmed):
+            result, receipt = asyncio.run(helper.launch_pi_strict(ctx, **kwargs))
+        self.assertEqual(result, 'original-view')
+        self.assertEqual(receipt['nativeSessionId'], self.native)
+        self.assertEqual(backup.read_bytes(), data)
+
+    def test_recovery_controls_use_current_sdk_auth_and_binding_without_provider_setup(self):
+        vendor = os.environ.get('OMNIGENT_TEST_SITE_PACKAGES')
+        if not vendor: self.skipTest('OMNIGENT_TEST_SITE_PACKAGES required')
+        sys.path.insert(0, vendor); self.addCleanup(lambda: sys.path.remove(vendor))
+        from omnigent.runner import _entry, tool_dispatch
+        from omnigent import cli_auth
+        from omnigent.runner.identity import RUNNER_TUNNEL_TOKEN_HEADER
+        ctx = SimpleNamespace(session_id=self.sid, server_client=SimpleNamespace(base_url='https://example.invalid/'),
+                              agent_spec=object())
+        with patch.object(_entry, '_make_auth_token_factory', return_value=lambda: 'current-fixture-bearer'), \
+             patch.object(_entry, '_runner_tunnel_binding_token_from_env', return_value='current-fixture-binding'), \
+             patch.object(cli_auth, 'databricks_request_headers', return_value={'Authorization': 'fixture'}) as headers, \
+             patch.object(tool_dispatch, 'build_native_relay_tool_schemas', return_value=[{'name': 'current_tool'}]) as schemas:
+            result = asyncio.run(helper._recovery_controls(ctx))
+        headers.assert_called_once_with('https://example.invalid', bearer_token='current-fixture-bearer')
+        schemas.assert_called_once_with(ctx.agent_spec)
+        self.assertEqual(result['auth_headers'][RUNNER_TUNNEL_TOKEN_HEADER], 'current-fixture-binding')
+        self.assertEqual(result['session_id'], self.sid)
+        self.assertEqual(result['tools'], [{'name': 'current_tool'}])
 
     def test_actual_pinned_runner_spec_callback_checks_admission_and_native_receipt(self):
         vendor = os.environ.get('OMNIGENT_TEST_SITE_PACKAGES')

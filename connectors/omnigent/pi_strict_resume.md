@@ -117,3 +117,28 @@ The exact adapter also uses the actual Omnigent 0.16 context/spec/serialization
 classes with a controlled registry, proving the required native role and OS
 environment survive, busy/epoch changes refuse, and the bound request cannot
 select different history.
+
+## Explicit recovery after bridge pruning
+
+The same callback accepts `restoreSnapshot:true` only on its private bound cold
+request. `expectedAgentDir` must equal the original persistent agent directory.
+`inspect_pi_recovery(session_id, authorized_info, request)` derives the snapshot
+from `PI_AGENT_DATA_DIR/connectors/native-history-backup-20261110/<SID>/` and the
+native UUID plus exact SHA; it accepts no caller-selected snapshot or native path.
+The verified V3 header timestamp determines the original Pi filename.
+
+The task recovery driver registers a guarded runner unbound, restores the exact
+missing bytes under the SDK preparation lock, and sets `owner.pid` to that live
+registered runner before owner PATCH. The callback revalidates the bytes and
+regenerates disposable bridge controls with current SDK authorization, routing
+and runner binding. It retains the attachment reservation through native proof.
+Existing different bytes, another native process, queued inbox input, admission
+epoch changes or failed metadata preparation refuse without a fresh fallback.
+Only successful recovery adds `restoredFromSnapshot:true` to the attachment
+receipt. Provider credentials and model/trust settings are never restored or
+recreated from backups.
+
+Parent's separate Pi retention patch must be packaged before boot so subsequent
+orphan cleanup retains native JSONL. The runner cleanup ownership flag alone does
+not disable host maintenance. Recovery does not relax the all-files rollout
+manifest or establish preservation for unrelated historical sessions.

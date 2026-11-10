@@ -5,7 +5,7 @@ the shared runner cold-init dispatch before invoking this callback.
 No caller-provided native paths, command, model, auth or terminal args accepted.
 """
 import asyncio
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from dataclasses import replace
 import fcntl
 import hashlib
@@ -103,6 +103,110 @@ def _check_no_native(bridge):
             continue
 
 
+def _validate_session(session_id, info):
+    require(isinstance(session_id, str) and re.fullmatch(r'[a-zA-Z0-9_-]{1,128}', session_id), 'PI_RESUME_INVALID_SESSION')
+    require(info.get('id') == session_id and info.get('status') == 'idle' and not info.get('archived'), 'SESSION_BUSY')
+    require(info.get('harness') == 'pi-native', 'PI_RESUME_INVALID_SESSION')
+    require(not any(info.get(k) for k in ('active_response_id', 'pending_inputs', 'pending_elicitations', 'terminal_pending')), 'SESSION_BUSY')
+    require(not info.get('terminal_launch_args'), 'PI_RESUME_CUSTOM_ARGS_UNSUPPORTED')
+    native = info.get('external_session_id', '')
+    require(re.fullmatch(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}', native), 'PI_RESUME_IDENTITY_CHANGED')
+    return native
+
+
+def inspect_pi_recovery(session_id, info, expected):
+    """Read an explicit original snapshot; accept no caller-selected file paths.
+
+    The backup naming scheme is the task's already-created private persistent
+    history store. Destination filename follows Pi 0.99.1 SessionManager's
+    header timestamp convention. Neither this check nor recovery synthesizes
+    any JSONL record or copies provider credentials.
+    """
+    native = _validate_session(session_id, info)
+    require(expected.get('restoreSnapshot') is True and expected.get('sessionId') == session_id
+            and expected.get('nativeSessionId') == native and expected.get('workspace') == info.get('workspace'),
+            'PI_RESUME_IDENTITY_CHANGED')
+    digest = expected.get('originalSHA256', '')
+    size = expected.get('originalBytes')
+    require(re.fullmatch(r'[0-9a-f]{64}', digest) and type(size) is int and 0 < size <= 128 * 1024 * 1024,
+            'PI_RESUME_INVALID_HISTORY')
+    persistent = owner_path(Path(os.environ['PI_AGENT_DATA_DIR']), True)
+    backup = owner_path(persistent / 'connectors/native-history-backup-20261110' / session_id / (native + '-' + digest + '.jsonl'))
+    require(not backup.stat().st_mode & 0o077, 'PI_RESUME_UNSAFE_PATH')
+    data = backup.read_bytes()
+    require(len(data) == size and hashlib.sha256(data).hexdigest() == digest, 'PI_RESUME_HISTORY_CHANGED')
+    require(data.endswith(b'\n'), 'PI_RESUME_INVALID_HISTORY')
+    try:
+        rows = [json.loads(line) for line in data.splitlines()]
+        header = rows[0]
+        stamp = header.get('timestamp', '')
+        require(header.get('type') == 'session' and header.get('version') == 3 and header.get('id') == native
+                and header.get('cwd') == info['workspace'] and all(r.get('id') and r.get('type') != 'session' for r in rows[1:])
+                and re.fullmatch(r'\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z', stamp), 'PI_RESUME_INVALID_HISTORY')
+    except (ValueError, KeyError, TypeError, IndexError):
+        raise PiResumeError('PI_RESUME_INVALID_HISTORY') from None
+    owner_path(Path(info['workspace']), True)
+    # A missing bridge must not switch from lost per-session provider settings
+    # to a global default. The coordinated receipt binds the prior agent dir.
+    agent = owner_path(Path(os.environ['PI_CODING_AGENT_DIR']), True)
+    require(expected.get('expectedAgentDir') == str(agent), 'PI_RESUME_ENV_UNAVAILABLE')
+    bridge = Path(_bridge(session_id))
+    require(not agent.is_relative_to(bridge), 'PI_RESUME_ENV_UNAVAILABLE')
+    _check_no_native(bridge)
+    return {'bridge': bridge, 'history': bridge / 'sessions' / (stamp.replace(':', '-').replace('.', '-') + '_' + native + '.jsonl'),
+            'backup': backup, 'data': data}
+
+
+async def _recovery_controls(ctx):
+    """Use the pinned SDK's current runner authorization, never backup headers."""
+    from omnigent.cli_auth import databricks_request_headers
+    from omnigent.conversation_browser import conversation_url
+    from omnigent.runner._entry import _make_auth_token_factory, _runner_tunnel_binding_token_from_env
+    from omnigent.runner.identity import RUNNER_TUNNEL_TOKEN_HEADER
+    from omnigent.runner.tool_dispatch import build_native_relay_tool_schemas
+    server_url = str(ctx.server_client.base_url).rstrip('/')
+    require(server_url.startswith(('http://', 'https://')), 'PI_RESUME_ENV_UNAVAILABLE')
+    factory = _make_auth_token_factory()
+    token = await asyncio.to_thread(factory) if factory is not None else None
+    headers = databricks_request_headers(server_url, bearer_token=token)
+    binding = _runner_tunnel_binding_token_from_env()
+    require(binding, 'PI_RESUME_ENV_UNAVAILABLE')
+    headers[RUNNER_TUNNEL_TOKEN_HEADER] = binding
+    tools = build_native_relay_tool_schemas(getattr(ctx.agent_spec, 'spec', ctx.agent_spec))
+    return dict(session_id=ctx.session_id, server_url=server_url,
+                conversation_url=conversation_url(server_url, ctx.session_id), auth_headers=headers, tools=tools)
+
+
+def _restore_pi_history(plan):
+    """Called under SDK preparation AND attachment locks; never overwrite."""
+    bridge, history, data = plan['bridge'], plan['history'], plan['data']
+    _check_no_native(bridge)
+    require(not (bridge / 'woow-pi-cold-active').exists(), 'SESSION_BUSY')
+    for name in ('inbox', 'sessions'):
+        (bridge / name).mkdir(mode=0o700, exist_ok=True)
+        owner_path(bridge / name, True)
+    require(not list((bridge / 'inbox').iterdir()), 'SESSION_BUSY')
+    existing = list((bridge / 'sessions').glob('*.jsonl'))
+    require(not existing or existing == [history], 'PI_RESUME_HISTORY_CHANGED')
+    if history.exists() or history.is_symlink():
+        require(owner_path(history).read_bytes() == data, 'PI_RESUME_HISTORY_CHANGED')
+    else:
+        # Atomic publish without replacing a concurrently-created destination.
+        fd, temporary = tempfile.mkstemp(prefix='.pi-restore-', dir=history.parent)
+        try:
+            with os.fdopen(fd, 'wb') as file:
+                file.write(data); file.flush(); os.fsync(file.fileno())
+            os.link(temporary, history, follow_symlinks=False)
+        finally:
+            Path(temporary).unlink(missing_ok=True)
+    require(owner_path(history).read_bytes() == data, 'PI_RESUME_HISTORY_CHANGED')
+    directory = os.open(history.parent, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(directory)
+    finally:
+        os.close(directory)
+
+
 def prepare_pi_cold_resume(session_id, authorized_info, *, expected=None):
     """Return {body, receipt}; local files derive only from SDK/session identity.
 
@@ -111,14 +215,8 @@ def prepare_pi_cold_resume(session_id, authorized_info, *, expected=None):
     terminal POST: central can wake a runner through normal initialization first.
     """
     try:
-        require(isinstance(session_id, str) and re.fullmatch(r'[a-zA-Z0-9_-]{1,128}', session_id), 'PI_RESUME_INVALID_SESSION')
         info = authorized_info
-        require(info.get('id') == session_id and info.get('status') == 'idle' and not info.get('archived'), 'SESSION_BUSY')
-        require(info.get('harness') == 'pi-native', 'PI_RESUME_INVALID_SESSION')
-        require(not any(info.get(k) for k in ('active_response_id', 'pending_inputs', 'pending_elicitations', 'terminal_pending')), 'SESSION_BUSY')
-        require(not info.get('terminal_launch_args'), 'PI_RESUME_CUSTOM_ARGS_UNSUPPORTED')
-        native = info.get('external_session_id', '')
-        require(re.fullmatch(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}', native), 'PI_RESUME_IDENTITY_CHANGED')
+        native = _validate_session(session_id, info)
         bridge = owner_path(_bridge(session_id), True)
         require(not bridge.stat().st_mode & 0o077, 'PI_RESUME_UNSAFE_PATH')
         with open(bridge / 'woow-pi-cold.lock', 'a+b', opener=lambda p, flags: os.open(p, flags | os.O_NOFOLLOW, 0o600)) as lock:
@@ -206,6 +304,31 @@ async def launch_pi_strict(ctx, *, authorized_info, busy, epoch, expected=None):
     Return only after the native extension confirms the original ID and bytes.
     Never catch this error and run the ordinary Pi initializer as fallback.
     """
+    if expected and expected.get('restoreSnapshot') is True:
+        from omnigent.harnesses.pi_native.bridge import write_extension_files
+        from omnigent.native.native_bridge_common import bridge_dir_preparation_lock
+        require(not busy(), 'SESSION_BUSY')
+        generation = epoch()
+        plan = inspect_pi_recovery(ctx.session_id, authorized_info, expected)
+        controls = await _recovery_controls(ctx)
+        require(not busy() and epoch() == generation, 'SESSION_BUSY')
+        bridge = plan['bridge']
+        # Keep attachment reservation across restoration, spawn, and native
+        # confirmation. The stable SDK lock also excludes its orphan reaper.
+        with ExitStack() as reservation:
+            with bridge_dir_preparation_lock(bridge):
+                bridge.mkdir(mode=0o700, parents=True, exist_ok=True)
+                owner_path(bridge, True)
+                require(not bridge.stat().st_mode & 0o077, 'PI_RESUME_UNSAFE_PATH')
+                reservation.enter_context(reserve_attachment(bridge))
+                config = bridge / 'config.json'
+                if config.exists() or config.is_symlink():
+                    require(json.loads(owner_path(config).read_text()).get('sessionId') == ctx.session_id, 'PI_RESUME_IDENTITY_CHANGED')
+                _restore_pi_history(plan)
+                write_extension_files(bridge, **controls)
+                _write(bridge / 'owner.pid', str(os.getpid()).encode())
+            return await _launch_pi_strict_reserved(ctx, authorized_info=authorized_info,
+                busy=busy, epoch=epoch, expected=expected)
     with reserve_attachment(Path(_bridge(ctx.session_id))):
         return await _launch_pi_strict_reserved(ctx, authorized_info=authorized_info,
             busy=busy, epoch=epoch, expected=expected)
@@ -300,4 +423,5 @@ async def cold_resume(ctx, request, *, launch_kwargs):
         ctx.publish_event(ctx.session_id, {'type': 'session.resource.created', 'resource': session_resource_view_to_dict(view)})
         return True, {'state': 'attached', 'sessionId': ctx.session_id, 'nativeSessionId': request['nativeSessionId'],
             'historyPrefixPreserved': True, 'originalBytes': request['originalBytes'],
-            'originalSHA256': request['originalSHA256'], 'pid': opened['pid'], 'sameProcess': False, 'toolsVerified': False}
+            'originalSHA256': request['originalSHA256'], 'pid': opened['pid'], 'sameProcess': False, 'toolsVerified': False,
+            'restoredFromSnapshot': request.get('restoreSnapshot') is True}
