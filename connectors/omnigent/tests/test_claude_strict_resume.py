@@ -334,21 +334,122 @@ class Attachment(Fixture, unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.setup_fixture()
 
+    def actual_process_fixture(self, plan):
+        plan.before_launch("claude", ("--resume", NID), self.workspace, False)
+        plan.launch_start_ticks = 1000
+        self.directory = self.base / plan.bridge_id
+        self.directory.mkdir()
+        settings = self.directory / "claude-settings.json"
+        settings.write_text(json.dumps({"hooks": {key: [{"command": str(self.directory) + "/hook"}]
+            for key in ("SessionStart", "Stop")}}))
+        settings.chmod(0o600)
+        self.proc = self.base / "attachment-proc"
+        self.proc.mkdir()
+        self.process = self.proc / "123"
+        self.process.mkdir()
+        fields = ["S"] + ["0"] * 18 + ["1001"]
+        (self.process / "stat").write_text("123 (claude) " + " ".join(fields))
+        self.args = [b"claude", b"--resume", NID.encode(), b"--settings", str(settings).encode()]
+        (self.process / "cmdline").write_bytes(b"\0".join(self.args) + b"\0")
+        (self.process / "environ").write_bytes(b"")
+        (self.process / "cwd").symlink_to(self.workspace)
+        executable = self.base / "claude.exe"
+        executable.touch()
+        (self.process / "exe").symlink_to(executable)
+        children = self.process / "task/123"
+        children.mkdir(parents=True)
+        (children / "children").write_text("")
+        self.hook = {"recorded_at": time.time(), "payload": {"hook_event_name": "SessionStart",
+            "session_id": NID, "transcript_path": str(self.path)}}
+        self.write_hook()
+        self.terminal = types.SimpleNamespace(pane_pid_sync=Mock(return_value=123))
+        self.registry = types.SimpleNamespace(get_terminal_resource=AsyncMock(return_value={"id": "terminal_claude_main"}),
+            terminal_registry=types.SimpleNamespace(get=lambda *args: self.terminal))
+        original = native.verify_native_process
+        proc_patch = patch.object(native, "verify_native_process", side_effect=lambda *args:
+            original(*args, proc_root=self.proc))
+        proc_patch.start()
+        self.addCleanup(proc_patch.stop)
+        bridge = types.SimpleNamespace(bridge_dir_for_bridge_id=lambda value: self.base / value,
+            read_claude_session_id=lambda path: NID if path == self.directory else "replacement-native-id",
+            read_active_session_id=lambda path: SID if path == self.directory else "replacement-session")
+        modules = {"omnigent.harnesses.claude_native": types.SimpleNamespace(bridge=bridge),
+            "omnigent.entities.session_resources": types.SimpleNamespace(terminal_resource_id=lambda *args: "terminal_claude_main")}
+        module_patch = patch.dict(sys.modules, modules)
+        module_patch.start()
+        self.addCleanup(module_patch.stop)
+
+    def write_hook(self):
+        (self.directory / "hooks.jsonl").write_text(json.dumps(self.hook) + "\n")
+
     async def test_cleared_original_receipt_ignores_live_replacement_default_bridge(self):
         self.info["labels"]["omnigent.claude_native.bridge_id"] = SID + "-cleared"
         plan = self.plan()
-        bridge = types.SimpleNamespace(bridge_dir_for_bridge_id=lambda value: self.base / value,
-            read_claude_session_id=lambda path: NID if path.name.endswith("-cleared") else "replacement-native-id",
-            read_active_session_id=lambda path: SID if path.name.endswith("-cleared") else "replacement-session")
-        modules = {"omnigent.harnesses.claude_native": types.SimpleNamespace(bridge=bridge),
-            "omnigent.entities.session_resources": types.SimpleNamespace(terminal_resource_id=lambda *args: "terminal_claude_main")}
-        registry = types.SimpleNamespace(get_terminal_resource=AsyncMock(return_value={"id": "terminal_claude_main"}))
-        with patch.dict(sys.modules, modules):
-            receipt = await native.confirm_attachment(plan, registry)
+        self.actual_process_fixture(plan)
+        receipt = await native.confirm_attachment(plan, self.registry)
         self.assertEqual(receipt["bridgeId"], SID + "-cleared")
         self.assertEqual(receipt["nativeSessionId"], NID)
         self.assertFalse(receipt["toolsVerified"])
         self.assertTrue(receipt["historyPrefixPreserved"])
+        self.assertTrue(receipt["currentNativeVerified"])
+        self.assertEqual((receipt["nativePid"], receipt["nativeStartTicks"]), (123, 1001))
+        self.assertGreaterEqual(receipt["sessionStartRecordedAt"], receipt["launchStartedAt"])
+
+    async def test_alive_registered_tmux_with_dead_or_non_native_process_refuses(self):
+        plan = self.plan()
+        self.actual_process_fixture(plan)
+        state = self.process / "stat"
+        state.write_text(state.read_text().replace("(claude) S", "(claude) Z"))
+        with self.assertRaisesRegex(native.StrictResumeError, "STRICT_NATIVE_PROCESS_UNAVAILABLE"):
+            await native.confirm_attachment(plan, self.registry)
+        state.write_text(state.read_text().replace("(claude) Z", "(claude) S"))
+        (self.process / "cmdline").write_bytes(b"node\0project-server.mjs\0")
+        (self.process / "exe").unlink()
+        (self.process / "exe").symlink_to(self.path)
+        with self.assertRaisesRegex(native.StrictResumeError, "STRICT_NATIVE_PROCESS_UNAVAILABLE"):
+            await native.confirm_attachment(plan, self.registry)
+
+    async def test_prior_process_generation_and_foreign_resume_are_not_attached(self):
+        plan = self.plan()
+        self.actual_process_fixture(plan)
+        plan.launch_start_ticks = 1002
+        with self.assertRaisesRegex(native.StrictResumeError, "STRICT_NATIVE_GENERATION_CHANGED"):
+            await native.confirm_attachment(plan, self.registry)
+        plan.launch_start_ticks = 1000
+        (self.process / "cmdline").write_bytes(b"\0".join(self.args).replace(NID.encode(), b"wrong-native"))
+        with self.assertRaisesRegex(native.StrictResumeError, "STRICT_NATIVE_ID_CHANGED"):
+            await native.confirm_attachment(plan, self.registry)
+
+    async def test_foreign_bridge_env_and_settings_binding_refused(self):
+        plan = self.plan()
+        self.actual_process_fixture(plan)
+        (self.process / "environ").write_bytes(b"HARNESS_CLAUDE_NATIVE_BRIDGE_DIR=" + str(self.base).encode())
+        with self.assertRaisesRegex(native.StrictResumeError, "STRICT_NATIVE_BINDING_CHANGED"):
+            await native.confirm_attachment(plan, self.registry)
+        (self.process / "environ").write_bytes(b"")
+        (self.directory / "claude-settings.json").write_text('{"hooks":{}}')
+        with self.assertRaisesRegex(native.StrictResumeError, "STRICT_NATIVE_BINDING_CHANGED"):
+            await native.confirm_attachment(plan, self.registry)
+
+    async def test_old_hook_or_foreign_transcript_never_confirms_new_process(self):
+        plan = self.plan()
+        self.actual_process_fixture(plan)
+        for field, value in [("recorded_at", plan.launch_started_at - 1), ("transcript_path", str(self.trust))]:
+            if field == "recorded_at":
+                self.hook[field] = value
+            else:
+                self.hook["recorded_at"] = time.time()
+                self.hook["payload"][field] = value
+            self.write_hook()
+            with self.assertRaisesRegex(native.StrictResumeError, "STRICT_ATTACH_UNCONFIRMED"):
+                await native.confirm_attachment(plan, self.registry, timeout=0.01)
+
+    async def test_pane_exit_between_probe_and_receipt_refuses(self):
+        plan = self.plan()
+        self.actual_process_fixture(plan)
+        self.terminal.pane_pid_sync.side_effect = [123, None]
+        with self.assertRaisesRegex(native.StrictResumeError, "STRICT_NATIVE_GENERATION_CHANGED"):
+            await native.confirm_attachment(plan, self.registry)
 
     async def test_hook_state_without_registered_live_terminal_is_not_success(self):
         plan = self.plan()

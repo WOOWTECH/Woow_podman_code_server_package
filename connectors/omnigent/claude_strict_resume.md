@@ -31,8 +31,16 @@ processes (npm, native and versioned installer forms), and launches exactly one
 fork/fresh flags, and refuses a launch that would clear the persisted model pick. The original native
 file inode and hash are checked before spawn; every original byte must remain a
 prefix afterward. The launcher-selected bridge is validated, including the
-`-cleared` bridge of a superseded original conversation. A hook with the exact
-native and visible IDs plus a registered live terminal is required for success.
+`-cleared` bridge of a superseded original conversation. Success requires a
+fresh `SessionStart` hook after this launch's spawn boundary, the exact native
+and visible IDs and transcript path, and the registered terminal's actual live
+Claude process. Its PID/start ticks must belong to the new launch, its arguments
+must contain the exact `--resume`, and its environment or private `--settings`
+hooks must bind this bridge. The pane/process identity is checked again after
+reading the hook and history. An old hook or a surviving tmux server with a dead
+Claude pane cannot confirm attachment. The receipt includes the verified PID,
+start ticks and hook generation; it describes that verification instant, not
+permanent liveness of a subsequently stopped process.
 Pi uses its separate [strict launcher](pi_strict_resume.md), including native
 no-new/no-rewrite guards and its actual native socket confirmation.
 

@@ -157,6 +157,8 @@ class StrictPlan:
     busy: object
     current_epoch: object
     bridge_id: str
+    launch_started_at: float | None = None
+    launch_start_ticks: int | None = None
 
     def check_prefix(self, *, allow_append=False):
         raw, info = read_native(self.path, self.size if allow_append else None)
@@ -198,6 +200,10 @@ class StrictPlan:
             fail("STRICT_LAUNCH_CONFIG_CHANGED")
         if args.count("--resume") != 1 or args[args.index("--resume") + 1:args.index("--resume") + 2] != (self.native_id,):
             fail("STRICT_NATIVE_ID_CHANGED")
+        # Capture the actual spawn boundary, not plan creation or a persisted
+        # hook's timestamp. /proc uptime and process starttime share boot ticks.
+        self.launch_start_ticks = int(float(Path("/proc/uptime").read_text().split()[0]) * os.sysconf("SC_CLK_TCK"))
+        self.launch_started_at = time.time()
 
 
 def prepare_plan(session_id, body, info, *, busy, epoch, root=None):
@@ -260,6 +266,95 @@ def reserve_native(plan):
         os.close(fd)
 
 
+def _process_record(pid, *, proc_root=Path("/proc")):
+    try:
+        path = proc_root / str(pid)
+        fields = (path / "stat").read_text().rsplit(")", 1)[1].split()
+        if path.stat().st_uid != os.geteuid() or fields[0] in ("Z", "X", "x"):
+            fail("STRICT_NATIVE_PROCESS_UNAVAILABLE")
+        return {"pid": pid, "startTicks": int(fields[19]), "path": path,
+            "args": [x for x in (path / "cmdline").read_bytes().split(b"\0") if x],
+            "exe": str((path / "exe").resolve(strict=True))}
+    except (OSError, ValueError, IndexError):
+        fail("STRICT_NATIVE_PROCESS_UNAVAILABLE")
+
+
+def verify_native_process(plan, directory, pane_pid, *, proc_root=Path("/proc")):
+    """Inspect only the registered pane's process tree, without exposing env."""
+    if type(pane_pid) is not int or pane_pid <= 0 or plan.launch_start_ticks is None:
+        fail("STRICT_NATIVE_PROCESS_UNAVAILABLE")
+    todo, seen, candidates = [pane_pid], set(), []
+    while todo and len(seen) < 128:
+        pid = todo.pop()
+        if pid in seen:
+            continue
+        seen.add(pid)
+        record = _process_record(pid, proc_root=proc_root)
+        if process_is_claude(record["args"], record["exe"]):
+            candidates.append(record)
+            # MCP children and background agents are not the pane's native
+            # root. Their independent lifetimes must not invalidate this PID.
+            continue
+        try:
+            todo.extend(map(int, (record["path"] / "task" / str(pid) / "children").read_text().split()))
+        except (OSError, ValueError):
+            fail("STRICT_NATIVE_PROCESS_UNAVAILABLE")
+    if todo or len(candidates) != 1:
+        fail("STRICT_NATIVE_PROCESS_UNAVAILABLE")
+    record = candidates[0]
+    path, args = record["path"], [os.fsdecode(x) for x in record["args"]]
+    if record["startTicks"] < plan.launch_start_ticks:
+        fail("STRICT_NATIVE_GENERATION_CHANGED")
+    if args.count("--resume") != 1 or args[args.index("--resume") + 1:args.index("--resume") + 2] != [plan.native_id]:
+        fail("STRICT_NATIVE_ID_CHANGED")
+    forbidden = {"--fork-session", "--session-id", "--continue", "-c", "--print", "-p", "--resume-session-at", "--rewind-files", "-r"}
+    if any(arg.split("=", 1)[0] in forbidden or arg.startswith("--resume=") for arg in args):
+        fail("STRICT_LAUNCH_CONFIG_CHANGED")
+    try:
+        if (path / "cwd").resolve(strict=True) != plan.workspace.resolve(strict=True):
+            fail("STRICT_WORKSPACE_MISMATCH")
+        env = dict(x.split(b"=", 1) for x in (path / "environ").read_bytes().split(b"\0") if b"=" in x)
+        declared = env.get(b"HARNESS_CLAUDE_NATIVE_BRIDGE_DIR")
+        if declared:
+            if not Path(os.fsdecode(declared)).samefile(directory):
+                fail("STRICT_NATIVE_BINDING_CHANGED")
+        else:
+            if args.count("--settings") != 1:
+                fail("STRICT_NATIVE_BINDING_CHANGED")
+            offset = args.index("--settings")
+            if offset + 1 >= len(args):
+                fail("STRICT_NATIVE_BINDING_CHANGED")
+            settings = Path(args[offset + 1])
+            meta = settings.lstat()
+            if not stat.S_ISREG(meta.st_mode) or meta.st_uid != os.geteuid() or meta.st_mode & 0o077 or not settings.samefile(directory / "claude-settings.json"):
+                fail("STRICT_NATIVE_BINDING_CHANGED")
+            hooks = json.loads(settings.read_text()).get("hooks", {})
+            if not all(str(directory) in json.dumps(hooks.get(event, [])) for event in ("SessionStart", "Stop")):
+                fail("STRICT_NATIVE_BINDING_CHANGED")
+    except (OSError, ValueError, TypeError):
+        fail("STRICT_NATIVE_BINDING_CHANGED")
+    return {"pid": record["pid"], "startTicks": record["startTicks"], "panePid": pane_pid}
+
+
+def fresh_session_start(plan, directory):
+    """Require a native hook from this launch, never just state.json identity."""
+    if plan.launch_started_at is None:
+        return None
+    try:
+        records = (directory / "hooks.jsonl").read_text().splitlines()
+        for line in reversed(records):
+            row = json.loads(line)
+            when, payload = row.get("recorded_at"), row.get("payload", {})
+            if type(when) not in (float, int) or when < plan.launch_started_at:
+                continue
+            if payload.get("hook_event_name") == "SessionStart" and payload.get("session_id") == plan.native_id:
+                if Path(payload.get("transcript_path", "")).samefile(plan.path):
+                    return when
+    except (OSError, ValueError, TypeError):
+        return None
+    return None
+
+
 async def confirm_attachment(plan, registry, *, timeout=30):
     from omnigent.harnesses.claude_native import bridge
     from omnigent.entities.session_resources import terminal_resource_id
@@ -273,11 +368,28 @@ async def confirm_attachment(plan, registry, *, timeout=30):
             view = await registry.get_terminal_resource(plan.session_id, terminal_resource_id("claude", "main"))
             if view is None:
                 fail("STRICT_ATTACH_UNCONFIRMED")
+            terminal = registry.terminal_registry.get(plan.session_id, "claude", "main")
+            if terminal is None:
+                fail("STRICT_ATTACH_UNCONFIRMED")
+            pane_pid = await asyncio.to_thread(terminal.pane_pid_sync)
+            identity = await asyncio.to_thread(verify_native_process, plan, directory, pane_pid)
+            hook_at = fresh_session_start(plan, directory)
+            if hook_at is None:
+                await asyncio.sleep(0.1)
+                continue
             plan.check_prefix(allow_append=True)
+            # Recheck after hook/history reads: a dead pane or reused PID must
+            # not turn an earlier successful probe into a durable receipt.
+            again = await asyncio.to_thread(terminal.pane_pid_sync)
+            if again != pane_pid or await asyncio.to_thread(verify_native_process, plan, directory, again) != identity:
+                fail("STRICT_NATIVE_GENERATION_CHANGED")
             return {"state": "attached", "sessionId": plan.session_id,
                 "nativeSessionId": plan.native_id, "bridgeId": plan.bridge_id,
                 "historyPrefixPreserved": True, "originalBytes": plan.size,
-                "originalSHA256": plan.sha256, "toolsVerified": False}
+                "originalSHA256": plan.sha256, "toolsVerified": False,
+                "nativePid": identity["pid"], "nativeStartTicks": identity["startTicks"],
+                "panePid": pane_pid, "launchStartedAt": plan.launch_started_at,
+                "sessionStartRecordedAt": hook_at, "currentNativeVerified": True}
         await asyncio.sleep(0.1)
     fail("STRICT_ATTACH_UNCONFIRMED")
 
