@@ -83,7 +83,9 @@ Omnigent Pi 在同一個原生程序內準備新的 MCP 連線，確認仍閒置
 升級前已開啟的 Pi 對話需要先由操作人員安排一次閒置的原生 `/reload`，載入新版
 橋接擴充；未載入時會明確拒絕，不會自動重啟或另開對話。詳見
 [Pi 原生更新與既有對話準備](connectors/omnigent/pi_mcp_refresh.md)。
-Omnigent Claude 在安全更新尚未受支援的版本會明確拒絕，保留現有對話。
+Omnigent Claude Code 2.1.285 使用原生佇列的 `/reload-plugins --force`，並以停用的無功能定義淘汰已刪除工具，避免舊工具繼續可用。
+介面會區分排隊中、原生 reload 已完成與送出狀態不明；reload 完成不等於工具目錄或實際調用已驗證。
+原生程序已停止的既有對話，須先由操作人員以 [嚴格接回流程](connectors/omnigent/claude_strict_resume.md) 驗證並恢復原檔案；更新按鈕不會自行另開對話。
 同步／恢復失敗會顯示錯誤，不會另開對話或宣稱已驗證工具。
 原生 Claude、Codex、Pi 仍保有自己的登入及個別設定；不會把供應商憑證複製到其他部署。
 Omnigent 的私人 session home 會繼承本部署的共用工具設定。

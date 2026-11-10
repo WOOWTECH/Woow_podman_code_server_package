@@ -118,6 +118,24 @@ class LifecycleTests(unittest.TestCase):
             with self.assertRaises(bridge.Error):
                 bridge.normalize_server(url)
 
+    def test_claude_refresh_keeps_original_session_and_honest_native_receipt(self):
+        import claude_mcp_plugin, mcp_refresh
+        plugin = self.plugin("refreshMcp", sessionId="existing-claude-session")
+        self.authorize(plugin)
+        info = {"permission_level": 2, "host_id": "my-host", "harness": "claude-native", "status": "idle", "external_session_id": "same-native"}
+        for state in ("queued", "reloaded", "submission-unknown"):
+            result = {"sessionId": "existing-claude-session", "engine": "claude", "refresh": {
+                "state": state, "nativeSessionId": "same-native", "inventoryVerified": False, "toolsVerified": False}}
+            with patch.object(self.client, "request", return_value=info) as request, \
+                patch.object(claude_mcp_plugin, "refresh_claude", new_callable=AsyncMock, return_value=result) as refresh:
+                received = plugin.refresh_mcp()
+                self.assertEqual(received["ok"], state != "submission-unknown")
+                self.assertEqual(received["refresh"], result["refresh"])
+                request.assert_called_once_with("GET", "/v1/sessions/existing-claude-session")
+                refresh.assert_awaited_once_with("existing-claude-session", info, sync=mcp_refresh.synchronize)
+                if state == "submission-unknown":
+                    self.assertEqual(received["error"]["code"], "MCP_RELOAD_SUBMISSION_UNKNOWN")
+
     def test_stop_persists_across_new_adapter_and_periodic_restore(self):
         plugin = self.plugin()
         self.authorize(plugin)

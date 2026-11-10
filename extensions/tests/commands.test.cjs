@@ -162,3 +162,16 @@ test('busy MCP refresh is visible and cancellation makes no runtime request', as
 test('in-process inventory refresh does not claim a restart or tool execution', async()=>{
  const h=harness('omnigent',{refreshMcp:{ok:true,refresh:{state:'applied',inventoryVerified:true,toolsVerified:false}}});h.inputs.push('existing-pi-session');await h.commands.get('woow.omnigent.refreshMcp')();assert.ok(h.notices.some(x=>x.includes('inventory updated')));assert.ok(h.notices.every(x=>!x.includes('resumed')));assert.ok(h.notices.some(x=>x.includes('not yet verified')));
 });
+
+test('Claude reload receipt and uncertain submission have distinct honest notices', async()=>{
+ const done=harness('omnigent',{refreshMcp:{ok:true,refresh:{state:'reloaded',reloadVerified:true,inventoryVerified:false,toolsVerified:false}}});
+ done.inputs.push('existing-claude-session');await done.commands.get('woow.omnigent.refreshMcp')();
+ assert.ok(done.notices.some(x=>x.includes('native reload completed')));
+ assert.ok(done.notices.some(x=>x.includes('inventory and execution are not yet verified')));
+ assert.ok(done.notices.every(x=>!x.includes('resumed')));
+ const pending=harness('omnigent',{refreshMcp:{ok:false,error:{code:'MCP_RELOAD_SUBMISSION_UNKNOWN'}}});
+ pending.inputs.push('existing-claude-session');await pending.commands.get('woow.omnigent.refreshMcp')();
+ assert.ok(pending.notices.some(x=>x.includes('submission is uncertain')));
+ assert.ok(pending.notices.some(x=>x.includes('not resent')));
+ assert.equal(pending.calls.filter(x=>x.action==='refreshMcp').length,1);
+});

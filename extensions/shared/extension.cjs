@@ -111,6 +111,8 @@ function createExtension(connector, dependencies = {}) {
       ? 'Shared MCP reload queued in the same native conversation. It takes effect at the next turn boundary; tool execution is not yet verified.'
       : result.refresh?.state === 'applied'
       ? 'Shared MCP configuration and tool inventory updated in the same native conversation. Tool execution is not yet verified.'
+      : result.refresh?.state === 'reloaded'
+      ? 'Shared MCP native reload completed in the same native conversation. Tool inventory and execution are not yet verified.'
       : 'The same conversation resumed with the synchronized configuration. Tool execution is not yet verified.';
     const code = result?.error?.code;
     return ({SESSION_BUSY: 'Conversation is busy. Wait for its reply or permission prompt to finish, then retry. Nothing was interrupted.',
@@ -120,6 +122,8 @@ function createExtension(connector, dependencies = {}) {
       MCP_NATIVE_UNAVAILABLE: 'Native refresh control is unavailable. An operator must prepare the original native session before retrying; it was not replaced.',
       MCP_REFRESH_UNCONFIRMED: 'Refresh could not be confirmed. Inspect the existing conversation before retrying.',
       MCP_RELOAD_FAILED: 'Native reload failed. Inspect or reopen the existing conversation; no new conversation was created.',
+      MCP_RELOAD_SUBMISSION_UNKNOWN: 'Native reload submission is uncertain. Inspect the original conversation before retrying; the command was not resent.',
+      MCP_APPROVAL_PENDING: 'The native conversation is waiting for permission. Complete that prompt before refreshing; nothing was interrupted.',
       MCP_SYNC_FAILED: 'The shared MCP configuration could not be synchronized. Check it and retry.',
     })[code] || `Shared MCP refresh failed: ${publicCode(code)}. Check the existing conversation before retrying.`;
   }

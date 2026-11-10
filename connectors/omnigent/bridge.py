@@ -327,6 +327,7 @@ class Connector(core.Plugin):
         import asyncio
         from mcp_refresh import refresh_codex, synchronize, RefreshError
         from native_resume import refresh_pi, NativeRefreshError
+        from claude_mcp_plugin import refresh_claude, ClaudeRefreshError
         sid = self.request.get("sessionId")
         if not isinstance(sid, str) or not re.fullmatch(r"[A-Za-z0-9_-]{8,128}", sid):
             raise Error("INVALID_SESSION_ID", "Enter the existing conversation ID.")
@@ -346,15 +347,23 @@ class Connector(core.Plugin):
         if info.get("status") != "idle":
             raise Error("SESSION_BUSY", "Wait for this conversation to become idle.")
         harness = info.get("harness") or info.get("harness_override")
-        if harness not in ("codex-native", "pi-native"):
+        if harness not in ("codex-native", "pi-native", "claude-native"):
             raise Error("MCP_REFRESH_UNSUPPORTED", "This native harness has no verified safe MCP reload yet; the conversation was not changed.")
         try:
-            operation = refresh_codex(sid, info) if harness == "codex-native" else refresh_pi(sid, info, sync=synchronize)
+            if harness == "codex-native":
+                operation = refresh_codex(sid, info)
+            elif harness == "pi-native":
+                operation = refresh_pi(sid, info, sync=synchronize)
+            else:
+                operation = refresh_claude(sid, info, sync=synchronize)
             result = asyncio.run(asyncio.wait_for(operation, timeout=90))
-        except (RefreshError, NativeRefreshError) as error:
+        except (RefreshError, NativeRefreshError, ClaudeRefreshError) as error:
             raise Error(error.code, error.code) from None
         except TimeoutError:
             raise Error("MCP_REFRESH_TIMEOUT", "Refresh timed out; check status before retrying.") from None
+        if result.get("refresh", {}).get("state") == "submission-unknown":
+            return {"ok": False, **result, "error": {"code": "MCP_RELOAD_SUBMISSION_UNKNOWN",
+                "message": "Native reload submission is uncertain; inspect the original conversation before retrying."}}
         return {"ok": True, **result}
 
     def session_action(self, action):
