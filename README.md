@@ -598,3 +598,7 @@ node /opt/woow-agent-tools/configure-pi-responses.mjs --provider my-gateway --ap
 第一行僅預覽。第二行只為該供應商的 GPT-6 模型加上 `api: "openai-responses"`，保留其餘模型、金鑰、網址與推理設定，並建立權限 0600 的原始設定備份。未知 API、壞 JSON、符號連結或偵測到同時修改時會中止。此工具不在啟動時自動執行，也不建立或複製供應商登入。
 
 完成後開啟新的 Pi 工作階段，再驗證實際工具參數與結果。模型出現在選單、工具列出成功，均不足以代表對話驗收通過。本次真實重測發生在 PaaS QA；工具在三種映像的原始碼與回歸測試一致，未因此宣稱 HA／Podman 正式環境已換版。
+
+### Codex container sandbox compatibility
+
+Native Codex and the ACP adapter use the same scoped bubblewrap compatibility launcher. See [sandbox setup and isolation verification](security/codex/README.md) for optional host profiles and the live probe. Existing sandbox and login settings are retained.
