@@ -80,7 +80,7 @@ export function run(input) {
   const mode = choice(input.mode ?? 'first','mode',['first','last','merge']);
   const trim = boolean(input.trim ?? true,'trim');
   const caseSensitive = boolean(input.caseSensitive ?? false,'caseSensitive');
-  const rejectDuplicates = boolean(input.rejectDuplicates ?? false,'rejectDuplicates');
+  const rejectDuplicates = own(input,'rejectDuplicates') ? boolean(input.rejectDuplicates,'rejectDuplicates') : false;
   const groups = new Map();
   records.forEach((record, index) => {
     object(record,`records[${index}]`);
