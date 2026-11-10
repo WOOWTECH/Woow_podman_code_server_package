@@ -1,0 +1,52 @@
+name: Project lab acceptance
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - 'qa/project-lab/**'
+      - '.github/workflows/project-lab.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  project-lab:
+    name: 50 projects and runtime regressions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: qa/project-lab
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fixtures, HTTP, packaging, extracted ZIPs and transport regressions
+        run: bash harness/check.sh
+      - name: Install pinned browser driver
+        run: npm install --prefix "$RUNNER_TEMP/project-lab-tooling" --no-audit --no-fund playwright-core@1.61.1
+      - name: Browser application acceptance
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/project-lab-tooling/node_modules/playwright-core
+          CHROME_EXECUTABLE: /usr/bin/google-chrome
+        run: |
+          set -euo pipefail
+          node server.mjs > evidence/ci-preview.log 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
+          node harness/browser-apps.cjs http://127.0.0.1:18750/ ci
+      - name: Upload execution receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: project-lab-evidence
+          path: qa/project-lab/evidence/
+          if-no-files-found: error
+          retention-days: 14
