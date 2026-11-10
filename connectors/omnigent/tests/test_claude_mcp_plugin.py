@@ -212,6 +212,23 @@ class OwnershipAndReceipts(unittest.TestCase):
 
 
 class PersistentSubmission(unittest.TestCase):
+    def test_native_config_poll_allows_unrelated_writes_but_rejects_mcp_race(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / '.claude.json'
+            path.write_text(json.dumps({'mcpServers': {'owned': {'command': 'v1'}}}))
+            context = {'config': path, 'workspace': '/workspace'}
+            def write_unrelated(seconds):
+                self.assertEqual(seconds, 2.0)
+                value = json.loads(path.read_text()); value['preference'] = 'preserved'
+                path.write_text(json.dumps(value))
+            with patch.object(plugin.time, 'sleep', side_effect=write_unrelated):
+                plugin._await_native_config_poll(context)
+            def race(seconds):
+                path.write_text(json.dumps({'mcpServers': {'owned': {'command': 'v2'}}}))
+            with patch.object(plugin.time, 'sleep', side_effect=race):
+                with self.assertRaisesRegex(plugin.ClaudeRefreshError, 'MCP_CONFIG_CHANGED'):
+                    plugin._await_native_config_poll(context)
+
     def test_repeat_request_reads_receipt_without_sync_or_second_enter(self):
         from unittest.mock import Mock
         with tempfile.TemporaryDirectory() as folder:
@@ -238,6 +255,7 @@ class PersistentSubmission(unittest.TestCase):
                  patch.object(plugin, '_process_identity', return_value=context['identity']), \
                  patch.object(plugin, '_composer_text', return_value=''), \
                  patch.object(plugin, '_prepare_direct', return_value={'retiredCount': 1, 'configuredCount': 2}) as prepare, \
+                 patch.object(plugin, '_await_native_config_poll') as settle, \
                  patch.object(plugin, 'submit_native_reload', return_value={'state': 'submitted'}) as submit, \
                  patch.object(plugin, '_poll_receipt', side_effect=[{'state': 'receipt-pending'}, {'state': 'reloaded'}]):
                 info = {'external_session_id': NATIVE_ID}
@@ -252,6 +270,7 @@ class PersistentSubmission(unittest.TestCase):
                 self.assertFalse((bridge / 'woow-claude-mcp-pending.json').exists())
                 self.assertEqual(sync.call_count, 1)
                 self.assertEqual(prepare.call_count, 1)
+                self.assertEqual(settle.call_count, 1)
                 self.assertEqual(submit.call_count, 1)
 
     def test_existing_input_lock_is_refused_without_waiting_or_sending(self):
@@ -266,6 +285,20 @@ class PersistentSubmission(unittest.TestCase):
 
 
 class NativeSubmission(unittest.TestCase):
+    def test_dim_native_placeholder_is_empty_but_typed_or_ambiguous_input_is_not(self):
+        native = SimpleNamespace(_capture_pane=lambda *a: '─────────\n❯ suggestion\n─────────\n',
+            _occupying_surface=lambda _: None, _is_box_rule=lambda line: line == '─────────',
+            _CLAUDE_PROMPT_GLYPH='❯')
+        for raw, expected in [
+            ('❯ \x1b[2msuggestion\x1b[0m', ''),
+            ('❯ suggestion', 'suggestion'),
+            ('❯ sug\x1b[2mgestion\x1b[0m', 'suggestion'),
+            ('❯ \x1b[2mdifferent\x1b[0m', None),
+        ]:
+            with patch.object(plugin.subprocess, 'run', return_value=SimpleNamespace(returncode=0,
+                    stdout='─────────\n' + raw + '\n─────────\n')):
+                self.assertEqual(plugin._input_text(native, 'socket', 'target'), expected)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

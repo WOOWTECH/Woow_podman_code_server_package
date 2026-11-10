@@ -199,6 +199,36 @@ def _composer_text(native, pane):
     return "\n".join(inside).strip()
 
 
+def _input_text(native, socket, target):
+    pane = native._capture_pane(socket, target)
+    value = _composer_text(native, pane)
+    if not value:
+        return value
+    # Pinned TUI displays its generated suggestion as a dim placeholder in an
+    # empty draft. Plain capture loses that distinction. Recognize only one
+    # wholly dim row, with no ordinary typed text, and matching plain capture.
+    # Never erase text or accept a multiline/ambiguous rendering as empty.
+    try:
+        result = subprocess.run(['tmux', '-S', socket, 'capture-pane', '-e', '-p', '-t', target],
+                                capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return value
+    if result.returncode:
+        return value
+    ansi = result.stdout
+    plain = re.sub(r'\x1b\[[0-9;]*m', '', ansi)
+    if _composer_text(native, plain) != value:
+        return None
+    rules = [i for i, line in enumerate(plain.splitlines()) if native._is_box_rule(line)]
+    inside = ansi.splitlines()[rules[-2] + 1:rules[-1]]
+    if len(inside) == 1 and native._CLAUDE_PROMPT_GLYPH in inside[0]:
+        tail = inside[0].split(native._CLAUDE_PROMPT_GLYPH, 1)[1]
+        match = re.fullmatch(r'\s*\x1b\[2m([^\x1b]*)\x1b\[(?:0|22)m\s*', tail)
+        if match and match[1].strip() == value:
+            return ''
+    return value
+
+
 def submit_native_reload(bridge_dir, *, native_session_id, eligibility,
                          claude_version, native=None, timeout=5.0,
                          _locked=False, _identity_check=lambda: None):
@@ -230,8 +260,7 @@ def submit_native_reload(bridge_dir, *, native_session_id, eligibility,
         info = native._wait_for_tmux_info(owned_bridge, timeout_s=1)
         socket, target = info["socket_path"], info["tmux_target"]
         _check(not native.has_pending_user_prompt(owned_bridge), "MCP_CLAUDE_APPROVAL_PENDING")
-        pane = native._capture_pane(socket, target)
-        _check(_composer_text(native, pane) == "", "MCP_CLAUDE_COMPOSER_OCCUPIED")
+        _check(_input_text(native, socket, target) == "", "MCP_CLAUDE_COMPOSER_OCCUPIED")
         # No secret command arguments; only this constant command is ever typed.
         buffer_name = "woow-mcp-" + uuid.uuid4().hex
         fd, temporary = tempfile.mkstemp(prefix=".woow-reload-", dir=owned_bridge)
@@ -240,7 +269,7 @@ def submit_native_reload(bridge_dir, *, native_session_id, eligibility,
                 stream.write(RELOAD_COMMAND.encode())
             native._run_tmux(socket, "load-buffer", "-b", buffer_name, temporary)
             _check(not native.has_pending_user_prompt(owned_bridge), "MCP_CLAUDE_APPROVAL_PENDING")
-            _check(_composer_text(native, native._capture_pane(socket, target)) == "",
+            _check(_input_text(native, socket, target) == "",
                    "MCP_CLAUDE_COMPOSER_OCCUPIED")
             native._run_tmux(socket, "paste-buffer", "-p", "-d", "-b", buffer_name, "-t", target)
         finally:
@@ -252,7 +281,7 @@ def submit_native_reload(bridge_dir, *, native_session_id, eligibility,
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             _check(not native.has_pending_user_prompt(owned_bridge), "MCP_CLAUDE_APPROVAL_PENDING")
-            current = _composer_text(native, native._capture_pane(socket, target))
+            current = _input_text(native, socket, target)
             if current == RELOAD_COMMAND:
                 break
             _check(current in ("", None), "MCP_CLAUDE_COMPOSER_CHANGED")
@@ -264,7 +293,7 @@ def submit_native_reload(bridge_dir, *, native_session_id, eligibility,
         _check(not native.has_pending_user_prompt(owned_bridge), "MCP_CLAUDE_APPROVAL_PENDING")
         _check(native.read_claude_session_id(owned_bridge) == native_session_id,
                "MCP_CLAUDE_NATIVE_ID_CHANGED")
-        _check(_composer_text(native, native._capture_pane(socket, target)) == RELOAD_COMMAND,
+        _check(_input_text(native, socket, target) == RELOAD_COMMAND,
                "MCP_CLAUDE_COMPOSER_CHANGED")
         _identity_check()
         native._run_tmux(socket, "send-keys", "-t", target, "Enter")
@@ -272,7 +301,7 @@ def submit_native_reload(bridge_dir, *, native_session_id, eligibility,
         while time.monotonic() < deadline:
             _check(native.read_claude_session_id(owned_bridge) == native_session_id,
                    "MCP_CLAUDE_NATIVE_ID_CHANGED")
-            if _composer_text(native, native._capture_pane(socket, target)) == "":
+            if _input_text(native, socket, target) == "":
                 return {"state": "submitted", "nativeSessionId": native_session_id,
                         "reloadVerified": False, "toolsVerified": False}
             time.sleep(0.05)
@@ -471,6 +500,25 @@ def _prepare_direct(context, data):
         return {'retiredCount': len(next_ledger['retired']), 'configuredCount': len(projected)}
 
 
+def _await_native_config_poll(context):
+    """Let pinned Claude's 1000ms external-config poll run before reload.
+
+    The reload command reads the native cached global config. An immediate
+    submission can acknowledge a reload of the previous config. Two poll
+    intervals avoid that publication race; this is not an inventory receipt.
+    Refuse concurrent MCP edits, and retain the normal identity check afterward.
+    """
+    def fingerprint():
+        value = json.loads(context['config'].read_text())
+        project = value.get('projects', {}).get(context['workspace'], {})
+        return json.dumps([value.get('mcpServers', {}), project.get('mcpServers', {}),
+            project.get('disabledMcpServers', []), project.get('enabledMcpjsonServers', []),
+            project.get('disabledMcpjsonServers', [])], sort_keys=True)
+    expected = fingerprint()
+    time.sleep(2.0)
+    _check(fingerprint() == expected, 'MCP_CONFIG_CHANGED')
+
+
 def _refresh_claude(session_id, info, *, sync):
     from omnigent.harnesses.claude_native import bridge as native
     assert_native_contract(native)
@@ -498,7 +546,7 @@ def _refresh_claude(session_id, info, *, sync):
         else:
             _check(not native.has_pending_user_prompt(bridge), 'MCP_APPROVAL_PENDING')
             terminal = native._wait_for_tmux_info(bridge, timeout_s=1)
-            _check(_composer_text(native, native._capture_pane(terminal['socket_path'], terminal['tmux_target'])) == '',
+            _check(_input_text(native, terminal['socket_path'], terminal['tmux_target']) == '',
                    'MCP_COMPOSER_OCCUPIED')
             try:
                 digest = sync()
@@ -507,6 +555,7 @@ def _refresh_claude(session_id, info, *, sync):
             _check(isinstance(digest, str) and _HASH.fullmatch(digest), 'MCP_SYNC_FAILED')
             _assert_same(native, bridge, native_id, context)
             counts = _prepare_direct(context, Path(os.environ.get('PI_AGENT_DATA_DIR', '/data/pi-agent')))
+            _await_native_config_poll(context)
             _assert_same(native, bridge, native_id, context)
             # Only commands after config publication can satisfy this request.
             # Snapshot complete lines; an active native writer may be mid-line.
