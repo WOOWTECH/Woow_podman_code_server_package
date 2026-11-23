@@ -136,8 +136,7 @@ ARG CODEX_ACP_VERSION=2.6.0
 # pi folds U+00A0, U+2000-200A, U+202F, U+205F and U+3000 to an ASCII space
 # on every read/write/edit, and builds its read fallback chain from the
 # ALREADY-FOLDED path — so the exact path the caller asked for is never
-# tried. Reproduced end to end on this image (pi 0.83.0; the same two call
-# sites still carry it in 0.99.1 — the script patched both on the bump):
+# tried. Reproduced end to end on this image (pi 0.83.0):
 #
 #   - read of `Q1<U+3000>報告.txt` returned the contents of the sibling
 #     `Q1<SPACE>報告.txt`, with isError:false. A confidential/public pair
@@ -160,24 +159,35 @@ ARG CODEX_ACP_VERSION=2.6.0
 # Layout note for 0.83.0 (differs from the 0.85.1 the patch was written
 # against): the folding helper in dist/utils/paths.js is generic and only
 # folds when a caller passes normalizeUnicodeSpaces:true, so it needs no
-# change — the two call sites below are what actually opt in.
+# change — the call sites are what actually opt in.
+#
+# Since pi 0.84.3 the `pi` command runs dist/bundle/cli.js, which carries its
+# own minified copy of the path code in a dist/bundle/chunks/*.js file whose
+# name changes every release. Until pipeline #222 only the module files were
+# patched, so terminal pi, the ACP sidebar (`pi --mode rpc`) and Omnigent kept
+# folding. The file list is therefore every path-utils.js plus every bundle
+# chunk that defines resolveToCwd/normalizeToolPath, picked by content. The
+# script fails the build on any hunk that does not match exactly once, on an
+# unrecognised file, and when a required shape (module core tools, bundle
+# core tools) is missing from the list — that replaced the old ">= 2
+# path-utils.js" count, which pi 1.x would fail for the wrong reason.
+# f1-verify.mjs then runs in the build too, driving the bundle's own
+# read/write/edit tools; tests/smoke-pi-integration.sh runs it again live.
+#
 # NOTE: written for POSIX sh, not bash. This Containerfile sets no SHELL
 # directive, so RUN executes under dash — the sibling pi-agent Dockerfile's
 # `mapfile -d '' … < <(find …)` form dies here with
 # "Syntax error: redirection unexpected". xargs -0 gives the same
-# any-filename safety without needing bash.
+# any-filename safety without needing bash. Without pipefail, an empty grep
+# is still caught: the script refuses a list with no bundle chunk.
 COPY patches/ /opt/patches/
 RUN set -eu; \
-    COUNT=$(find /usr/lib/node_modules/@earendil-works \
-      -path '*/dist/*/tools/path-utils.js' | wc -l); \
-    echo "[patch] found ${COUNT} path-utils.js copies"; \
-    if [ "${COUNT}" -lt 2 ]; then \
-      echo "[patch] FAIL: expected at least 2 copies, found ${COUNT}" >&2; \
-      exit 1; \
-    fi; \
-    find /usr/lib/node_modules/@earendil-works \
-      -path '*/dist/*/tools/path-utils.js' -print0 \
-    | xargs -0 node /opt/patches/fix-unicode-space-paths.mjs
+    ROOT=/usr/lib/node_modules/@earendil-works; \
+    { find "${ROOT}" -path '*/dist/*/tools/path-utils.js' -print0; \
+      find "${ROOT}" -path '*/pi-coding-agent/dist/bundle/chunks/*.js' \
+        -exec grep -lZE 'function (resolveToCwd|normalizeToolPath)\(' {} +; } \
+    | xargs -0 node /opt/patches/fix-unicode-space-paths.mjs; \
+    node /opt/patches/f1-verify.mjs
 
 # --- npm global prefix, for RUNTIME installs only -------------------------
 # Deliberately declared AFTER pi/pi-acp are installed above, not before.
