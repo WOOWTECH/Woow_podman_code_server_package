@@ -44,5 +44,8 @@ jobs:
       - name: Shared skills and MCP migration
         run: node --test tests/shared-agents.test.mjs
 
+      - name: Unicode-space patch refuses partial application
+        run: node --test tests/f1-patch.test.mjs
+
       - name: Persistent IDE settings merge preserves user changes
         run: tests/merge-settings.sh
