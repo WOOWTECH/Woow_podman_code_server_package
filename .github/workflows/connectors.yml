@@ -26,7 +26,10 @@ jobs:
         run: npm ci --ignore-scripts --prefix extensions
       - name: Install pinned runtime test dependencies
         run: |
-          npm ci --ignore-scripts --prefix connectors/paseo/runtime
+          bash connectors/paseo/install-runtime.sh "$RUNNER_TEMP/agent-connect"
+          test_runtime=$(node --input-type=module -e 'import {runtimeDirectory} from "./connectors/paseo/src/runtime-layout.mjs"; console.log(runtimeDirectory({runtimeDir:process.argv[1]}))' "$RUNNER_TEMP/agent-connect/runtime")
+          printf 'WOOW_PASEO_TEST_RUNTIME=%s\n' "$test_runtime" >> "$GITHUB_ENV"
+          printf 'PI_PASEO_TEST_PERSISTED_CONFIG=%s/node_modules/@getpaseo/server/dist/server/server/config.js\n' "$test_runtime" >> "$GITHUB_ENV"
           python3 -m pip install --require-hashes --no-deps -r connectors/omnigent/tests/requirements.lock
           npm ci --ignore-scripts --prefix connectors/omnigent/tests/pi-runtime
           python3 -m pip install --require-hashes --no-deps --only-binary=:all: --ignore-requires-python --target connectors/omnigent/tests/vendor-fixture -r connectors/omnigent/tests/vendor-requirements.lock

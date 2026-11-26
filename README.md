@@ -2,7 +2,7 @@
 
 三代理版本：預裝 Pi、Claude Code、Codex；skills 與 MCP 共同設定及登入方式見 [THREE_AGENTS.md](THREE_AGENTS.md)。
 
-Paseo 與 Omnigent 插件、配對及連線設定見 [CONNECTORS.md](CONNECTORS.md)。
+Agent Connect 與 Omnigent 插件、三站配對及連線設定見 [CONNECTORS.md](CONNECTORS.md)。
 
 
 [![Podman](https://img.shields.io/badge/Podman-%E2%89%A54.9%20rootless-892CA0)](https://podman.io)
