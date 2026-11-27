@@ -1,0 +1,55 @@
+# QA-only real-host acceptance for the Agent Connect R4 candidate (code-server).
+# Lives only on qa/realhost-* branches; never merged. Runs nothing on main or on PRs.
+name: qa-realhost
+on:
+  push:
+    branches: ['qa/realhost-20261127']
+permissions:
+  contents: read
+concurrency:
+  group: qa-realhost
+  cancel-in-progress: false
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - name: Host facts
+        run: |
+          set -x
+          uname -m; nproc; free -g; df -h / /mnt 2>/dev/null || df -h /
+          systemctl --version | head -1
+          ls -l /dev/kvm || echo NO_KVM
+          id -u; echo "$XDG_RUNTIME_DIR"
+          apt-cache policy podman | sed -n 1,3p
+      - name: Rootless podman with a systemd user manager
+        run: |
+          set -x
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq podman uidmap slirp4netns passt >/dev/null || sudo apt-get install -y -qq podman uidmap slirp4netns >/dev/null
+          podman --version; /usr/libexec/podman/quadlet -version
+          sudo loginctl enable-linger "$(id -un)"
+          for i in $(seq 1 30); do [ -S "/run/user/$(id -u)/bus" ] && break; sleep 1; done
+          export XDG_RUNTIME_DIR=/run/user/$(id -u)
+          systemctl --user is-system-running || true
+          systemctl --user show-environment | sed -n 1,3p
+          podman info --format '{{.Host.Security.Rootless}} {{.Store.GraphRoot}} {{.Host.CgroupsVersion}} {{.Host.NetworkBackend}}'
+      - name: KVM and QEMU (x64 only)
+        if: runner.arch == 'X64'
+        run: |
+          set -x
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+          time sudo apt-get install -y -qq qemu-system-x86 ovmf >/dev/null
+          qemu-system-x86_64 --version | head -1
+          ls /usr/share/OVMF/ | head
+          python3 - <<'EOF'
+          import fcntl, os
+          fd = os.open('/dev/kvm', os.O_RDWR)
+          print('KVM_GET_API_VERSION', fcntl.ioctl(fd, 0xAE00))
+          EOF
