@@ -259,7 +259,10 @@ async def main():
         stage = 'final'
         receipt['finalSystemd'] = systemd_checks(new_tag)
         journal = run(['journalctl', '--user', '-u', UNIT, '--no-pager', '-o', 'cat'], check=False).stdout.decode(errors='replace')
-        receipt['journalErrorLines'] = sum(1 for line in journal.splitlines() if 'error' in line.lower())
+        error_lines = [line for line in journal.splitlines() if 'error' in line.lower()]
+        receipt['journalErrorLines'] = len(error_lines)
+        # Redacted samples (URLs reduced to host, long tokens removed) so a non-zero count can be judged.
+        receipt['journalErrorSamples'] = [suite.redact(line, common.SECRETS)[:240] for line in error_lines[:5]]
         parts = [receipt.get('coreSuite', {}), receipt.get('nativePanel', {}), receipt.get('persistence', {})]
         receipt['result'] = 'PASS' if checks.all_passed() and all(p.get('result') == 'PASS' for p in parts) else 'FAIL'
     except Exception as error:
