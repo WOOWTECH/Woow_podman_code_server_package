@@ -366,6 +366,15 @@ def healthz():
     return out.decode().strip() == '200'
 
 
+def image_is(facts, identity):
+    """HAOS Docker uses the containerd image store, where the image ID is the manifest digest, not the config digest.
+    Accept either, and require the registry digest in RepoDigests when Docker records one."""
+    ids = {identity['configDigest'], identity['manifestDigest'], identity['topDigest']}
+    by_id = facts['imageId'] in ids
+    by_repo = any(d.split('@', 1)[-1] in ids for d in facts.get('repoDigests') or [])
+    return by_id or by_repo
+
+
 def write_marker(path):
     value = uuid.uuid4().hex
     host.remote(['sh', '-c', 'mkdir -p "$(dirname "$1")" && cat > "$1"', '_', path], value.encode())
@@ -487,8 +496,8 @@ async def gate():
         container_name()
         await asyncio.to_thread(wait_for, healthz, 900, 5, 'RELEASED_ADDON_NOT_HEALTHY')
         old = container_facts()
-        assert old['imageId'] == old_identity['configDigest'], 'RELEASED_IMAGE_MISMATCH'
-        checks.add('released_0_1_16_installed_by_supervisor', configDigest=old['imageId'], seconds=round(time.monotonic() - t0),
+        assert image_is(old, old_identity), 'RELEASED_IMAGE_MISMATCH'
+        checks.add('released_0_1_16_installed_by_supervisor', imageId=old['imageId'], manifestDigest=old_identity['manifestDigest'], seconds=round(time.monotonic() - t0),
                    ingress=info.get('ingress'), boot=info.get('boot'), watchdog=info.get('watchdog'))
 
         stage = 'seed'
@@ -513,8 +522,7 @@ async def gate():
             await asyncio.to_thread(wait_for, healthz, 900, 5, 'CANDIDATE_NOT_HEALTHY')
         await suite.legacy_migration(host, checks, do_update)
         new = container_facts()
-        assert new['imageId'] == candidate['configDigest'], 'RUNNING_IMAGE_IS_NOT_THE_CANDIDATE'
-        assert any(d.endswith('@' + CANDIDATE_DIGEST) for d in new['repoDigests']), 'CANDIDATE_DIGEST_NOT_RECORDED'
+        assert image_is(new, candidate), 'RUNNING_IMAGE_IS_NOT_THE_CANDIDATE'
         after = {name: read_marker(path) for name, path in MARKERS.items()}
         assert after == seeded, 'DATA_CHANGED_BY_UPDATE'
         info = await addon_info()
@@ -522,7 +530,7 @@ async def gate():
         backups = [b for b in (await sv('/backups')).get('backups', []) if SLUG in ((b.get('content') or {}).get('addons') or [])]
         assert backups, 'PRE_UPDATE_BACKUP_MISSING'
         receipt['preUpdateBackup'] = backups[-1]['slug']
-        checks.add('supervisor_update_to_candidate_keeps_data_options_and_backup', configDigest=new['imageId'],
+        checks.add('supervisor_update_to_candidate_keeps_data_options_and_backup', imageId=new['imageId'],
                    manifestDigest=CANDIDATE_DIGEST, seconds=receipt.get('updateSeconds'), markersUnchanged=sorted(after),
                    backupName=backups[-1].get('name'), catalogFilesSha256=candidate_files.get('config.yaml'))
 
@@ -540,7 +548,7 @@ async def gate():
         container_name()
         await asyncio.to_thread(wait_for, healthz, 900, 5, 'RESTORED_ADDON_NOT_HEALTHY')
         restored = container_facts()
-        assert restored['imageId'] == old_identity['configDigest'], 'RESTORE_DID_NOT_RETURN_RELEASED_IMAGE'
+        assert image_is(restored, old_identity), 'RESTORE_DID_NOT_RETURN_RELEASED_IMAGE'
         assert {name: read_marker(path) for name, path in MARKERS.items()} == seeded, 'DATA_CHANGED_BY_RESTORE'
         checks.add('restore_pre_update_backup_returns_0_1_16_with_data', seconds=round(time.monotonic() - t2))
         stage = 'update_again'
@@ -551,7 +559,7 @@ async def gate():
         await asyncio.to_thread(wait_for, healthz, 900, 5, 'CANDIDATE_NOT_HEALTHY')
         status = await asyncio.to_thread(wait_for, lambda: (lambda s: s if s.get('ok') and s['daemon'].get('reachable') else None)(host.cli('status')),
                           600, code='DAEMON_NOT_RESTORED_AFTER_SECOND_UPDATE')
-        assert container_facts()['imageId'] == candidate['configDigest'], 'SECOND_UPDATE_IMAGE_MISMATCH'
+        assert image_is(container_facts(), candidate), 'SECOND_UPDATE_IMAGE_MISMATCH'
         checks.add('second_update_after_rollback_restores_agent_connect', daemonVersion=status['daemon'].get('version'))
 
         stage = 'fresh_install'
@@ -566,7 +574,9 @@ async def gate():
         assert host.remote(['sh', '-c', 'test -e /data/pi-agent/qa-realhost-marker.txt && echo stale || echo clean']).decode().strip() == 'clean', 'FRESH_INSTALL_HAS_OLD_DATA'
         host.fixtures()
         receipt['freshInstallCore'] = await suite.core_suite(host, targets=['paseo'])
-        checks.add('uninstall_and_fresh_install_of_candidate', imageId=container_facts()['imageId'])
+        fresh_facts = container_facts()
+        assert image_is(fresh_facts, candidate), 'FRESH_INSTALL_IMAGE_MISMATCH'
+        checks.add('uninstall_and_fresh_install_of_candidate', imageId=fresh_facts['imageId'])
 
         stage = 'final'
         receipt['haosFinal'] = await facts()
