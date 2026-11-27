@@ -1,0 +1,2 @@
+# Preserve reviewed vendor bytes: formatting invalidates the pinned provenance.
+/connectors/paseo/runtime/better-paseo/** -whitespace
