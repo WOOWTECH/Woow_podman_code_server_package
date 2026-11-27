@@ -9,6 +9,8 @@ on:
     paths:
       - qa/realhost/haos_gate.py
       - qa/realhost/qga.py
+      - qa/realhost/suite.py
+      - qa/realhost/common.py
       - .github/workflows/qa-realhost-haos.yml
 permissions:
   contents: read

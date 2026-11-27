@@ -102,9 +102,10 @@ def pull_and_tag(which, tag):
     image_id = pulled.stdout.decode().strip().splitlines()[-1]
     assert 'sha256:' + image_id == identity['configDigest'], 'PULLED_IMAGE_CONFIG_MISMATCH'
     run(['podman', 'tag', image_id, tag])
-    revision = podman_inspect('{{index .Labels "org.opencontainers.image.revision"}}', tag, 'image')
+    source = podman_inspect('{{index .Labels "org.opencontainers.image.version"}}', tag, 'image')
+    assert source == {'old': OLD_SOURCE, 'new': NEW_SOURCE}[which], 'IMAGE_SOURCE_LABEL_MISMATCH'
     checks.add(f'{which}_image_pulled_by_digest', reference=ref, configDigest=identity['configDigest'],
-               revisionLabel=revision, compressedBytes=identity['compressedBytes'], seconds=pulled.seconds)
+               sourceCommitLabel=source, compressedBytes=identity['compressedBytes'], seconds=pulled.seconds)
     return identity
 
 
@@ -130,73 +131,6 @@ def systemd_checks(tag):
     rootless = run(['podman', 'info', '--format', '{{.Host.Security.Rootless}}']).stdout.decode().strip()
     assert rootless == 'true', 'NOT_ROOTLESS'
     return {'image': image, 'unit': 'active', 'healthTimer': 'active', 'linger': True, 'quadletSource': True, 'rootless': True}
-
-
-async def legacy_pair_across_upgrade(do_upgrade):
-    """Pair the official Web client with the legacy (main) daemon, upgrade, reload the SAME browser."""
-    from playwright.async_api import async_playwright
-    async with async_playwright() as p:
-        browser = await p.chromium.launch()
-        context = await browser.new_context(viewport={'width': 1440, 'height': 1000}, locale='en-US')
-        page = await context.new_page()
-        page.set_default_timeout(20000)
-        paired = False
-        try:
-            try:
-                host.okay(host.cli('configure', workspace=WS, hostName=NAME))
-                host.okay(host.cli('start'))
-                legacy = host.okay(host.cli('status'))
-                legacy_version = legacy['daemon'].get('version')
-                offer = host.okay(host.cli('pair'))
-                await suite.connect_offer(page, offer['url'], 'https://app.paseo.sh')
-                offer = None
-                # Same bar as the k3s legacy-migration receipt: the offer is accepted and the shell opens. The
-                # legacy (main) daemon may not advertise the display name; the name is required after the upgrade.
-                try:
-                    await page.get_by_text(NAME, exact=True).first.wait_for(timeout=15000)
-                    name_shown = True
-                except Exception:
-                    name_shown = False
-                checks.add('legacy_daemon_paired_with_official_client', legacyDaemonVersion=legacy_version,
-                           legacyDisplayNameShown=name_shown)
-                paired = True
-            except Exception as error:
-                # The legacy daemon is main's, not this branch's: record it and still run the upgrade.
-                checks.fail('legacy_daemon_paired_with_official_client', error)
-            await asyncio.to_thread(do_upgrade)
-            deadline = time.monotonic() + 600
-            while time.monotonic() < deadline:
-                status = host.cli('status')
-                if status.get('ok') and status['daemon'].get('reachable'):
-                    break
-                await asyncio.sleep(5)
-            else:
-                raise AssertionError('UPGRADED_DAEMON_NOT_RESTORED')
-            identity = host.runtime_identity()
-            checks.add('upgraded_daemon_restored_by_connector_service', newDaemonVersion=status['daemon'].get('version'),
-                       runtimeRevision=identity['managed'])
-            if paired:
-                try:
-                    for attempt in range(10):
-                        try:
-                            await page.reload(wait_until='domcontentloaded', timeout=60000)
-                            await page.get_by_test_id('wide-shell').wait_for(timeout=60000)
-                            await page.get_by_text(NAME, exact=True).first.wait_for(timeout=45000)
-                            break
-                        except Exception:
-                            if attempt == 9:
-                                raise AssertionError('LEGACY_PAIRED_BROWSER_LOST_AFTER_UPGRADE')
-                            await asyncio.sleep(6)
-                    info = host.bootstrap()
-                    await page.goto('https://app.paseo.sh/h/' + info['serverId'] + '/workspace/' + info['workspaceId'],
-                                    wait_until='domcontentloaded', timeout=60000)
-                    await suite.read_proof(page, host)
-                    checks.add('legacy_browser_trust_survives_upgrade_without_new_offer', reloadAttempts=attempt + 1)
-                except Exception as error:
-                    checks.fail('legacy_browser_trust_survives_upgrade_without_new_offer', error)
-        finally:
-            await context.close()
-            await browser.close()
 
 
 def upgrade():
@@ -282,7 +216,9 @@ async def main():
             stage = 'candidate_image'
             identity = pull_and_tag('new', f'localhost/woow-code-server:{new_tag}')
             stage = 'upgrade'
-            await legacy_pair_across_upgrade(upgrade)
+            async def do_upgrade():
+                await asyncio.to_thread(upgrade)
+            await suite.legacy_migration(host, checks, do_upgrade)
             new_id = podman_inspect('{{.Image}}')
             assert 'sha256:' + new_id == identity['configDigest'], 'RUNNING_IMAGE_IS_NOT_THE_CANDIDATE'
             after = {name: read_marker(path) for name, path in MARKERS.items()}
@@ -292,7 +228,8 @@ async def main():
             snapshots = sorted((HOME / '.local/state/woow-quadlet/woow-code-server/rollback').glob('*/manifest'))
             tags = run(['podman', 'images', '--format', '{{.Repository}}:{{.Tag}}']).stdout.decode().split()
             assert f'localhost/woow-code-server:{old_tag}' in tags, 'PREVIOUS_IMAGE_NOT_KEPT'
-            backups = sorted(p.name for p in (HOME / '.local/state/woow-quadlet/woow-code-server').glob('backup*'))
+            backups = sorted(p.name for p in (HOME / 'backups/woow-code-server').glob('*') if p.is_dir())   # backup.sh default --dest
+            assert backups, 'UPGRADE_BACKUP_MISSING'
             checks.add('upgrade_sh_to_candidate_keeps_data_password_and_rollback_point', version=new_tag,
                        runningConfigDigest=identity['configDigest'], markersUnchanged=sorted(after),
                        rollbackSnapshots=len(snapshots), previousImageKept=True, backupEntries=len(backups),

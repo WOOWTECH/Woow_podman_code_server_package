@@ -548,3 +548,107 @@ async def native_panel(open_workbench, host_label):
             await context.close()
             await browser.close()
     return report
+
+
+# ---------------------------------------------------------------- legacy (main / 0.1.16) -> R4 migration
+IDENTITY = ("import fs from 'node:fs';import crypto from 'node:crypto';"
+            "import {locations} from '/opt/woow-connectors/paseo/src/state.mjs';"
+            "const runtime=await import('/opt/woow-connectors/paseo/src/runtime.mjs');"
+            "const home=locations().paseoHome;"
+            "const read=f=>{try{return fs.readFileSync(home+'/'+f)}catch{return null}};"
+            "const h=b=>b?crypto.createHash('sha256').update(b).digest('hex'):null;const sid=read('server-id');"
+            "console.log(JSON.stringify({paseoVersion:runtime.PASEO_VERSION??null,"
+            "serverIdSha256:sid?h(Buffer.from(sid.toString('utf8').trim())):null,keypairSha256:h(read('daemon-keypair.json'))}));")
+
+
+def daemon_identity(host):
+    """Hashes of the daemon's server id and keypair files (same files the k3s migration receipt hashed)."""
+    return json.loads(host.remote(['node', '--input-type=module', '-e', IDENTITY]))
+
+
+async def wait_reachable(host, timeout=600):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            status = host.cli('status')
+            if status.get('ok') and status['daemon'].get('reachable'):
+                return status
+        except Exception:
+            pass
+        await asyncio.sleep(5)
+    raise AssertionError('UPGRADED_DAEMON_NOT_RESTORED')
+
+
+async def legacy_migration(host, checks, do_upgrade, origin='https://app.paseo.sh'):
+    """The k3s browser-migration stages on a real host: pair the legacy daemon, read the workspace in that browser,
+    upgrade the real way, then prove the same server id + keypair and the SAME browser reading fresh bytes with no
+    second offer. `do_upgrade` is an async callable that performs the platform's own upgrade."""
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        context = await browser.new_context(viewport={'width': 1440, 'height': 1000}, locale='en-US')
+        page = await context.new_page()
+        page.set_default_timeout(20000)
+        before = None
+        paired = False
+        try:
+            try:
+                host.okay(host.cli('configure', workspace=host.workspace, hostName=host.host_name))
+                host.okay(host.cli('start'))
+                before = daemon_identity(host)
+                assert before['serverIdSha256'] and before['keypairSha256'], 'LEGACY_IDENTITY_FILES_MISSING'
+                offer = host.okay(host.cli('pair'))
+                await connect_offer(page, offer['url'], origin)
+                offer = None
+                paired = True
+                checks.add('legacy_daemon_paired_with_official_client', legacyPaseoVersion=before.get('paseoVersion'))
+            except Exception as error:
+                checks.fail('legacy_daemon_paired_with_official_client', error)
+            if paired:
+                try:
+                    info = host.bootstrap()
+                    assert hashlib.sha256(info['serverId'].encode()).hexdigest() == before['serverIdSha256'], 'LEGACY_SDK_SERVER_ID_MISMATCH'
+                    await page.goto(origin + '/h/' + info['serverId'] + '/workspace/' + info['workspaceId'],
+                                    wait_until='domcontentloaded', timeout=60000)
+                    await read_proof(page, host)
+                    checks.add('legacy_browser_reads_workspace_before_upgrade')
+                except Exception as error:
+                    checks.fail('legacy_browser_reads_workspace_before_upgrade', error)
+            await do_upgrade()
+            status = await wait_reachable(host)
+            identity = host.runtime_identity()
+            checks.add('upgraded_daemon_restored_by_connector_service', newDaemonVersion=status['daemon'].get('version'),
+                       runtimeRevision=identity['managed'])
+            after = daemon_identity(host)
+            if before:
+                same_id = after['serverIdSha256'] == before['serverIdSha256']
+                same_key = after['keypairSha256'] == before['keypairSha256']
+                if same_id and same_key:
+                    checks.add('legacy_server_id_and_keypair_preserved', serverIdSha256=after['serverIdSha256'])
+                else:
+                    checks.fail('legacy_server_id_and_keypair_preserved', AssertionError('LEGACY_IDENTITY_NOT_PRESERVED'),
+                                serverIdSame=same_id, keypairSame=same_key)
+            if paired:
+                try:
+                    fresh = 'Fresh read after upgrade ' + uuid.uuid4().hex
+                    host.remote(['node', '-e', 'require("fs").writeFileSync(process.argv[1],process.argv[2]+"\\n")',
+                                 host.workspace + '/proof.txt', fresh])
+                    info = host.bootstrap()
+                    attempt = 0
+                    for attempt in range(10):
+                        try:
+                            await page.goto(origin + '/h/' + info['serverId'] + '/workspace/' + info['workspaceId'],
+                                            wait_until='domcontentloaded', timeout=60000)
+                            await read_proof(page, host)
+                            break
+                        except Exception:
+                            if attempt == 9:
+                                raise AssertionError('LEGACY_PAIRED_BROWSER_LOST_AFTER_UPGRADE')
+                            await asyncio.sleep(6)
+                    shown = await page.get_by_text(host.host_name, exact=True).count() > 0
+                    checks.add('legacy_browser_trust_survives_upgrade_without_new_offer', attempts=attempt + 1,
+                               freshServerBytesRead=True, hostNameShown=shown)
+                except Exception as error:
+                    checks.fail('legacy_browser_trust_survives_upgrade_without_new_offer', error)
+        finally:
+            await context.close()
+            await browser.close()

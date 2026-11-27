@@ -322,58 +322,6 @@ async def open_ingress(page):
 
 
 # ------------------------------------------------------------------ gate
-async def legacy_pair_then(do_update):
-    from playwright.async_api import async_playwright
-    async with async_playwright() as p:
-        browser = await p.chromium.launch()
-        context = await browser.new_context(viewport={'width': 1440, 'height': 1000}, locale='en-US')
-        page = await context.new_page()
-        page.set_default_timeout(20000)
-        paired = False
-        try:
-            try:
-                host.okay(host.cli('configure', workspace=WS, hostName=NAME))
-                host.okay(host.cli('start'))
-                legacy = host.okay(host.cli('status'))
-                offer = host.okay(host.cli('pair'))
-                await suite.connect_offer(page, offer['url'], 'https://app.paseo.sh')
-                offer = None
-                await page.get_by_text(NAME, exact=True).first.wait_for(timeout=60000)
-                checks.add('legacy_daemon_paired_with_official_client', legacyDaemonVersion=legacy['daemon'].get('version'))
-                paired = True
-            except Exception as error:
-                checks.fail('legacy_daemon_paired_with_official_client', error)
-            await do_update()
-            container_name()
-            status = await asyncio.to_thread(wait_for, lambda: (lambda s: s if s.get('ok') and s['daemon'].get('reachable') else None)(host.cli('status')),
-                              600, code='UPGRADED_DAEMON_NOT_RESTORED')
-            identity = host.runtime_identity()
-            checks.add('upgraded_daemon_restored_by_connector_service', newDaemonVersion=status['daemon'].get('version'),
-                       runtimeRevision=identity['managed'])
-            if paired:
-                try:
-                    for attempt in range(10):
-                        try:
-                            await page.reload(wait_until='domcontentloaded', timeout=60000)
-                            await page.get_by_test_id('wide-shell').wait_for(timeout=60000)
-                            await page.get_by_text(NAME, exact=True).first.wait_for(timeout=45000)
-                            break
-                        except Exception:
-                            if attempt == 9:
-                                raise AssertionError('LEGACY_PAIRED_BROWSER_LOST_AFTER_UPDATE')
-                            await asyncio.sleep(6)
-                    info = host.bootstrap()
-                    await page.goto('https://app.paseo.sh/h/' + info['serverId'] + '/workspace/' + info['workspaceId'],
-                                    wait_until='domcontentloaded', timeout=60000)
-                    await suite.read_proof(page, host)
-                    checks.add('legacy_browser_trust_survives_supervisor_update_without_new_offer', reloadAttempts=attempt + 1)
-                except Exception as error:
-                    checks.fail('legacy_browser_trust_survives_supervisor_update_without_new_offer', error)
-        finally:
-            await context.close()
-            await browser.close()
-
-
 def persistence_actions():
     def restart_addon():
         before = container_facts()['imageId'], state['container']
@@ -465,8 +413,9 @@ async def gate():
             await sv(f'/store/addons/{SLUG}/update', 'post', {'backup': True, 'background': True}, timeout=600)
             await wait_addon(CANDIDATE_TAG)
             receipt['updateSeconds'] = round(time.monotonic() - t1)
+            container_name()
             await asyncio.to_thread(wait_for, healthz, 900, 5, 'CANDIDATE_NOT_HEALTHY')
-        await legacy_pair_then(do_update)
+        await suite.legacy_migration(host, checks, do_update)
         new = container_facts()
         assert new['imageId'] == candidate['configDigest'], 'RUNNING_IMAGE_IS_NOT_THE_CANDIDATE'
         assert any(d.endswith('@' + CANDIDATE_DIGEST) for d in new['repoDigests']), 'CANDIDATE_DIGEST_NOT_RECORDED'
