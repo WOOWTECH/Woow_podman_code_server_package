@@ -30,6 +30,15 @@ R4 的 HA 必要升級比較及漏洞比較已通過。
 - Claude 未登入；Codex 的 ChatGPT 帳號用量已達上限。兩者只能驗證 AUTH-01（不可用 provider 要顯示可理解的錯誤，且不能出現成功回覆），官方與 Smart 0.17.5 都通過（Smart 0.17.4 沒跑這一項）；兩者的正向案例**未驗收**。
 - 驗收中發現兩項客戶端行為，詳見結果段落：頁面重整後第一次 Enter 在每個客戶端都沒有送出；由另一個客戶端觸發 MCP 更新之後，立刻送出的第一則訊息，畫面會顯示回覆，但「處理中」指示燈可能卡住，重整即恢復。後者用 Paseo 原生更新請求對照也出現，與本分支的 MCP 修補無關。
 
+**2026-11-27 夜間補充（真機驗收）：**
+
+- 叢集儲存已接近上限（Longhorn 只剩一個節點能排新磁碟區，各節點系統碟只剩 18～32 GB），再開測試 VM 會影響 PaaS 開新服務，所以真機驗收改在 GitHub 託管的執行機上做，沒有使用或變更任何公司主機。驗收程式與 workflow 只放在 QA 分支 [`qa/realhost-20261127`](https://github.com/WOOWTECH/Woow_podman_code_server_package/tree/qa/realhost-20261127/qa/realhost)（不合併），每份收據附 run 連結並嵌入證據 JSON。
+- **原生 Podman＋systemd**（Ubuntu 24.04.5、podman 4.9.3 rootless＋linger、systemd 255、Quadlet；amd64 與實體 arm64）：README 預設路徑（`scripts/install.sh` 在主機上用 podman 本機建置，amd64 約 189 秒、arm64 約 224 秒）與「main `4.139.1-9` 用 `scripts/upgrade.sh` 升到候選 `4.139.1-10`」兩條路徑，兩個架構都通過：三站核心 47／47、原生面板 3／3、systemd 持久性 6／6。升級保留三個 volume 與工作區資料、登入密碼、備份與回退點；用 main 舊 daemon（Paseo 0.11.2）配對的同一瀏覽器，升級後 server ID 與金鑰相同、免重新配對讀到新內容。
+- **真 HA OS＋Supervisor**（HAOS 18.3 在執行機上以 QEMU/KVM 開機，Supervisor 2026.11.0、Core 2026.11.3，全程 supported／healthy）：Supervisor 安裝 0.1.16 → 寫入資料並配對舊 daemon → Supervisor 更新到候選（含更新前備份）→ 三站 47／47、經真實 HA 登入與 Ingress 的原生面板 3／3、持久性 6／6（配對，以及 add-on 重啟、停止再啟動、停用跨重啟、重新啟用、主機重開機 62 秒恢復）→ 還原更新前備份回到 0.1.16 → 再次更新 → 解除安裝後全新安裝（官方 15／15），全部通過。
+- **HA aarch64 映像在實體 arm64 上原生執行**（沒有可虛擬化的 arm64 HAOS 主機，改用商店 repo 固定版本的模擬 Supervisor，**不是**真 Supervisor）：真實 `/init` 啟動、R4 runtime 就緒、三站 47／47、重啟持久性 4／4。這是 aarch64 HA 映像第一次實際執行（CI 只建置）。
+- 這也補上一條之前沒測過的實際升級路徑：**main／0.1.16 的 Paseo 0.11.2 直接升 R4**（先前 k3s 只測過 0.11.2→R3 與 R3→R4 兩段）。
+- 驗收中觀察到 HA 2026.11 與 Supervisor 2026.11 的兩項變化（非本分支缺陷），見「真機驗收」的觀察段落。
+
 候選套件 `4.139.1-10` 保留 code-server 核心 `4.139.1`；擴充為 `0.2.0`。
 原有 ID `woowtech.paseo`、指令與設定鍵繼續沿用，顯示名稱改為 Agent Connect。
 
@@ -85,16 +94,19 @@ PaaS 候選目前已不存在（見上方 11-27 補充），請勿使用；PaaS 
 
 | 成品／流程 | 已確認的結果 | 限制 |
 |---|---|---|
-| Podman 套件的 amd64 映像，全新資料卷 | 三站 47／47 通過 | 實際執行於隔離 k3s；沒有原生 Podman 主機測試 |
+| Podman 套件的 amd64 映像，全新資料卷 | 三站 47／47 通過 | 實際執行於隔離 k3s；原生 Podman 見本表最後三列 |
 | 同一資料卷的 R3 → R4 映像升級 | 通過；同一瀏覽器免重新配對，兩次容器重建後資料與停止狀態保留 | 只操作本輪測試部署 |
-| amd64／arm64 建置及 manifest／來源標籤 | 兩架構通過 | 沒有 arm64 原生執行節點 |
-| HA 實際映像 root／模擬 Supervisor | 真實 `/init` 啟動及三站 47／47 通過；必要升級比較與漏洞比較通過 | 真實 HA Supervisor／HA OS／硬體尚未驗收 |
+| amd64／arm64 建置及 manifest／來源標籤 | 兩架構通過 | arm64 原生執行見本表最後三列 |
+| HA 實際映像 root／模擬 Supervisor | 真實 `/init` 啟動及三站 47／47 通過；必要升級比較與漏洞比較通過 | 真 HA OS＋Supervisor 見本表最後三列；實體 HA 硬體仍未驗收 |
 | PaaS R4 實際候選映像，全新資料卷 | 三站 47／47 通過（測試當時候選存在；現已被平台清除） | 本輪為 fresh 測試；同卷升級未執行，未更新正式租戶 |
 | R4 原生面板／操作 | 5 項介面、8 項實際操作通過；另讀取模型目錄 25 筆 | 模型目錄不代表登入；對話驗收見 Pi 結果（Claude／Codex 正向案例未驗收） |
 | R4 Skills 管理 | 三站各 12 項，36／36 通過；檔案、權限、aliases 與設定還原通過 | 模型實際執行技能／MCP 另見 Pi 驗收（TOOL-02） |
 | R4 Web 導覽／偏好套件（32 項，零模型） | 官方 0.17.6：31 通過、1 未驗收；Smart 0.17.4：各 30 通過、1 失敗（N-12）、1 未驗收；Smart 0.17.5（重新部署後）：各 31 通過、1 未驗收 | N-13 需既有 agent，該 fixture 沒有 agent 且不可建立；N-12 失敗隨 Smart 重新部署（含多選功能）消失，不是本分支修復 |
 | Pi 真實模型驗收（三站，Smart 兩個版本各一輪） | MODEL-01／02／03／04、TOOL-01／02、MCP-02 全部通過；MCP-01 產品行為全部通過，畫面同步官方與 Woowtech 0.17.5 通過、其餘未即時更新；AUTH-01 官方與 Smart 0.17.5 通過 | 只有 Pi；Claude 未登入、Codex 帳號用量已滿，正向案例未驗收；MCP-02 的「等待權限」情境 Pi 無此流程，未驗收 |
 | 官方 Paseo 0.17.6 補測 | R4 canonical 容器對 0.17.6 前端：Paseo profile 核心 15／15 通過，零模型 | 只測 Paseo profile；32 項 Web 導覽套件對 R4 的重跑見上方兩列 |
+| 原生 Podman＋systemd（GitHub 託管 Ubuntu 24.04；amd64 與實體 arm64） | README 本機建置、main 4.139.1-9 → 4.139.1-10 升級，兩架構都通過：三站 47／47、原生面板 3／3、systemd 持久性 6／6；舊版 0.11.2 配對的瀏覽器升級後免重新配對 | 執行機用後即毀，不是公司主機 |
+| 真 HA OS＋Supervisor（HAOS 18.3 VM，Supervisor 2026.11.0，Core 2026.11.3） | Supervisor 安裝 0.1.16 → 更新到候選（含備份）→ 三站 47／47、真實登入＋Ingress 原生面板 3／3、持久性 6／6（含主機重開機）、還原備份、再次更新、全新安裝 15／15 | QEMU/KVM 虛擬硬體；本機 add-on（同一 config.yaml 與映像），不是經 WOOW HA App Store 安裝 |
+| HA aarch64 映像，實體 arm64＋模擬 Supervisor | 真實 `/init` 啟動、R4 runtime 就緒、三站 47／47、重啟持久性 4／4 | 不是真 Supervisor；沒有 arm64 HAOS 主機 |
 
 R4 成品來源固定為 `e087b314c89bfec8c1331e7c728885c7751ee440`，
 amd64 digest 為 `sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6`。
@@ -113,6 +125,85 @@ PaaS 全新成品獨立核對 R4 SDK、映像／pi-seed digest、正常 VSIX 安
 三站 47 項全部通過，最終恢復官方 target、running／reachable，兩項 pending 均為 false。
 最終核對曾因 QA helper 匯入入口觸發額外一輪；該輪也為 47／47，與首次結果分別保存，
 沒有重算為新的覆蓋範圍。已修正 QA 匯入入口，沒有為此修改產品；R3 對照保留。
+
+### 真機驗收（2026-11-27 夜間）
+
+叢集儲存已接近上限，再開測試 VM 會讓 PaaS 開不了新服務，因此改用 GitHub 託管的執行機（每次用完即毀），沒有動任何公司主機。
+驗收程式在 QA 分支 [`qa/realhost-20261127`](https://github.com/WOOWTECH/Woow_podman_code_server_package/tree/qa/realhost-20261127/qa/realhost)，不會合併；所有輸出只含案例 ID、PASS／FAIL、錯誤代碼、雜湊與版本，
+配對 URL、密碼與 token 只存在執行中的記憶體。三站核心套件與 k3s 的 47 項相同（transport 由 `kubectl exec` 換成
+`podman exec` 或經 QEMU guest agent 的 `docker exec`）。
+
+| 環境 | 主機 | 版本 |
+|---|---|---|
+| 原生 Podman amd64 | GitHub 託管 `ubuntu-24.04`（x86_64，4 vCPU，16 GB） | Ubuntu 24.04.5、kernel 7.0、systemd 255、podman 4.9.3 rootless＋linger、Quadlet 4.9.3 |
+| 原生 Podman arm64 | GitHub 託管 `ubuntu-24.04-arm`（實體 Arm，aarch64，4 vCPU，16 GB） | 同上 |
+| 真 HA OS | 上述 x86_64 執行機上的 QEMU/KVM VM（3 vCPU、8 GB、64 GB 磁碟、UEFI） | HAOS 18.3、Supervisor 2026.11.0、Core 2026.11.3 |
+| HA aarch64 | `ubuntu-24.04-arm` 上的 Docker | 候選 aarch64 映像＋商店 `.addon-sync/mock_supervisor.py`（固定 commit `421de974`） |
+
+**原生 Podman＋systemd**（[run 45999579311](https://github.com/WOOWTECH/Woow_podman_code_server_package/actions/runs/45999579311)）
+
+| 項目 | amd64 README | amd64 升級 | arm64 README | arm64 升級 |
+|---|---|---|---|---|
+| 安裝方式 | `install.sh` 本機建置（189 秒） | main `install.sh` → `upgrade.sh`（54 秒） | `install.sh` 本機建置（224 秒） | main `install.sh` → `upgrade.sh`（71 秒） |
+| 映像 | 主機上建置的 `localhost/woow-code-server:4.139.1-10` | GHCR `main-a70b33d` → `main-e087b31`（digest 與其他驗收相同，來源標籤核對） | 同 amd64 README | 同 amd64 升級（arm64 manifest） |
+| 升級後資料／密碼／備份／回退點 | — | 三個 volume＋工作區不變、密碼不變、備份 1 份、回退快照與舊映像保留 | — | 同左 |
+| 舊版 0.11.2 配對的瀏覽器 | — | 升級前讀到工作區；升級後 server ID 與金鑰相同、免重新配對讀到新內容 | — | 同左 |
+| 三站核心 | 47／47 | 47／47 | 47／47 | 47／47 |
+| 原生面板（啟用、三個網站、狀態讀取） | 3／3 | 3／3 | 3／3 | 3／3 |
+| systemd 持久性 | 6／6 | 6／6 | 6／6 | 6／6 |
+
+systemd 持久性的 6 項：配對並讀到工作區，之後依序重啟 unit、`podman kill` 後 `Restart=always` 自動拉起、停用的 Agent Connect 跨重啟保持停用
+（重啟後多等 45 秒，超過 connector 服務 30 秒的恢復週期）、重新啟用後同一 server 身分、user manager 重啟（以 linger 模擬開機）；
+除了停用那一項，每項都確認 server 身分不變，並由同一瀏覽器免重新配對讀到伺服器內容。
+四個 job 結束時 unit、health timer、linger、Quadlet 來源、rootless 都正常。user journal 中含 error 字樣的行：amd64 README 0、
+amd64 升級 0、arm64 README 1、arm64 升級 0。
+那一行是 code-server 內 VS Code 的檔案監看程序被 SIGTERM 結束、隨即自動重啟的訊息
+（`[File Watcher (universal)] restarting watcher after unexpected error: terminated by itself with code null, signal: SIGTERM`），時間落在第一項持久性動作（重啟 unit）停止容器時，是刻意重啟造成的預期訊息。
+第三輪（[run 45979273263](https://github.com/WOOWTECH/Woow_podman_code_server_package/actions/runs/45979273263)）同樣四個 job 全部通過（README 建置 261／241 秒、
+升級 51／68 秒），當時 amd64 兩個 job 各有 1 行但沒有保存內容；
+第四輪重跑只是為了在收據中保留這類行的去敏範例，正式收據取第四輪。
+
+**真 HA OS＋Supervisor**（[run 45996213760](https://github.com/WOOWTECH/Woow_podman_code_server_package/actions/runs/45996213760)）
+
+add-on 以 Supervisor 本機 add-on 提供：檔案取自 HA 候選 commit `314a7126`（與映像同源），版本行改為 QA tag，映像仍是
+`ghcr.io/woowtech/woow-ha-code-server-{arch}`。Supervisor 只要「已裝版本 ≠ 目錄版本」就提供更新，所以 0.1.16 → QA tag 是同一 slug、
+同一資料目錄的真實 Supervisor 更新。
+
+1. HAOS 開機、Core 安裝並以 API 完成初始設定；Supervisor 2026.11.0 supported／healthy。
+2. Supervisor 安裝 0.1.16（manifest digest 與 GHCR 正式版相同），改一個選項後啟動，Ingress 面板建立。
+3. 在 add-on 資料、VS Code 資料與 `/share` 寫入標記；舊 daemon（Paseo 0.11.2）配對官方網頁並讀到工作區。
+4. Supervisor 更新到候選（含更新前備份 `addon_local_woow_ha_code_server_0.1.16`，約 120 秒）：執行中 manifest digest
+   為候選 `sha256:4d531926…`；標記與選項不變；connector 服務自動恢復 0.17.5 R4 daemon；server ID 與金鑰相同；同一瀏覽器免重新配對讀到新內容。
+5. 三站核心 47／47。
+6. 原生面板經**真實 HA 登入畫面**與 Ingress（HA 2026.11 的 `/app/<slug>`）開啟：工作台、三個網站與狀態讀取 3／3。
+7. 持久性 6／6：配對，之後依序 add-on 重啟、停止再啟動、停用跨重啟保持停用（多等 45 秒）、重新啟用、HAOS 主機重開機
+   （開機自動啟動，62 秒恢復）；除了停用那一項，每項都確認同一身分並由同一瀏覽器免重新配對重連。
+8. 還原更新前備份：回到 0.1.16 且標記仍在；再次更新後 Agent Connect 恢復。
+9. 解除安裝（移除資料）後全新安裝候選：沒有舊資料，官方網頁核心 15／15。add-on log 錯誤 0 行，結束時 HAOS 仍 supported／healthy。
+
+**HA aarch64 映像，實體 arm64**（[run 45981173327](https://github.com/WOOWTECH/Woow_podman_code_server_package/actions/runs/45981173327)）：候選 aarch64 映像依 digest 拉取，
+真實 `/init` 5 秒內健康；node 回報 `arm64`，R4 runtime 就緒；三站 47／47；持久性 4／4（配對、容器重啟、停用跨重啟、重新啟用）；log 錯誤 0 行。
+這裡的 Supervisor 是商店 repo 的模擬 Supervisor，與 amd64 HA 模擬收據相同的安排，不能視為真 Supervisor 驗收。
+
+**舊版直接升 R4。** main（Podman 4.139.1-9）與 HA 0.1.16 內建 Paseo 0.11.2，實際使用者會直接升到 R4。先前 k3s 只驗過 0.11.2 → R3 與 R3 → R4
+兩段；這次在原生 Podman（兩架構）與真 HAOS 上都直接從 0.11.2 升 R4，比照 k3s 遷移收據的步驟：升級前同一瀏覽器讀到工作區、
+升級後 server ID 與金鑰檔雜湊相同、同一瀏覽器不重新配對讀到升級後才寫入的內容，全部通過。
+
+**觀察（非本分支缺陷）：**
+
+- HA Core 2026.11 在 Supervisor 下的預設 HTTP 埠改為 **80**（本輪新裝的 HAOS 即是如此）；8123 只在初始設定完成前保留為 307 轉址到 80，
+  完成後關閉（HA 原始碼 `homeassistant/components/http/config.py`、`server.py`）。本 add-on 的 `DOCS.md` 與 README 以 `http://<HA-IP>:8123`
+  為例，說明不要用區網 HTTP 網址開啟（聊天畫面會空白）；這個建議不變，只是新裝主機的區網 HTTP 網址已沒有 `:8123`，例子可在下一版文件順手更新。
+- Supervisor 2026.11 對本 add-on 的 `config.yaml` 發出相容性警告：`map` 的 `addons`、`all_addon_configs` 是舊名稱，建議改成 `local_apps`、
+  `all_app_configs`。目前仍可運作；改名前需確認 add-on 支援的最低 Supervisor 版本。
+- HAOS 的 Docker 使用 containerd 映像儲存，容器的映像 ID 是 manifest digest（本輪以此核對候選 digest）。
+
+**驗收程式的修正。** 前幾輪的失敗都來自驗收程式本身，收據全部保留在證據 JSON：Podman 升級線兩次因為改看主機名稱而誤判（改為 k3s 遷移收據的步驟後通過）；
+HAOS 依序修正了只轉送 8123 埠、把暫時頁面的 401 當成就緒、Supervisor 2026.11 的 `apps/local` 目錄、containerd 映像 ID，以及初始設定完成後 onboarding API 會消失（重開機判斷）。
+沒有為此修改產品。
+
+**限制。** 執行機是 GitHub 託管的 VM，不是公司主機；HA OS 是 QEMU/KVM 虛擬硬體；沒有實體 HA 主機與 arm64 HAOS；add-on 用本機 add-on 提供，
+沒有走 WOOW HA App Store 的安裝／更新；沒有模型呼叫或帳號登入。
 
 ### R3 對照與遷移證據
 
@@ -293,4 +384,4 @@ Codex、Pi 各自填一份結果；即時模型目錄可讀取不代表帳號可
 - Claude、Codex 的正向案例（MODEL-01 至 MCP-02）：Claude 未登入，Codex 的 ChatGPT 帳號用量已達上限，需新的測試帳號或等額度恢復。
 - MCP-02 的「等待權限」情境：Pi 沒有權限詢問流程，需 Claude 或 Codex。
 - 真實語音／麥克風、需 agent 的 Tasks／排程執行，以及 N-13（需既有 agent 的案例）。
-- 真實 HA OS、原生 Podman＋systemd、arm64 原生主機，以及 PaaS 同卷升級（候選已被清除）。
+- 真機部分已在 GitHub 託管執行機上補驗（見「真機驗收」）；仍未涵蓋實體 HA 硬體、arm64 HA OS（HA aarch64 映像只在實體 arm64 上搭配模擬 Supervisor 驗證）、經 WOOW HA App Store 安裝／更新的路徑（本輪用同一 config.yaml 與映像的本機 add-on）、公司自有主機，以及 PaaS 同卷升級（候選已被清除）。
