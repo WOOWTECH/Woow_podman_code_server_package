@@ -39,6 +39,8 @@ TMP = Path(os.environ.get('RUNNER_TEMP', '/tmp')) / 'haos'
 HA_REPO = Path(os.environ['HA_REPO'])
 HAOS_VERSION = os.environ.get('HAOS_VERSION', '18.3')
 HAOS_URL = f'https://github.com/home-assistant/operating-system/releases/download/{HAOS_VERSION}/haos_ova-{HAOS_VERSION}.qcow2.xz'
+# HA Core 2026.11 under Supervisor serves on port 80; 8123 is only a 307 redirect until onboarding completes.
+# The runner's 127.0.0.1:8123 forwards to the guest's port 80 (Host header stays 127.0.0.1:8123).
 BASE = 'http://127.0.0.1:8123'
 CLIENT = BASE + '/'
 SLUG = 'local_woow_ha_code_server'
@@ -78,7 +80,7 @@ def prepare_and_boot():
          '-drive', 'if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd',
          '-drive', f'if=pflash,format=raw,file={TMP / "OVMF_VARS.fd"}',
          '-drive', f'file={disk},if=virtio,format=qcow2,cache=writeback,discard=unmap',
-         '-netdev', 'user,id=n0,ipv6=off,hostfwd=tcp:127.0.0.1:8123-:8123', '-device', 'virtio-net-pci,netdev=n0',
+         '-netdev', 'user,id=n0,ipv6=off,hostfwd=tcp:127.0.0.1:8123-:80', '-device', 'virtio-net-pci,netdev=n0',
          '-chardev', f'socket,path={TMP / "qga.sock"},server=on,wait=off,id=qga0',
          '-device', 'virtio-serial-pci', '-device', 'virtserialport,chardev=qga0,name=org.qemu.guest_agent.0',
          '-serial', f'file:{TMP / "serial.log"}', '-display', 'none', '-daemonize', '-pidfile', str(TMP / 'qemu.pid')])
@@ -135,7 +137,7 @@ def inside_view():
     for name, script in [
             ('listeners', "ss -ltn 2>/dev/null | grep -E ':8123|:80 ' | head -5 || netstat -ltn 2>/dev/null | grep 8123 | head -5"),
             ('hostCurl', "curl -s -m 10 -o /dev/null -w '%{http_code}' http://127.0.0.1:8123/api/onboarding 2>&1 || echo curl-failed"),
-            ('hostCurlIface', "curl -s -m 10 -o /dev/null -w '%{http_code}' http://10.0.2.15:8123/api/onboarding 2>&1 || echo curl-failed"),
+            ('hostCurlIface', "curl -s -m 10 -o /dev/null -w '%{http_code}' http://10.0.2.15/api/onboarding 2>&1 || echo curl-failed"),
             ('coreCurl', "docker exec homeassistant curl -s -m 10 -o /dev/null -w '%{http_code}' http://127.0.0.1:8123/api/onboarding 2>&1 || echo exec-failed"),
             ('firewall', "nft list ruleset 2>/dev/null | grep -c -E 'drop|reject' || iptables -S 2>/dev/null | grep -c -E 'DROP|REJECT'")]:
         try:
