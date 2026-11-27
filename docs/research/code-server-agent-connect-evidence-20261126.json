@@ -2321,7 +2321,7 @@
       "haComparisonResult": "PASS",
       "paasCandidateBuild": "https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/actions/runs/50171",
       "paasProductionApproval": "https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/issues/808",
-      "productionApprovalState": "OPEN_NOT_PROMOTED",
+      "productionApprovalState": "EXPIRED_AUTO_CLOSED_20261127T040040Z_CANDIDATE_REMOVED",
       "haComparisonSource": "314a7126a588ffb3f7f859aa038df4f7a5cb9303",
       "haCandidateBuild": "https://github.com/WOOWTECH/Woow_ha_code_server_add_on/actions/runs/45924502578"
     },
@@ -5060,15 +5060,143 @@
         }
       }
     },
-    "nativeAndSkillsIndependentReviewScope": "The nested productRepoModifiedByThisTask=false and r3ReceiptsPreserved=true refer to the isolated native/skills QA task. Source upgrade changes and later QA import-guard history are recorded separately."
+    "nativeAndSkillsIndependentReviewScope": "The nested productRepoModifiedByThisTask=false and r3ReceiptsPreserved=true refer to the isolated native/skills QA task. Source upgrade changes and later QA import-guard history are recorded separately.",
+    "officialClient0176": {
+      "observation": {
+        "visibleVersion": "v0.17.6",
+        "entryBundle": "/_expo/static/js/web/index-511ab6de6b01d970018f7c1d3a37127b.js",
+        "observedAtUtcApprox": "2026-11-27T05:10Z",
+        "npmPublishedAtUtc": "2026-11-27T02:31:01Z",
+        "githubReleaseAtUtc": "2026-11-27T03:10:21Z",
+        "versionDuringAllR3AndR4Runs": "v0.17.5",
+        "smartSitesVersionAtObservation": {
+          "woowtech": "v0.17.4",
+          "apporo": "v0.17.4"
+        },
+        "smartEntryBundlesUnchangedFromR3Baseline": true,
+        "releaseNotesScope": "Mostly client UI (Settings reorganized into Device and Host sections, model picker arrow keys, Tailscale refresh); small server fixes; Antigravity usage source removed."
+      },
+      "coreCompatibilityRun": {
+        "runtime": "0.17.5-r4-2b20ef5fac0a",
+        "method": "built-image",
+        "imageAcceptance": true,
+        "image": "ghcr.io/woowtech/woow-code-server-amd64:main-e087b31@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+        "imageID": "ghcr.io/woowtech/woow-code-server-amd64@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+        "modelCalls": 0,
+        "clients": [
+          {
+            "target": "paseo",
+            "origin": "https://app.paseo.sh",
+            "cases": [
+              {
+                "id": "profile_lifecycle_and_disabled_restore",
+                "result": "PASS"
+              },
+              {
+                "id": "exact_origin_v2_relay_tls_and_security",
+                "result": "PASS"
+              },
+              {
+                "id": "fresh_explicit_browser_pair",
+                "result": "PASS"
+              },
+              {
+                "id": "authenticated_workspace_and_text_read",
+                "result": "PASS"
+              },
+              {
+                "id": "actual_browser_download_proof.txt",
+                "result": "PASS",
+                "sha256": "61e6f3158ce78ca230157d752688002164a501531043aba57bb9c2c16647ed3b"
+              },
+              {
+                "id": "actual_browser_download_fixture.zip",
+                "result": "PASS",
+                "sha256": "60061645557416a336a76dd9719052111731b59364bf09ae6030d5fe3a12c459"
+              },
+              {
+                "id": "actual_browser_download_binary.bin",
+                "result": "PASS",
+                "sha256": "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880"
+              },
+              {
+                "id": "paired_context_reload_without_new_offer",
+                "result": "PASS"
+              },
+              {
+                "id": "file_created_edited_saved_to_real_workspace",
+                "result": "PASS"
+              },
+              {
+                "id": "real_pty_output_without_matching_command_echo",
+                "result": "PASS"
+              },
+              {
+                "id": "terminal_and_buffer_retained_after_browser_reload",
+                "result": "PASS"
+              },
+              {
+                "id": "owned_terminal_exit_and_cleanup",
+                "result": "PASS"
+              },
+              {
+                "id": "same_browser_trust_after_daemon_restart_reads_fresh_server_bytes",
+                "result": "PASS"
+              },
+              {
+                "id": "owned_file_ui_delete_confirmed_on_server",
+                "result": "PASS"
+              },
+              {
+                "id": "fresh_unpaired_context_cannot_read_fixture",
+                "result": "PASS"
+              }
+            ],
+            "freshBrowserContext": true,
+            "modelAcceptance": "BLOCKED_ACCOUNT_NOT_SELECTED",
+            "stage": "unpaired_isolation",
+            "runtimeIdentity": {
+              "managed": "0.17.5-r4-2b20ef5fac0a",
+              "recorded": "0.17.5-r4-2b20ef5fac0a",
+              "actual": "0.17.5-r4-2b20ef5fac0a",
+              "ready": true,
+              "runtimeDir": "/opt/woow-connectors/paseo/runtime"
+            },
+            "visibleVersions": [
+              "v0.17.6"
+            ],
+            "serverIdentitySha256": "ce2e2f574e1c9860b906411b66fa111de7f48bc8a36bf68b55e61117188a7c9a",
+            "result": "PASS_FOR_EXECUTED_CASES",
+            "pageErrors": []
+          }
+        ]
+      },
+      "scope": "Paseo profile only, zero model calls, R4 canonical image fixture; official profile restored afterwards. The 32-case Web UI suite on 0.17.6 is recorded separately."
+    },
+    "paasCandidateExpiry": {
+      "approvalIssue": "https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/issues/808",
+      "createdAtUtc": "2026-11-27T00:56:38Z",
+      "deadlineUtc": "2026-11-27T03:56:37Z",
+      "closedAtUtc": "2026-11-27T04:00:40Z",
+      "closedBy": "gitea-actions (scheduled close-expired-approvals)",
+      "mechanism": "scripts/close-expired-approvals.sh runs every 15 minutes and calls scripts/cleanup-candidate-tag.sh for an expired approval issue, deleting the -pending-approval candidate tag.",
+      "registryCheckAtUtcApprox": "2026-11-27T05:05Z",
+      "candidateTagResolves": false,
+      "candidateDigestResolves": false,
+      "supersededR3CandidateStillPresent": true,
+      "promotionPerformed": false,
+      "tenantChange": false,
+      "consequence": "The PaaS R4 candidate no longer exists; the isolated PaaS R4 QA pod keeps running from its node image cache. Reuse requires re-pushing the tag and a new approval within 180 minutes."
+    }
   },
   "remainingGates": [
     "Authenticated Claude/Codex/Pi conversations, streaming, stop, resume, model switching and actual skill/MCP calls: test account/instance not selected. Voice/microphone and agent-backed task/schedule execution are not accepted by the zero-model suites.",
     "Real HA OS/Supervisor/Core/hardware, native Podman/systemd host and native arm64 runtime acceptance require designated test hosts; current real-image execution used amd64 k3s and a mock HA Supervisor.",
     "Fixed R3 frontend cohorts: Smart production 0.17.4 lacks official 0.17.5 workspace selection UI; N-12 FAIL remains a frontend difference. This is not an R4 frontend retest or a fix by this runtime branch.",
-    "PaaS R4 was tested with fresh PVCs; a PaaS same-PVC image upgrade was not run. The separate canonical R3-to-R4 preserving image upgrade passed.",
+    "PaaS R4 was tested with fresh PVCs while its candidate existed; a PaaS same-PVC image upgrade was not run and cannot run until the candidate is rebuilt. The separate canonical R3-to-R4 preserving image upgrade passed.",
     "Standalone k3s/PaaS source contexts match across 631 tracked file modes and contents; no additional standalone k3s artifact was built or published.",
-    "No merge, Release, existing tenant rollout or stable/default chart image promotion. PaaS production promotion still requires its existing human approval workflow (#808)."
+    "No merge, Release, existing tenant rollout or stable/default chart image promotion. The PaaS candidate was removed when approval issue #808 expired (11-27 04:00Z); promotion would need a re-pushed tag and a new human approval.",
+    "Official Paseo web moved to 0.17.6 on 2026-11-27; all R3/R4 results were obtained on 0.17.5 (official) and 0.17.4 (Smart). Core compatibility on 0.17.6 passed (15/15, Paseo profile); the 32-case Web navigation/preferences suite has only an R3 baseline and is being re-run on R4."
   ],
   "r3ExtendedComparativeBaseline": {
     "initial32PerClient": {
@@ -6537,6 +6665,13 @@
       "sourceReceipt": "evidence/paas-r4-qa-import-history.json",
       "sha256": "3d070c67db3378430e5bf9fc370bddf101ea1089fca34be1aa16bd7e5ec90f88",
       "embeddedJsonPointer": "/r4/paas/harnessHistory",
+      "resolution": "Embedded public JSON; original workspace path is provenance.",
+      "exactReconstruction": "Python json.dumps(value, indent=2) + chr(10), UTF-8 (round-trip verified)"
+    },
+    {
+      "sourceReceipt": "evidence/r4-official-0176-three-clients.json",
+      "sha256": "0f481f258072db76b11b6a48bab56f23bd46c9382b6b0e213b3f6dd0ec949401",
+      "embeddedJsonPointer": "/r4/officialClient0176/coreCompatibilityRun",
       "resolution": "Embedded public JSON; original workspace path is provenance.",
       "exactReconstruction": "Python json.dumps(value, indent=2) + chr(10), UTF-8 (round-trip verified)"
     }

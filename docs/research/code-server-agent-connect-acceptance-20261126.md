@@ -10,6 +10,18 @@ R4 的 HA 必要升級比較及漏洞比較已通過。
 [R3 比對結果](https://github.com/WOOWTECH/Woow_ha_code_server_add_on/actions/runs/45913001509/job/140230408318)、
 [已關閉的 R3 核可單](https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/issues/806)。
 
+**2026-11-27 下午補充：**
+
+- 官方 Paseo 前端從 11-27 02:31Z（npm 發布；GitHub release 03:10Z）起為 **0.17.6**。
+  本文件所有 R3／R4 結果都是在官方 0.17.5、Woowtech／Apporo 0.17.4 的前端取得。
+  已用零模型核心套件對 0.17.6 補測 R4 canonical 容器：Paseo 15／15 通過，測後已還原官方設定。
+  0.17.6 以前端改版為主（設定頁重新分區、模型選單方向鍵），伺服器端僅小修。
+  32 項 Web 導覽套件對 R4／0.17.6 的重跑另行記錄，完成前不得引用 R3 基準當作 R4 結果。
+- PaaS 候選映像 `20261127.0043-pending-approval` 已被平台清除：核可單
+  [#808](https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/issues/808) 在 180 分鐘內無人 `/approve`，
+  11-27 04:00Z 逾時自動關閉，依平台設計一併刪除候選 tag（JCR 查詢 tag 與 digest 皆 404）。
+  沒有 promote，也沒有任何租戶變更。要再使用必須重推 tag 重新建置並重新核可。
+
 候選套件 `4.139.1-10` 保留 code-server 核心 `4.139.1`；擴充為 `0.2.0`。
 原有 ID `woowtech.paseo`、指令與設定鍵繼續沿用，顯示名稱改為 Agent Connect。
 
@@ -34,7 +46,7 @@ R4 的 HA 必要升級比較及漏洞比較已通過。
 
 | 目標 | 正式網站 | 本輪版本 | Relay | 安全政策 |
 |---|---|---|---|---|
-| Paseo 官方，行為基準 | https://app.paseo.sh | 0.17.5 | relay.paseo.sh:443 | protected |
+| Paseo 官方，行為基準 | https://app.paseo.sh | 0.17.5（R3／R4 測試期間）；11-27 02:31Z 起 0.17.6 | relay.paseo.sh:443 | protected |
 | Woowtech Smart | https://smart.woowtech.io | 0.17.4 | relay.woowtech.io:443 | 既有 Smart 客戶端相容 |
 | Apporo Smart | https://smart.apporo.ai | 0.17.4 | relay.apporo.ai:443 | 既有 Smart 客戶端相容 |
 
@@ -53,11 +65,11 @@ GitHub 的三個來源另有 Gitea Git pull mirror；mirror 同步 Git refs，�
 | Podman 套件 | [GitHub PR #28](https://github.com/WOOWTECH/Woow_podman_code_server_package/pull/28) | 套件 4.139.1-10、VSIX 0.2.0；R4 候選已實測 |
 | HA add-on | [GitHub PR #31](https://github.com/WOOWTECH/Woow_ha_code_server_add_on/pull/31) | add-on 0.1.17 候選；使用唯一 QA tag，尚未發布穩定版 |
 | standalone k3s | [GitHub PR #14](https://github.com/WOOWTECH/Woow_k3s_code_server_package/pull/14) | 共用 R4 來源已同步；既有 Chart／正式映像預設值尚未推進 |
-| PaaS code-server | [Gitea PR #805](https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/pulls/805) | 候選 20261127.0043-pending-approval；既有人工核可門檻仍有效 |
+| PaaS code-server | [Gitea PR #805](https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/pulls/805) | 候選 20261127.0043-pending-approval 已於 11-27 04:00Z 因核可單逾時被平台清除；重建需重推 tag 並重新核可 |
 
-同事應選擇驗收表列出的候選映像，核對 digest 與 runtime，依各平台 README 建立獨立測試部署。
+同事請使用公開的 GHCR 候選（Podman `main-e087b31` amd64／arm64、HA 的 qa tag，digest 見證據 JSON），核對 digest 與 runtime，依各平台 README 建立獨立測試部署。
 三站操作見 [Agent Connect 操作說明](https://github.com/WOOWTECH/Woow_podman_code_server_package/blob/feat/code-server-agent-connect-20261126/CONNECTORS.md)。
-PaaS 的候選 tag 可用於隔離測試；不能視為正式預設映像已更新。
+PaaS 候選目前已不存在（見上方 11-27 補充），請勿使用；PaaS 驗收結果只代表當時存在的候選，不能視為正式預設映像已更新。
 
 ## 本輪證據範圍
 
@@ -69,9 +81,10 @@ PaaS 的候選 tag 可用於隔離測試；不能視為正式預設映像已更�
 | 同一資料卷的 R3 → R4 映像升級 | 通過；同一瀏覽器免重新配對，兩次容器重建後資料與停止狀態保留 | 只操作本輪測試部署 |
 | amd64／arm64 建置及 manifest／來源標籤 | 兩架構通過 | 沒有 arm64 原生執行節點 |
 | HA 實際映像 root／模擬 Supervisor | 真實 `/init` 啟動及三站 47／47 通過；必要升級比較與漏洞比較通過 | 真實 HA Supervisor／HA OS／硬體尚未驗收 |
-| PaaS R4 實際候選映像，全新資料卷 | 三站 47／47 通過，仍為 pending-approval | 本輪為 fresh 測試；此 PaaS fixture 同卷升級未執行，未更新正式租戶 |
+| PaaS R4 實際候選映像，全新資料卷 | 三站 47／47 通過（測試當時候選存在；現已被平台清除） | 本輪為 fresh 測試；同卷升級未執行，未更新正式租戶 |
 | R4 原生面板／操作 | 5 項介面、8 項實際操作通過；另讀取模型目錄 25 筆 | 模型認證、對話仍未驗收 |
 | R4 Skills 管理 | 三站各 12 項，36／36 通過；檔案、權限、aliases 與設定還原通過 | 尚未驗證模型實際執行技能／MCP |
+| 官方 Paseo 0.17.6 補測 | R4 canonical 容器對 0.17.6 前端：Paseo profile 核心 15／15 通過，零模型 | 只測 Paseo profile；Smart 兩站仍 0.17.4；32 項 Web 導覽套件對 0.17.6 的重跑另行記錄 |
 
 R4 成品來源固定為 `e087b314c89bfec8c1331e7c728885c7751ee440`，
 amd64 digest 為 `sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6`。
@@ -84,7 +97,7 @@ R3 → R4 升級使用同一組 PVC、配對金鑰、server ID、既有工作區
 [R4 成品建置](https://github.com/WOOWTECH/Woow_podman_code_server_package/actions/runs/45918086296)、
 [HA 必要比較](https://github.com/WOOWTECH/Woow_ha_code_server_add_on/actions/runs/45924496884)、
 [PaaS 候選建置](https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/actions/runs/50171)、
-[PaaS 正式升版核可單](https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/issues/808)。
+[PaaS 核可單 #808（已逾時自動關閉）](https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/issues/808)。
 
 PaaS 全新成品獨立核對 R4 SDK、映像／pi-seed digest、正常 VSIX 安裝及空白 provider 登入狀態；
 三站 47 項全部通過，最終恢復官方 target、running／reachable，兩項 pending 均為 false。
