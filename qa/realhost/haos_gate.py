@@ -44,7 +44,7 @@ HAOS_URL = f'https://github.com/home-assistant/operating-system/releases/downloa
 BASE = 'http://127.0.0.1:8123'
 CLIENT = BASE + '/'
 SLUG = 'local_woow_ha_code_server'
-ADDON_DIR = '/mnt/data/supervisor/addons/local/woow_ha_code_server'
+ADDON_DIR = '/mnt/data/supervisor/apps/local/woow_ha_code_server'   # resolved again after Supervisor settles
 OLD_REF, OLD_VERSION = 'v0.1.16', '0.1.16'
 CANDIDATE_COMMIT = '314a7126a588ffb3f7f859aa038df4f7a5cb9303'
 CANDIDATE_TAG = 'qa-314a7126a588ffb3f7f859aa038df4f7a5cb9303-45924502578-1'
@@ -309,8 +309,18 @@ async def wait_addon(version, want_state='started', timeout=3600):
 
 
 # ------------------------------------------------------------------ guest helpers
+def local_addon_dir():
+    """Supervisor 2026.11 keeps local add-ons in apps/local (formerly addons/local)."""
+    global ADDON_DIR
+    _, out, _ = guest.sh('test -d /mnt/data/supervisor/apps/local && echo apps || echo addons', check=False)
+    ADDON_DIR = f'/mnt/data/supervisor/{out.decode().strip() or "apps"}/local/woow_ha_code_server'
+    receipt['localAddonRoot'] = ADDON_DIR.rsplit('/', 1)[0]
+    return ADDON_DIR
+
+
 def place_addon(ref, version=None):
     """Write the add-on's catalog files from the HA add-on repository at `ref` as a Supervisor local add-on."""
+    local_addon_dir()
     present = set(run(['git', '-C', str(HA_REPO), 'ls-tree', '--name-only', ref]).stdout.decode().split())
     names = [n for n in ADDON_FILES if n in present]
     assert 'config.yaml' in names, 'CONFIG_MISSING_AT_REF'
