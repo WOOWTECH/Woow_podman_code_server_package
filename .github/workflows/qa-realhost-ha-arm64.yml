@@ -1,0 +1,46 @@
+# QA-only: HA add-on aarch64 candidate on native arm64 hardware with the Store's mock Supervisor (no arm64 HAOS with
+# virtualization exists, so this is NOT a real Supervisor test). Lives only on qa/realhost-20261127; never merged.
+# Public log: stage names, PASS/FAIL, stable codes, hashes and versions only.
+name: qa-realhost-ha-arm64
+on:
+  push:
+    branches: ['qa/realhost-20261127']
+    paths:
+      - qa/realhost/ha_arm64_gate.py
+      - qa/realhost/ha_mock_seed.py
+      - .github/workflows/qa-realhost-ha-arm64.yml
+permissions:
+  contents: read
+concurrency:
+  group: qa-realhost-ha-arm64
+  cancel-in-progress: false
+jobs:
+  ha-arm64:
+    name: ha aarch64 image (ubuntu-24.04-arm, mock Supervisor)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 150
+    env:
+      QA_OUT: ${{ github.workspace }}/qa-out
+      HA_REPO: ${{ github.workspace }}/ha-addon
+    steps:
+      - uses: actions/checkout@v4
+      - name: HA add-on repository (candidate commit)
+        run: |
+          git clone --quiet --filter=blob:none https://github.com/WOOWTECH/Woow_ha_code_server_add_on.git "$HA_REPO"
+          git -C "$HA_REPO" fetch --quiet origin feat/code-server-agent-connect-20261126
+          git -C "$HA_REPO" cat-file -e 314a7126a588ffb3f7f859aa038df4f7a5cb9303^{commit}
+          docker version --format '{{.Server.Version}} {{.Server.Arch}}'
+      - name: Browser for the three Web clients
+        run: |
+          python3 -m venv "$HOME/qa-venv"
+          "$HOME/qa-venv/bin/pip" install -q playwright==1.62.0 pyyaml==6.0.2
+          "$HOME/qa-venv/bin/python" -m playwright install --with-deps chromium >/dev/null
+      - name: HA aarch64 image on arm64
+        run: '"$HOME/qa-venv/bin/python" qa/realhost/ha_arm64_gate.py'
+      - name: Receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ha-aarch64-native-mock-supervisor
+          path: qa-out/*.json
+          if-no-files-found: warn
