@@ -78,7 +78,7 @@ def prepare_and_boot():
          '-drive', 'if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd',
          '-drive', f'if=pflash,format=raw,file={TMP / "OVMF_VARS.fd"}',
          '-drive', f'file={disk},if=virtio,format=qcow2,cache=writeback,discard=unmap',
-         '-netdev', 'user,id=n0,hostfwd=tcp:127.0.0.1:8123-:8123', '-device', 'virtio-net-pci,netdev=n0',
+         '-netdev', 'user,id=n0,ipv6=off,hostfwd=tcp:127.0.0.1:8123-:8123', '-device', 'virtio-net-pci,netdev=n0',
          '-chardev', f'socket,path={TMP / "qga.sock"},server=on,wait=off,id=qga0',
          '-device', 'virtio-serial-pci', '-device', 'virtserialport,chardev=qga0,name=org.qemu.guest_agent.0',
          '-serial', f'file:{TMP / "serial.log"}', '-display', 'none', '-daemonize', '-pidfile', str(TMP / 'qemu.pid')])
@@ -112,14 +112,71 @@ def wait_for(predicate, timeout, interval=5, code='WAIT_TIMEOUT'):
     raise AssertionError(code)
 
 
-def wait_core(timeout=2700):
-    def ready():
-        # The Supervisor landing page answers first; only HA Core returns the onboarding step list.
-        return isinstance(http_json('GET', '/api/onboarding'), list)
+def front_door():
+    """What answers on the forwarded port 8123: status code and kind, never the body."""
+    try:
+        request = urllib.request.Request(BASE + '/api/onboarding', headers={'User-Agent': 'agent-connect-realhost-qa'})
+        with urllib.request.urlopen(request, timeout=20) as response:
+            kind = response.headers.get('Content-Type', '').split(';')[0]
+            body = response.read()
+            return {'status': response.status, 'contentType': kind,
+                    'onboardingList': kind == 'application/json' and isinstance(json.loads(body), list)}
+    except urllib.error.HTTPError as error:
+        return {'status': error.code}
+    except Exception as error:
+        return {'error': type(error).__name__}
+
+
+def guest_progress():
+    """Sanitized view from inside the HAOS host: containers, Core state, Supervisor jobs."""
+    view = {'qga': guest.ping()}
+    if not view['qga']:
+        return view
+    try:
+        _, out, _ = guest.sh("docker ps --format '{{.Names}}|{{.Status}}'", check=False, timeout=60)
+        view['containers'] = [line.split('|')[0] + ':' + line.split('|')[1].split(' ')[0] for line in out.decode().split()
+                              if '|' in line]
+        _, out, _ = guest.sh('docker exec hassio_cli ha core info --raw-json 2>/dev/null', check=False, timeout=90)
+        core = (json.loads(out or b'{}').get('data') or {})
+        view['core'] = {k: core.get(k) for k in ('version', 'version_latest', 'state', 'image')}
+        _, out, _ = guest.sh('docker exec hassio_cli ha jobs info --raw-json 2>/dev/null', check=False, timeout=90)
+        jobs = (json.loads(out or b'{}').get('data') or {}).get('jobs') or []
+        view['runningJobs'] = sorted({j.get('name') for j in jobs if not j.get('done')})[:10]
+    except Exception as error:
+        view['guestError'] = type(error).__name__
+    return view
+
+
+def diagnostics():
+    facts = {'frontDoor': front_door(), 'guest': guest_progress()}
+    try:
+        _, out, _ = guest.sh('docker logs --tail 50 hassio_supervisor 2>&1', check=False, timeout=60)
+        facts['supervisorLogTail'] = [suite.redact(l, common.SECRETS)[:240] for l in out.decode(errors='replace').splitlines()[-50:]]
+        _, out, _ = guest.sh('ip -4 -o addr show 2>&1; ip route 2>&1 | head -3; nmcli -t -f CONNECTIVITY general 2>&1', check=False, timeout=60)
+        facts['network'] = out.decode(errors='replace').splitlines()[:12]
+    except Exception as error:
+        facts['guestLogError'] = type(error).__name__
+    try:
+        serial = (TMP / 'serial.log').read_text(errors='replace').splitlines()[-40:]
+        facts['serialTail'] = [suite.redact(l, common.SECRETS)[:200] for l in serial]
+    except Exception:
+        pass
+    return facts
+
+
+def wait_core(timeout=2400):
     started = time.monotonic()
     wait_for(guest.ping, 900, code='QGA_NOT_RESPONDING')
-    wait_for(ready, timeout, interval=10, code='HA_CORE_NOT_READY')
-    return round(time.monotonic() - started)
+    deadline, report = time.monotonic() + timeout, 0
+    while time.monotonic() < deadline:
+        door = front_door()
+        if door.get('onboardingList') or door.get('status') == 401:
+            return round(time.monotonic() - started)
+        if time.monotonic() - started >= report:
+            say('waiting_for_core', elapsed=round(time.monotonic() - started), frontDoor=door, guest=guest_progress())
+            report += 300
+        time.sleep(10)
+    raise AssertionError('HA_CORE_NOT_READY')
 
 
 # ------------------------------------------------------------------ HA + Supervisor API
@@ -480,6 +537,10 @@ async def gate():
         receipt['result'] = 'PASS' if checks.all_passed() and all(p.get('result') == 'PASS' for p in parts) else 'FAIL'
     except Exception as error:
         receipt.update(result='FAIL', failedStage=stage, **suite.failure(error, common.SECRETS))
+        try:
+            receipt['diagnostics'] = await asyncio.to_thread(diagnostics)
+        except Exception:
+            pass
         try:
             receipt['haosAtFailure'] = await facts()
         except Exception:
