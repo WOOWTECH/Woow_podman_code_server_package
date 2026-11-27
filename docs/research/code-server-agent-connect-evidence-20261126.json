@@ -1,13 +1,60 @@
 {
   "schemaVersion": 2,
-  "status": "WIP_R3_SUPERSEDED_R4_SECURITY_FIX",
+  "status": "WIP_ACCOUNT_AND_NATIVE_HOST_VALIDATION_PENDING",
   "candidate": {
     "package": "4.139.1-10",
     "extension": "0.2.0",
     "runtime": "0.17.5-r4-2b20ef5fac0a",
     "lockSha256": "2b20ef5fac0a45dfd756d8470222a0d3c8ee9012c7cb318d65c8bba90c469f42",
     "esbuild": "0.28.2",
-    "imageAcceptance": "PENDING_REBUILD_AND_RETEST"
+    "imageAcceptance": "CANONICAL_AMD64_HA_ROOT_MOCK_AND_PAAS_FRESH_CORE47_PASS",
+    "amd64": {
+      "repository": "ghcr.io/woowtech/woow-code-server-amd64",
+      "tag": "main-e087b31",
+      "digest": "sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+      "reference": "ghcr.io/woowtech/woow-code-server-amd64:main-e087b31@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+      "publicPullVerified": true,
+      "sourceCommit": "e087b314c89bfec8c1331e7c728885c7751ee440",
+      "verifiedBuildVersion": "e087b314c89bfec8c1331e7c728885c7751ee440",
+      "runtimeRevision": "0.17.5-r4-2b20ef5fac0a",
+      "architecture": "amd64",
+      "os": "linux",
+      "platforms": [
+        {
+          "architecture": "amd64",
+          "os": "linux"
+        },
+        {
+          "architecture": "unknown",
+          "os": "unknown"
+        }
+      ],
+      "buildRun": "https://github.com/WOOWTECH/Woow_podman_code_server_package/actions/runs/45918086296"
+    },
+    "arm64": {
+      "repository": "ghcr.io/woowtech/woow-code-server-arm64",
+      "tag": "main-e087b31",
+      "digest": "sha256:62316fa037376416c7f51f53f139e3588020d99186ca7796094cae1af6ef1b69",
+      "reference": "ghcr.io/woowtech/woow-code-server-arm64:main-e087b31@sha256:62316fa037376416c7f51f53f139e3588020d99186ca7796094cae1af6ef1b69",
+      "publicPullVerified": true,
+      "sourceCommit": "e087b314c89bfec8c1331e7c728885c7751ee440",
+      "verifiedBuildVersion": "e087b314c89bfec8c1331e7c728885c7751ee440",
+      "runtimeRevision": "0.17.5-r4-2b20ef5fac0a",
+      "architecture": "arm64",
+      "os": "linux",
+      "platforms": [
+        {
+          "architecture": "arm64",
+          "os": "linux"
+        },
+        {
+          "architecture": "unknown",
+          "os": "unknown"
+        }
+      ],
+      "buildRun": "https://github.com/WOOWTECH/Woow_podman_code_server_package/actions/runs/45918086296",
+      "runtimeAcceptance": "NOT_EXECUTED_NO_ARM64_NODE"
+    }
   },
   "r3Baseline": {
     "testDateUTC": "2026-11-26/27",
@@ -1520,7 +1567,7 @@
     }
   },
   "r4": {
-    "status": "SOURCE_REVIEWED_LOCAL_TESTS_PASS_IMAGES_AND_SCAN_PENDING",
+    "status": "ACTUAL_AMD64_IMAGES_VERIFIED_ACCOUNTS_AND_NATIVE_HOSTS_PENDING",
     "esbuildOverride": "0.28.2",
     "goStdlibFindingsInR3": {
       "critical": 1,
@@ -1535,7 +1582,7 @@
       "candidateStatus": "SUPERSEDED_R3_SECURITY_SCAN",
       "baselineArtifactRetainedForIsolatedQa": true
     },
-    "evidenceBoundary": "All existing R3 image/browser results are baseline only; do not relabel as R4 passes.",
+    "evidenceBoundary": "R4 actual image results are separate from retained R3 baseline; no model calls, provider logins, release or tenant rollout.",
     "localVerification": {
       "runtimeRevision": "0.17.5-r4-2b20ef5fac0a",
       "r4Ready": true,
@@ -1886,15 +1933,4613 @@
           }
         ]
       }
-    ]
+    ],
+    "freshBuiltImageThreeClients": {
+      "runtime": "0.17.5-r4-2b20ef5fac0a",
+      "method": "built-image",
+      "imageAcceptance": true,
+      "image": "ghcr.io/woowtech/woow-code-server-amd64:main-e087b31@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+      "imageID": "ghcr.io/woowtech/woow-code-server-amd64@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+      "modelCalls": 0,
+      "clients": [
+        {
+          "target": "paseo",
+          "origin": "https://app.paseo.sh",
+          "cases": [
+            {
+              "id": "profile_lifecycle_and_disabled_restore",
+              "result": "PASS"
+            },
+            {
+              "id": "exact_origin_v2_relay_tls_and_security",
+              "result": "PASS"
+            },
+            {
+              "id": "fresh_explicit_browser_pair",
+              "result": "PASS"
+            },
+            {
+              "id": "authenticated_workspace_and_text_read",
+              "result": "PASS"
+            },
+            {
+              "id": "actual_browser_download_proof.txt",
+              "result": "PASS",
+              "sha256": "61e6f3158ce78ca230157d752688002164a501531043aba57bb9c2c16647ed3b"
+            },
+            {
+              "id": "actual_browser_download_fixture.zip",
+              "result": "PASS",
+              "sha256": "60061645557416a336a76dd9719052111731b59364bf09ae6030d5fe3a12c459"
+            },
+            {
+              "id": "actual_browser_download_binary.bin",
+              "result": "PASS",
+              "sha256": "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880"
+            },
+            {
+              "id": "paired_context_reload_without_new_offer",
+              "result": "PASS"
+            },
+            {
+              "id": "file_created_edited_saved_to_real_workspace",
+              "result": "PASS"
+            },
+            {
+              "id": "real_pty_output_without_matching_command_echo",
+              "result": "PASS"
+            },
+            {
+              "id": "terminal_and_buffer_retained_after_browser_reload",
+              "result": "PASS"
+            },
+            {
+              "id": "owned_terminal_exit_and_cleanup",
+              "result": "PASS"
+            },
+            {
+              "id": "same_browser_trust_after_daemon_restart_reads_fresh_server_bytes",
+              "result": "PASS"
+            },
+            {
+              "id": "owned_file_ui_delete_confirmed_on_server",
+              "result": "PASS"
+            },
+            {
+              "id": "fresh_unpaired_context_cannot_read_fixture",
+              "result": "PASS"
+            }
+          ],
+          "freshBrowserContext": true,
+          "modelAcceptance": "BLOCKED_ACCOUNT_NOT_SELECTED",
+          "stage": "unpaired_isolation",
+          "runtimeIdentity": {
+            "managed": "0.17.5-r4-2b20ef5fac0a",
+            "recorded": "0.17.5-r4-2b20ef5fac0a",
+            "actual": "0.17.5-r4-2b20ef5fac0a",
+            "ready": true,
+            "runtimeDir": "/opt/woow-connectors/paseo/runtime"
+          },
+          "visibleVersions": [
+            "v0.17.5"
+          ],
+          "serverIdentitySha256": "ce2e2f574e1c9860b906411b66fa111de7f48bc8a36bf68b55e61117188a7c9a",
+          "result": "PASS_FOR_EXECUTED_CASES",
+          "pageErrors": []
+        },
+        {
+          "target": "woowtech",
+          "origin": "https://smart.woowtech.io",
+          "cases": [
+            {
+              "id": "pending_target_refuses_private_offer",
+              "result": "PASS"
+            },
+            {
+              "id": "profile_lifecycle_and_disabled_restore",
+              "result": "PASS"
+            },
+            {
+              "id": "exact_origin_v2_relay_tls_and_security",
+              "result": "PASS"
+            },
+            {
+              "id": "fresh_explicit_browser_pair",
+              "result": "PASS"
+            },
+            {
+              "id": "authenticated_workspace_and_text_read",
+              "result": "PASS"
+            },
+            {
+              "id": "actual_browser_download_proof.txt",
+              "result": "PASS",
+              "sha256": "61e6f3158ce78ca230157d752688002164a501531043aba57bb9c2c16647ed3b"
+            },
+            {
+              "id": "actual_browser_download_fixture.zip",
+              "result": "PASS",
+              "sha256": "60061645557416a336a76dd9719052111731b59364bf09ae6030d5fe3a12c459"
+            },
+            {
+              "id": "actual_browser_download_binary.bin",
+              "result": "PASS",
+              "sha256": "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880"
+            },
+            {
+              "id": "paired_context_reload_without_new_offer",
+              "result": "PASS"
+            },
+            {
+              "id": "file_created_edited_saved_to_real_workspace",
+              "result": "PASS"
+            },
+            {
+              "id": "real_pty_output_without_matching_command_echo",
+              "result": "PASS"
+            },
+            {
+              "id": "terminal_and_buffer_retained_after_browser_reload",
+              "result": "PASS"
+            },
+            {
+              "id": "owned_terminal_exit_and_cleanup",
+              "result": "PASS"
+            },
+            {
+              "id": "same_browser_trust_after_daemon_restart_reads_fresh_server_bytes",
+              "result": "PASS"
+            },
+            {
+              "id": "owned_file_ui_delete_confirmed_on_server",
+              "result": "PASS"
+            },
+            {
+              "id": "fresh_unpaired_context_cannot_read_fixture",
+              "result": "PASS"
+            }
+          ],
+          "freshBrowserContext": true,
+          "modelAcceptance": "BLOCKED_ACCOUNT_NOT_SELECTED",
+          "stage": "unpaired_isolation",
+          "runtimeIdentity": {
+            "managed": "0.17.5-r4-2b20ef5fac0a",
+            "recorded": "0.17.5-r4-2b20ef5fac0a",
+            "actual": "0.17.5-r4-2b20ef5fac0a",
+            "ready": true,
+            "runtimeDir": "/opt/woow-connectors/paseo/runtime"
+          },
+          "visibleVersions": [
+            "v0.17.4"
+          ],
+          "serverIdentitySha256": "ce2e2f574e1c9860b906411b66fa111de7f48bc8a36bf68b55e61117188a7c9a",
+          "result": "PASS_FOR_EXECUTED_CASES",
+          "pageErrors": []
+        },
+        {
+          "target": "apporo",
+          "origin": "https://smart.apporo.ai",
+          "cases": [
+            {
+              "id": "pending_target_refuses_private_offer",
+              "result": "PASS"
+            },
+            {
+              "id": "profile_lifecycle_and_disabled_restore",
+              "result": "PASS"
+            },
+            {
+              "id": "exact_origin_v2_relay_tls_and_security",
+              "result": "PASS"
+            },
+            {
+              "id": "fresh_explicit_browser_pair",
+              "result": "PASS"
+            },
+            {
+              "id": "authenticated_workspace_and_text_read",
+              "result": "PASS"
+            },
+            {
+              "id": "actual_browser_download_proof.txt",
+              "result": "PASS",
+              "sha256": "61e6f3158ce78ca230157d752688002164a501531043aba57bb9c2c16647ed3b"
+            },
+            {
+              "id": "actual_browser_download_fixture.zip",
+              "result": "PASS",
+              "sha256": "60061645557416a336a76dd9719052111731b59364bf09ae6030d5fe3a12c459"
+            },
+            {
+              "id": "actual_browser_download_binary.bin",
+              "result": "PASS",
+              "sha256": "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880"
+            },
+            {
+              "id": "paired_context_reload_without_new_offer",
+              "result": "PASS"
+            },
+            {
+              "id": "file_created_edited_saved_to_real_workspace",
+              "result": "PASS"
+            },
+            {
+              "id": "real_pty_output_without_matching_command_echo",
+              "result": "PASS"
+            },
+            {
+              "id": "terminal_and_buffer_retained_after_browser_reload",
+              "result": "PASS"
+            },
+            {
+              "id": "owned_terminal_exit_and_cleanup",
+              "result": "PASS"
+            },
+            {
+              "id": "same_browser_trust_after_daemon_restart_reads_fresh_server_bytes",
+              "result": "PASS"
+            },
+            {
+              "id": "owned_file_ui_delete_confirmed_on_server",
+              "result": "PASS"
+            },
+            {
+              "id": "fresh_unpaired_context_cannot_read_fixture",
+              "result": "PASS"
+            }
+          ],
+          "freshBrowserContext": true,
+          "modelAcceptance": "BLOCKED_ACCOUNT_NOT_SELECTED",
+          "stage": "unpaired_isolation",
+          "runtimeIdentity": {
+            "managed": "0.17.5-r4-2b20ef5fac0a",
+            "recorded": "0.17.5-r4-2b20ef5fac0a",
+            "actual": "0.17.5-r4-2b20ef5fac0a",
+            "ready": true,
+            "runtimeDir": "/opt/woow-connectors/paseo/runtime"
+          },
+          "visibleVersions": [
+            "v0.17.4"
+          ],
+          "serverIdentitySha256": "ce2e2f574e1c9860b906411b66fa111de7f48bc8a36bf68b55e61117188a7c9a",
+          "result": "PASS_FOR_EXECUTED_CASES",
+          "pageErrors": []
+        }
+      ]
+    },
+    "preservingImageUpgrade": {
+      "fixture": "main",
+      "baselineRevision": "0.17.5-r3-8664f2c3f8f5",
+      "targetRevision": "0.17.5-r4-2b20ef5fac0a",
+      "result": "PASS",
+      "stage": "complete",
+      "checks": {
+        "baselineImageVerified": true,
+        "templateChangeScoped": true,
+        "baselineR3Verified": true,
+        "baselineValidated": true,
+        "pairedBeforeUpgrade": true,
+        "marker1Read": true,
+        "podRecreated": true,
+        "candidateImageVerified": true,
+        "originalPvcsPreserved": true,
+        "prebuiltR4Verified": true,
+        "noOptOverlay": true,
+        "serviceRestoredEnabled": true,
+        "stableDataPreserved": true,
+        "marker2Read": true,
+        "manualStopVerified": true,
+        "disabledPodRecreated": true,
+        "disabledSurvivedServiceTicks": true,
+        "explicitStartVerified": true,
+        "marker3Read": true,
+        "sameBrowserContext": true,
+        "noSecondPairing": true,
+        "endOfficialRunning": true,
+        "browserClosed": true,
+        "markerRemoved": true,
+        "cleanupPassed": true
+      },
+      "hashes": {
+        "source": "2a09650a5dac51d91193ac2cd48de40dd987621f3dfddf9c4ab0d98fb76c2d37",
+        "candidateReceipt": "099decbd51bda858d9f26de98801c99ec4ac11eee423887e6f60ee20e2780a0c",
+        "originalTemplate": "33f040a25350ba759024b089cfcd54e168d068de38e8bdb223df3bc8aa9a1392",
+        "namespaceUid": "de2452d5d3a61f51ccb0c66cce526ddefec598d489dc5aae8e6c560d0b436fb6",
+        "deploymentUid": "35dc049aac9b793b2f60e46f190ed7a365cbcb4bd93c52d1bef68cebf8fcf49b",
+        "originalPodUid": "8c6c92c3621163070f56c838e12e38a8582e23b021aeba865f45400181481429",
+        "pvcBindings": "63daaa5ccbf2a30b4905caa13dc0a70a8c1b08849e4c30396c5837e013eafef2",
+        "originalImageID": "6786187cec2997fc27fe5b8d6c904844c59f490ad4af8d6a445c248c769b3857",
+        "stableIdentity": "a65770ddd413f0e9c9d0a8dabee4012dcc2acc10425d7430583ebacea35876a0",
+        "fixtures": "3d8ec160096049eaf7e720dce8d07628643fc90d2ba9656ed408b0170f20be6f",
+        "machinePreferences": "15d585b857cadd92ea7a27145c51e6a090b03d8f22b1efd3f2de7db9076c33c9",
+        "ideSettings": "a380950df57bba25c1c940eddcfc6c43e6ee1e2c2a97f33a48d8d331910c137e",
+        "backendSettings": "33f60a1c6e4703faebdbdb729e1c64ccfec6d6d421aa931424606bad05caf355",
+        "userExtensions": "623cdf06dbe882372131840baa2610471ff24ac7f6015221443fdab76411d4e2",
+        "workspaceId": "df830ae1e0f3c428855a044a23468fa249eb47ead971f88f1e92e387f713f310",
+        "marker1": "5dcc8039eab37cda4f5ab1437c598a77538fd1c3debb470f5c7885663d28f0fa",
+        "candidateImageID": "b8a1a77e7965d3a44dfe6e51c146d4f1ecd7fb2250335cca80aad9158936ce44",
+        "imagePodUid": "fa3385f7aa1e63079907cf8b7145fcacb09320590ff92f78a048d11f0b1a050e",
+        "marker2": "29604f1c3257e1e296adea00d1806d631c8a9a25d9d85bd8af1a14d508ff4539",
+        "disabledPodUid": "e49473bbd0730efa8e123124468842c8b72eb38aee5f76ea7dbc7c393c6f06aa",
+        "marker3": "71281ddef5f9560e3accbd6c90a61f0d786b90847631d31e962ff9e17abb25f1"
+      },
+      "stages": [
+        "baseline",
+        "pair",
+        "marker1",
+        "upgrade",
+        "restore",
+        "marker2",
+        "stop",
+        "disabled_recreate",
+        "disabled_observation",
+        "start",
+        "marker3",
+        "cleanup",
+        "complete"
+      ]
+    },
+    "freshBuiltImageInitialInstall": {
+      "image": "ghcr.io/woowtech/woow-code-server-amd64:main-e087b31@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+      "imageID": "ghcr.io/woowtech/woow-code-server-amd64@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+      "sourceOverlay": false,
+      "separateFreshVolumes": true,
+      "initialPhase": "not_configured",
+      "initiallyDisabled": true,
+      "prebuiltRuntime": {
+        "ready": true,
+        "revision": "0.17.5-r4-2b20ef5fac0a",
+        "ownerUid": 0
+      },
+      "bundledExtensionsInstalledNormally": [
+        "woowtech.paseo@0.2.0",
+        "woowtech.omnigent@0.2.0"
+      ],
+      "fixtureSha256": {
+        "binary.bin": "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880",
+        "proof.txt": "61e6f3158ce78ca230157d752688002164a501531043aba57bb9c2c16647ed3b",
+        "fixture.zip": "60061645557416a336a76dd9719052111731b59364bf09ae6030d5fe3a12c459",
+        "README.md": "ff9513d634978ad59ea4f1517ec73cd8a4778fa45048953d89602c8aa7398672"
+      },
+      "result": "PASS"
+    },
+    "paasCandidate": {
+      "repository": "jcr-prod.woowtech.io/woow-paas-docker-local/code-server",
+      "tag": "20261127.0043-pending-approval",
+      "digest": "sha256:7478df255155c5fed18371531b9eaac0b907c5f58dd66689ba6950f812481146",
+      "reference": "jcr-prod.woowtech.io/woow-paas-docker-local/code-server:20261127.0043-pending-approval@sha256:7478df255155c5fed18371531b9eaac0b907c5f58dd66689ba6950f812481146",
+      "sourceCommit": "2172dd9e70e97ab7f081da9ad8ed2595b4218a4f",
+      "workflow": "https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/actions/runs/50171",
+      "promotion": "PENDING_APPROVAL_NOT_PRODUCTION",
+      "authenticatedManifestVerified": true,
+      "registryReadPath": "authenticated-kubectl-service-port-forward",
+      "mediaType": "application/vnd.docker.distribution.manifest.v2+json"
+    },
+    "ci": {
+      "canonicalBuild": "https://github.com/WOOWTECH/Woow_podman_code_server_package/actions/runs/45918086296",
+      "haRequiredComparison": "https://github.com/WOOWTECH/Woow_ha_code_server_add_on/actions/runs/45924496884",
+      "haComparisonResult": "PASS",
+      "paasCandidateBuild": "https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/actions/runs/50171",
+      "paasProductionApproval": "https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/issues/808",
+      "productionApprovalState": "OPEN_NOT_PROMOTED",
+      "haComparisonSource": "314a7126a588ffb3f7f859aa038df4f7a5cb9303",
+      "haCandidateBuild": "https://github.com/WOOWTECH/Woow_ha_code_server_add_on/actions/runs/45924502578"
+    },
+    "freshBuiltImageNativeUi": {
+      "schemaVersion": 1,
+      "startedAt": "2026-11-27T01:45:58.844279+00:00",
+      "isolatedQaOnly": true,
+      "namespace": "code-server-agent-connect-qa-1126",
+      "fixture": "r4-fresh",
+      "expectedRuntimeRevision": "0.17.5-r4-2b20ef5fac0a",
+      "ui": "installed_code_server_native_extension_webview",
+      "modelCalls": 0,
+      "backendActions": [
+        "status"
+      ],
+      "targetSelectionSaved": false,
+      "cases": [
+        {
+          "name": "real_extension_activation_branding_and_three_target_panel",
+          "result": "pass"
+        },
+        {
+          "name": "keyboard_target_selection_canonical_url_without_save",
+          "result": "pass"
+        },
+        {
+          "name": "narrow_panel_layout_and_touch_controls",
+          "result": "pass",
+          "frameWidth": 214,
+          "minimumControlHeight": 44,
+          "horizontalOverflow": 0
+        },
+        {
+          "name": "native_theme_default_dark_modern",
+          "result": "pass",
+          "frameTheme": "vscode-dark",
+          "colors": {
+            "background": "rgb(31, 31, 31)",
+            "foreground": "rgb(204, 204, 204)",
+            "brightness": 31
+          }
+        },
+        {
+          "name": "native_theme_default_light_modern",
+          "result": "pass",
+          "frameTheme": "vscode-light",
+          "colors": {
+            "background": "rgb(255, 255, 255)",
+            "foreground": "rgb(59, 59, 59)",
+            "brightness": 254.99999999999997
+          }
+        }
+      ],
+      "screenshots": [
+        {
+          "case": "native_activation_wide",
+          "file": "code-server-agent-connect-wide.png",
+          "sha256": "4b01397a3a567fe1f5b15872c185d90593dea8a9f0ef8a74b29c6e764b2d1171",
+          "bytes": 107739,
+          "captureArea": "native_code_server_agent_connect",
+          "viewportWidth": 1440
+        },
+        {
+          "case": "native_narrow_layout",
+          "file": "code-server-agent-connect-narrow.png",
+          "sha256": "163ab09f728637b25c76ee1ecf31ccf26e2af209ba3772b344583806735c5b0c",
+          "bytes": 62522,
+          "captureArea": "native_code_server_agent_connect",
+          "viewportWidth": 760
+        },
+        {
+          "case": "native_theme_dark",
+          "file": "code-server-vscode-dark.png",
+          "sha256": "678fdd6b310b56f037f77d4ada45c374536d4e8066782988ff750b49fcf68953",
+          "bytes": 111133,
+          "captureArea": "native_code_server_agent_connect",
+          "viewportWidth": 1440
+        },
+        {
+          "case": "native_theme_light",
+          "file": "code-server-vscode-light.png",
+          "sha256": "74a39f06afec011e4a75ee82f49f88f6c446770859ea68f9d3b6fa0107773402",
+          "bytes": 112798,
+          "captureArea": "native_code_server_agent_connect",
+          "viewportWidth": 1440
+        }
+      ],
+      "navigationRetries": 8,
+      "panelRetries": 1,
+      "frameDetachments": 0,
+      "statusReadsCompleted": 4,
+      "themeRestored": true,
+      "otherSettingsPreserved": true,
+      "deployment": {
+        "release": "agent-connect-r4-fresh",
+        "pod": "agent-connect-r4-fresh-code-server-7f5786786f-2mwqg",
+        "imageReference": "ghcr.io/woowtech/woow-code-server-amd64:main-e087b31@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+        "imageID": "ghcr.io/woowtech/woow-code-server-amd64@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+        "optKitUnmounted": true,
+        "builtImageAcceptance": true,
+        "expectedRuntimeRevision": "0.17.5-r4-2b20ef5fac0a"
+      },
+      "unsavedSelectionDiscardedOnReopen": true,
+      "nativeLightThemeVerified": true,
+      "result": "pass",
+      "finishedAt": "2026-11-27T01:47:44.276314+00:00"
+    },
+    "publishedScreenshots": [
+      {
+        "file": "code-server-agent-connect-wide-r4-20261127.png",
+        "sha256": "4b01397a3a567fe1f5b15872c185d90593dea8a9f0ef8a74b29c6e764b2d1171",
+        "visuallyReviewed": true,
+        "privateMaterialVisible": false
+      },
+      {
+        "file": "code-server-agent-connect-narrow-r4-20261127.png",
+        "sha256": "163ab09f728637b25c76ee1ecf31ccf26e2af209ba3772b344583806735c5b0c",
+        "visuallyReviewed": true,
+        "privateMaterialVisible": false
+      }
+    ],
+    "freshBuiltImageNativeActions": {
+      "schemaVersion": 1,
+      "startedAt": "2026-11-27T01:47:44.462358+00:00",
+      "namespace": "code-server-agent-connect-qa-1126",
+      "ui": "installed_code_server_native_extension_webview",
+      "fixture": "r4-fresh",
+      "runtimeRevision": "0.17.5-r4-2b20ef5fac0a",
+      "modelCalls": 0,
+      "providerLogins": 0,
+      "mutationPath": "native_gui_only",
+      "cases": [
+        {
+          "id": "initial_native_and_backend_official_current_revision",
+          "result": "PASS",
+          "runtimeRevision": "0.17.5-r4-2b20ef5fac0a"
+        },
+        {
+          "id": "gui_save_updates_machine_preferences_backend_pending",
+          "result": "PASS"
+        },
+        {
+          "id": "pending_warning_persists_after_native_refresh",
+          "result": "PASS"
+        },
+        {
+          "id": "pending_pair_stable_error_no_page_no_saved_offer",
+          "result": "PASS",
+          "errorCode": "CONFIGURATION_PENDING",
+          "newBrowserPages": 0
+        },
+        {
+          "id": "native_stop_start_applies_target_clears_warning",
+          "result": "PASS"
+        },
+        {
+          "id": "native_pair_opens_fresh_woow_offer_explicit_connect",
+          "result": "PASS",
+          "newBrowserPages": 1,
+          "origin": "https://smart.woowtech.io",
+          "v2OfferValidated": true,
+          "relayTlsValidated": true
+        },
+        {
+          "id": "paired_host_workspace_fresh_authenticated_file_read",
+          "result": "PASS",
+          "hostIdentityMatched": true,
+          "workspace": "/workspace/agent-connect-acceptance",
+          "proofSha256": "9c5bc00eb78bb0b430cea928b98c5294a216c7077c107d88b7ca6bb5125fbe22",
+          "reloaded": true
+        },
+        {
+          "id": "actual_pair_retains_only_canonical_settings_and_public_status",
+          "result": "PASS"
+        }
+      ],
+      "states": {
+        "initial": {
+          "selectedTarget": "paseo",
+          "activeTarget": "paseo",
+          "configurationPending": false,
+          "running": true,
+          "reachable": true,
+          "owned": true,
+          "version": "0.17.5"
+        },
+        "savedPending": {
+          "selectedTarget": "woowtech",
+          "activeTarget": "paseo",
+          "configurationPending": true,
+          "running": true,
+          "reachable": true,
+          "owned": true,
+          "version": "0.17.5"
+        },
+        "refreshedPending": {
+          "selectedTarget": "woowtech",
+          "activeTarget": "paseo",
+          "configurationPending": true,
+          "running": true,
+          "reachable": true,
+          "owned": true,
+          "version": "0.17.5"
+        },
+        "stopped": {
+          "selectedTarget": "woowtech",
+          "activeTarget": "paseo",
+          "configurationPending": true,
+          "running": false,
+          "reachable": false,
+          "owned": true,
+          "version": null
+        },
+        "startedWoow": {
+          "selectedTarget": "woowtech",
+          "activeTarget": "woowtech",
+          "configurationPending": false,
+          "running": true,
+          "reachable": true,
+          "owned": true,
+          "version": "0.17.5"
+        },
+        "afterActualPair": {
+          "selectedTarget": "woowtech",
+          "activeTarget": "woowtech",
+          "configurationPending": false,
+          "running": true,
+          "reachable": true,
+          "owned": true,
+          "version": "0.17.5"
+        },
+        "cleanup": {
+          "selectedTarget": "paseo",
+          "activeTarget": "paseo",
+          "configurationPending": false,
+          "running": true,
+          "reachable": true,
+          "owned": true,
+          "version": "0.17.5"
+        }
+      },
+      "privateOfferRecorded": false,
+      "screenshots": [],
+      "cleanup": {
+        "result": "PASS",
+        "mutationPath": "native_gui_only",
+        "machinePreferencesOfficial": true,
+        "backendOfficial": true,
+        "running": true,
+        "reachable": true,
+        "configurationPending": false
+      },
+      "installed": {
+        "revision": "0.17.5-r4-2b20ef5fac0a",
+        "extensionVersion": "0.2.0",
+        "runtimeReady": true,
+        "runtimeDirectory": "/opt/woow-connectors/paseo/runtime/releases/0.17.5-r4-2b20ef5fac0a",
+        "normalRuntimeDirectory": true,
+        "optKitUnmounted": true,
+        "executionUid": 1000,
+        "sdkArtifactUid": 0,
+        "sdkPackages": {
+          "cli": "0.17.5",
+          "client": "0.17.5",
+          "server": "0.17.5",
+          "protocol": "0.17.5"
+        },
+        "installedLockSha256": "2b20ef5fac0a45dfd756d8470222a0d3c8ee9012c7cb318d65c8bba90c469f42",
+        "pidRevision": "0.17.5-r4-2b20ef5fac0a",
+        "pidHomeMatches": true,
+        "pidUid": 1000,
+        "workerRevision": "0.17.5-r4-2b20ef5fac0a",
+        "workerHomeMatches": true,
+        "workerUid": 1000,
+        "pidLockMatchesStatus": true,
+        "deployment": {
+          "release": "agent-connect-r4-fresh",
+          "pod": "agent-connect-r4-fresh-code-server-7f5786786f-2mwqg",
+          "imageReference": "ghcr.io/woowtech/woow-code-server-amd64:main-e087b31@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+          "imageID": "ghcr.io/woowtech/woow-code-server-amd64@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+          "optKitUnmounted": true,
+          "builtImageAcceptance": true,
+          "expectedRuntimeRevision": "0.17.5-r4-2b20ef5fac0a"
+        }
+      },
+      "runtimeChecks": {
+        "initial": {
+          "revision": "0.17.5-r4-2b20ef5fac0a",
+          "extensionVersion": "0.2.0",
+          "runtimeReady": true,
+          "runtimeDirectory": "/opt/woow-connectors/paseo/runtime/releases/0.17.5-r4-2b20ef5fac0a",
+          "normalRuntimeDirectory": true,
+          "optKitUnmounted": true,
+          "executionUid": 1000,
+          "sdkArtifactUid": 0,
+          "sdkPackages": {
+            "cli": "0.17.5",
+            "client": "0.17.5",
+            "server": "0.17.5",
+            "protocol": "0.17.5"
+          },
+          "installedLockSha256": "2b20ef5fac0a45dfd756d8470222a0d3c8ee9012c7cb318d65c8bba90c469f42",
+          "pidRevision": "0.17.5-r4-2b20ef5fac0a",
+          "pidHomeMatches": true,
+          "pidUid": 1000,
+          "workerRevision": "0.17.5-r4-2b20ef5fac0a",
+          "workerHomeMatches": true,
+          "workerUid": 1000,
+          "pidLockMatchesStatus": true,
+          "deployment": {
+            "release": "agent-connect-r4-fresh",
+            "pod": "agent-connect-r4-fresh-code-server-7f5786786f-2mwqg",
+            "imageReference": "ghcr.io/woowtech/woow-code-server-amd64:main-e087b31@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+            "imageID": "ghcr.io/woowtech/woow-code-server-amd64@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+            "optKitUnmounted": true,
+            "builtImageAcceptance": true,
+            "expectedRuntimeRevision": "0.17.5-r4-2b20ef5fac0a"
+          }
+        },
+        "startedWoow": {
+          "revision": "0.17.5-r4-2b20ef5fac0a",
+          "extensionVersion": "0.2.0",
+          "runtimeReady": true,
+          "runtimeDirectory": "/opt/woow-connectors/paseo/runtime/releases/0.17.5-r4-2b20ef5fac0a",
+          "normalRuntimeDirectory": true,
+          "optKitUnmounted": true,
+          "executionUid": 1000,
+          "sdkArtifactUid": 0,
+          "sdkPackages": {
+            "cli": "0.17.5",
+            "client": "0.17.5",
+            "server": "0.17.5",
+            "protocol": "0.17.5"
+          },
+          "installedLockSha256": "2b20ef5fac0a45dfd756d8470222a0d3c8ee9012c7cb318d65c8bba90c469f42",
+          "pidRevision": "0.17.5-r4-2b20ef5fac0a",
+          "pidHomeMatches": true,
+          "pidUid": 1000,
+          "workerRevision": "0.17.5-r4-2b20ef5fac0a",
+          "workerHomeMatches": true,
+          "workerUid": 1000,
+          "pidLockMatchesStatus": true,
+          "deployment": {
+            "release": "agent-connect-r4-fresh",
+            "pod": "agent-connect-r4-fresh-code-server-7f5786786f-2mwqg",
+            "imageReference": "ghcr.io/woowtech/woow-code-server-amd64:main-e087b31@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+            "imageID": "ghcr.io/woowtech/woow-code-server-amd64@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+            "optKitUnmounted": true,
+            "builtImageAcceptance": true,
+            "expectedRuntimeRevision": "0.17.5-r4-2b20ef5fac0a"
+          }
+        },
+        "cleanup": {
+          "revision": "0.17.5-r4-2b20ef5fac0a",
+          "extensionVersion": "0.2.0",
+          "runtimeReady": true,
+          "runtimeDirectory": "/opt/woow-connectors/paseo/runtime/releases/0.17.5-r4-2b20ef5fac0a",
+          "normalRuntimeDirectory": true,
+          "optKitUnmounted": true,
+          "executionUid": 1000,
+          "sdkArtifactUid": 0,
+          "sdkPackages": {
+            "cli": "0.17.5",
+            "client": "0.17.5",
+            "server": "0.17.5",
+            "protocol": "0.17.5"
+          },
+          "installedLockSha256": "2b20ef5fac0a45dfd756d8470222a0d3c8ee9012c7cb318d65c8bba90c469f42",
+          "pidRevision": "0.17.5-r4-2b20ef5fac0a",
+          "pidHomeMatches": true,
+          "pidUid": 1000,
+          "workerRevision": "0.17.5-r4-2b20ef5fac0a",
+          "workerHomeMatches": true,
+          "workerUid": 1000,
+          "pidLockMatchesStatus": true,
+          "deployment": {
+            "release": "agent-connect-r4-fresh",
+            "pod": "agent-connect-r4-fresh-code-server-7f5786786f-2mwqg",
+            "imageReference": "ghcr.io/woowtech/woow-code-server-amd64:main-e087b31@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+            "imageID": "ghcr.io/woowtech/woow-code-server-amd64@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+            "optKitUnmounted": true,
+            "builtImageAcceptance": true,
+            "expectedRuntimeRevision": "0.17.5-r4-2b20ef5fac0a"
+          }
+        }
+      },
+      "machinePreferences": {
+        "initial": {
+          "Machine": {
+            "values": {},
+            "noPrivateOffer": true
+          },
+          "User": {
+            "values": {},
+            "noPrivateOffer": true
+          }
+        },
+        "savedWoow": {
+          "Machine": {
+            "values": {
+              "woow.paseo.target": "woowtech",
+              "woow.paseo.webUrl": "https://smart.woowtech.io/",
+              "woow.paseo.workspace": "/workspace/agent-connect-acceptance",
+              "woow.paseo.hostName": "Agent Connect native GUI QA 1126"
+            },
+            "noPrivateOffer": true
+          },
+          "User": {
+            "values": {},
+            "noPrivateOffer": true
+          }
+        },
+        "afterPendingPair": {
+          "Machine": {
+            "values": {
+              "woow.paseo.target": "woowtech",
+              "woow.paseo.webUrl": "https://smart.woowtech.io/",
+              "woow.paseo.workspace": "/workspace/agent-connect-acceptance",
+              "woow.paseo.hostName": "Agent Connect native GUI QA 1126"
+            },
+            "noPrivateOffer": true
+          },
+          "User": {
+            "values": {},
+            "noPrivateOffer": true
+          }
+        },
+        "afterActualPair": {
+          "Machine": {
+            "values": {
+              "woow.paseo.target": "woowtech",
+              "woow.paseo.webUrl": "https://smart.woowtech.io/",
+              "woow.paseo.workspace": "/workspace/agent-connect-acceptance",
+              "woow.paseo.hostName": "Agent Connect native GUI QA 1126"
+            },
+            "noPrivateOffer": true
+          },
+          "User": {
+            "values": {},
+            "noPrivateOffer": true
+          }
+        },
+        "cleanup": {
+          "Machine": {
+            "values": {
+              "woow.paseo.target": "paseo",
+              "woow.paseo.webUrl": "https://app.paseo.sh/",
+              "woow.paseo.workspace": "/workspace",
+              "woow.paseo.hostName": "code-server"
+            },
+            "noPrivateOffer": true
+          },
+          "User": {
+            "values": {},
+            "noPrivateOffer": true
+          }
+        }
+      },
+      "additionalCases": [
+        {
+          "id": "native_readonly_model_catalog_refresh",
+          "result": "PASS",
+          "totalCount": 25,
+          "countsByAgent": {
+            "claude": 16,
+            "codex": 9,
+            "pi": 0,
+            "other": 0
+          },
+          "authenticationTested": false,
+          "conversationTested": false,
+          "newBrowserPages": 0
+        }
+      ],
+      "externalConfirmationOriginValidated": true,
+      "externalConfirmationApproved": true,
+      "navigationRetries": 5,
+      "finishedAt": "2026-11-27T01:50:29.394005+00:00",
+      "result": "PASS"
+    },
+    "nativeSettingsRecovery": {
+      "fixture": "r4-fresh",
+      "qualification": "R4_FRESH_BUILT_IMAGE_ACCEPTANCE",
+      "modelCalls": 0,
+      "providerLogins": 0,
+      "stages": [
+        {
+          "stage": "native_ui5",
+          "exitCode": 0,
+          "result": "pass",
+          "cases": 5,
+          "receipt": "extension-ui.json"
+        },
+        {
+          "stage": "native_actions8_catalog",
+          "exitCode": 0,
+          "result": "PASS",
+          "cases": 8,
+          "receipt": "extension-actions-r4.json"
+        }
+      ],
+      "cleanup": {
+        "result": "PASS",
+        "originalUserSettingsBytesAndModeRestored": true,
+        "sdkRootModeAndOwnerUnchanged": true,
+        "officialRunning": true,
+        "modelCalls": 0,
+        "providerLogins": 0
+      },
+      "stage": "restore_original_user_settings_bytes_mode",
+      "initialRuntime": {
+        "revision": "0.17.5-r4-2b20ef5fac0a",
+        "extensionVersion": "0.2.0",
+        "runtimeReady": true,
+        "runtimeDirectory": "/opt/woow-connectors/paseo/runtime/releases/0.17.5-r4-2b20ef5fac0a",
+        "normalRuntimeDirectory": true,
+        "optKitUnmounted": true,
+        "executionUid": 1000,
+        "sdkArtifactUid": 0,
+        "sdkPackages": {
+          "cli": "0.17.5",
+          "client": "0.17.5",
+          "server": "0.17.5",
+          "protocol": "0.17.5"
+        },
+        "installedLockSha256": "2b20ef5fac0a45dfd756d8470222a0d3c8ee9012c7cb318d65c8bba90c469f42",
+        "pidRevision": "0.17.5-r4-2b20ef5fac0a",
+        "pidHomeMatches": true,
+        "pidUid": 1000,
+        "workerRevision": "0.17.5-r4-2b20ef5fac0a",
+        "workerHomeMatches": true,
+        "workerUid": 1000,
+        "pidLockMatchesStatus": true,
+        "deployment": {
+          "release": "agent-connect-r4-fresh",
+          "pod": "agent-connect-r4-fresh-code-server-7f5786786f-2mwqg",
+          "imageReference": "ghcr.io/woowtech/woow-code-server-amd64:main-e087b31@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+          "imageID": "ghcr.io/woowtech/woow-code-server-amd64@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+          "optKitUnmounted": true,
+          "builtImageAcceptance": true,
+          "expectedRuntimeRevision": "0.17.5-r4-2b20ef5fac0a"
+        }
+      },
+      "originalUserSettings": {
+        "mode": 384,
+        "hash": "b611c7c2bcbb400486bf56c5039dfb4f068abdf207e8a81ebc6ec690993b2d0b",
+        "guardHash": "da34e75e992207aed34b7c83beb88c3e91cf2461db893f81c9ec39efd69ef161"
+      },
+      "originalSdkRoot": {
+        "sdkMode": 493,
+        "sdkUid": 0
+      },
+      "catalog": [
+        {
+          "id": "native_readonly_model_catalog_refresh",
+          "result": "PASS",
+          "totalCount": 25,
+          "countsByAgent": {
+            "claude": 16,
+            "codex": 9,
+            "pi": 0,
+            "other": 0
+          },
+          "authenticationTested": false,
+          "conversationTested": false,
+          "newBrowserPages": 0
+        }
+      ],
+      "result": "PASS",
+      "userSettingsRecovery": {
+        "bytesRestored": true,
+        "modeRestored": true,
+        "sha256": "b611c7c2bcbb400486bf56c5039dfb4f068abdf207e8a81ebc6ec690993b2d0b",
+        "mode": 384
+      },
+      "finalRuntime": {
+        "revision": "0.17.5-r4-2b20ef5fac0a",
+        "extensionVersion": "0.2.0",
+        "runtimeReady": true,
+        "runtimeDirectory": "/opt/woow-connectors/paseo/runtime/releases/0.17.5-r4-2b20ef5fac0a",
+        "normalRuntimeDirectory": true,
+        "optKitUnmounted": true,
+        "executionUid": 1000,
+        "sdkArtifactUid": 0,
+        "sdkPackages": {
+          "cli": "0.17.5",
+          "client": "0.17.5",
+          "server": "0.17.5",
+          "protocol": "0.17.5"
+        },
+        "installedLockSha256": "2b20ef5fac0a45dfd756d8470222a0d3c8ee9012c7cb318d65c8bba90c469f42",
+        "pidRevision": "0.17.5-r4-2b20ef5fac0a",
+        "pidHomeMatches": true,
+        "pidUid": 1000,
+        "workerRevision": "0.17.5-r4-2b20ef5fac0a",
+        "workerHomeMatches": true,
+        "workerUid": 1000,
+        "pidLockMatchesStatus": true,
+        "deployment": {
+          "release": "agent-connect-r4-fresh",
+          "pod": "agent-connect-r4-fresh-code-server-7f5786786f-2mwqg",
+          "imageReference": "ghcr.io/woowtech/woow-code-server-amd64:main-e087b31@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+          "imageID": "ghcr.io/woowtech/woow-code-server-amd64@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+          "optKitUnmounted": true,
+          "builtImageAcceptance": true,
+          "expectedRuntimeRevision": "0.17.5-r4-2b20ef5fac0a"
+        }
+      },
+      "finalBackend": {
+        "selectedTarget": "paseo",
+        "activeTarget": "paseo",
+        "configurationPending": false,
+        "running": true,
+        "reachable": true,
+        "owned": true,
+        "version": "0.17.5"
+      }
+    },
+    "nativeAcceptance": "PASS_5_UI_AND_8_ACTIONS_READONLY_CATALOG_25_AUTHENTICATION_UNTESTED",
+    "freshBuiltImageSkillsManagement": {
+      "suite": "web-skills-management",
+      "runId": "4022b65a04d545a78c73829cfdee539b",
+      "revision": "0.17.5-r4-2b20ef5fac0a",
+      "fixture": "r4-fresh",
+      "qualification": "R4_FRESH_BUILT_IMAGE_ACCEPTANCE",
+      "modelCalls": 0,
+      "agentsCreated": 0,
+      "providerLoginOperations": 0,
+      "skillModelExecutionAcceptance": false,
+      "clients": [
+        {
+          "brand": "paseo",
+          "origin": "https://app.paseo.sh",
+          "cases": [
+            {
+              "id": "production_capability_and_initial_status",
+              "result": "PASS",
+              "initial": {
+                "state": "not-installed",
+                "available": [
+                  "paseo",
+                  "paseo-advisor",
+                  "paseo-committee",
+                  "paseo-handoff",
+                  "paseo-help",
+                  "paseo-plugin"
+                ],
+                "installed": [],
+                "selection": {
+                  "mode": "all"
+                },
+                "ops": [
+                  {
+                    "kind": "add",
+                    "name": "paseo"
+                  },
+                  {
+                    "kind": "add",
+                    "name": "paseo-advisor"
+                  },
+                  {
+                    "kind": "add",
+                    "name": "paseo-committee"
+                  },
+                  {
+                    "kind": "add",
+                    "name": "paseo-handoff"
+                  },
+                  {
+                    "kind": "add",
+                    "name": "paseo-help"
+                  },
+                  {
+                    "kind": "add",
+                    "name": "paseo-plugin"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "draft_cancel_unchanged",
+              "result": "PASS"
+            },
+            {
+              "id": "install_all_actual_hashes_manifest_reload",
+              "result": "PASS",
+              "contentSha256": "1518e5de19c3f339fd022913f631d1423d41dce178cc98de268b3a71e28c338f",
+              "filesVerified": 36,
+              "installRootsVerified": 3,
+              "legacyCodexEmpty": true
+            },
+            {
+              "id": "uninstall_confirmation_cancel",
+              "result": "PASS"
+            },
+            {
+              "id": "controlled_drift_update_cancel",
+              "result": "PASS"
+            },
+            {
+              "id": "confirmed_update_repairs_actual_files",
+              "result": "PASS",
+              "actualHashesRestored": true
+            },
+            {
+              "id": "custom_removal_confirmation_cancel",
+              "result": "PASS"
+            },
+            {
+              "id": "custom_even_selection_save_reload",
+              "result": "PASS",
+              "selection": {
+                "mode": "custom",
+                "skills": [
+                  "paseo",
+                  "paseo-committee",
+                  "paseo-help"
+                ]
+              },
+              "contentSha256": "94e697b042dde8a600136600b97469107ec9547ccecae872f1796aa9c6ffcadb",
+              "filesVerified": 18,
+              "installRootsVerified": 3,
+              "legacyCodexEmpty": true
+            },
+            {
+              "id": "custom_odd_selection_save_reload",
+              "result": "PASS",
+              "selection": {
+                "mode": "custom",
+                "skills": [
+                  "paseo-advisor",
+                  "paseo-handoff",
+                  "paseo-plugin"
+                ]
+              },
+              "contentSha256": "1ab4285b639cbfcf68f178d36f4199f8797b98b62317b4b69b36085768be2241",
+              "filesVerified": 18,
+              "installRootsVerified": 3,
+              "legacyCodexEmpty": true
+            },
+            {
+              "id": "empty_selection_removes_managed_files",
+              "result": "PASS",
+              "selection": {
+                "mode": "custom",
+                "skills": []
+              },
+              "contentSha256": "677527ceac0b2a51d1c226178b975666f7c15ad2e07fc209d82549704897740c",
+              "filesVerified": 0,
+              "installRootsVerified": 3,
+              "legacyCodexEmpty": true
+            },
+            {
+              "id": "choose_all_restores_bundle",
+              "result": "PASS",
+              "contentSha256": "1518e5de19c3f339fd022913f631d1423d41dce178cc98de268b3a71e28c338f",
+              "filesVerified": 36,
+              "installRootsVerified": 3,
+              "legacyCodexEmpty": true
+            },
+            {
+              "id": "confirmed_uninstall_reload",
+              "result": "PASS",
+              "contentSha256": "677527ceac0b2a51d1c226178b975666f7c15ad2e07fc209d82549704897740c",
+              "filesVerified": 0,
+              "installRootsVerified": 3,
+              "legacyCodexEmpty": true
+            }
+          ],
+          "freshBrowserContext": true,
+          "productionOnly": true,
+          "serverIdentitySha256": "ce2e2f574e1c9860b906411b66fa111de7f48bc8a36bf68b55e61117188a7c9a",
+          "visibleVersions": [],
+          "result": "PASS",
+          "mutationsPerformed": true
+        },
+        {
+          "brand": "woowtech",
+          "origin": "https://smart.woowtech.io",
+          "cases": [
+            {
+              "id": "production_capability_and_initial_status",
+              "result": "PASS",
+              "initial": {
+                "state": "not-installed",
+                "available": [
+                  "paseo",
+                  "paseo-advisor",
+                  "paseo-committee",
+                  "paseo-handoff",
+                  "paseo-help",
+                  "paseo-plugin"
+                ],
+                "installed": [],
+                "selection": {
+                  "mode": "all"
+                },
+                "ops": [
+                  {
+                    "kind": "add",
+                    "name": "paseo"
+                  },
+                  {
+                    "kind": "add",
+                    "name": "paseo-advisor"
+                  },
+                  {
+                    "kind": "add",
+                    "name": "paseo-committee"
+                  },
+                  {
+                    "kind": "add",
+                    "name": "paseo-handoff"
+                  },
+                  {
+                    "kind": "add",
+                    "name": "paseo-help"
+                  },
+                  {
+                    "kind": "add",
+                    "name": "paseo-plugin"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "draft_cancel_unchanged",
+              "result": "PASS"
+            },
+            {
+              "id": "install_all_actual_hashes_manifest_reload",
+              "result": "PASS",
+              "contentSha256": "1518e5de19c3f339fd022913f631d1423d41dce178cc98de268b3a71e28c338f",
+              "filesVerified": 36,
+              "installRootsVerified": 3,
+              "legacyCodexEmpty": true
+            },
+            {
+              "id": "uninstall_confirmation_cancel",
+              "result": "PASS"
+            },
+            {
+              "id": "controlled_drift_update_cancel",
+              "result": "PASS"
+            },
+            {
+              "id": "confirmed_update_repairs_actual_files",
+              "result": "PASS",
+              "actualHashesRestored": true
+            },
+            {
+              "id": "custom_removal_confirmation_cancel",
+              "result": "PASS"
+            },
+            {
+              "id": "custom_even_selection_save_reload",
+              "result": "PASS",
+              "selection": {
+                "mode": "custom",
+                "skills": [
+                  "paseo",
+                  "paseo-committee",
+                  "paseo-help"
+                ]
+              },
+              "contentSha256": "94e697b042dde8a600136600b97469107ec9547ccecae872f1796aa9c6ffcadb",
+              "filesVerified": 18,
+              "installRootsVerified": 3,
+              "legacyCodexEmpty": true
+            },
+            {
+              "id": "custom_odd_selection_save_reload",
+              "result": "PASS",
+              "selection": {
+                "mode": "custom",
+                "skills": [
+                  "paseo-advisor",
+                  "paseo-handoff",
+                  "paseo-plugin"
+                ]
+              },
+              "contentSha256": "1ab4285b639cbfcf68f178d36f4199f8797b98b62317b4b69b36085768be2241",
+              "filesVerified": 18,
+              "installRootsVerified": 3,
+              "legacyCodexEmpty": true
+            },
+            {
+              "id": "empty_selection_removes_managed_files",
+              "result": "PASS",
+              "selection": {
+                "mode": "custom",
+                "skills": []
+              },
+              "contentSha256": "677527ceac0b2a51d1c226178b975666f7c15ad2e07fc209d82549704897740c",
+              "filesVerified": 0,
+              "installRootsVerified": 3,
+              "legacyCodexEmpty": true
+            },
+            {
+              "id": "choose_all_restores_bundle",
+              "result": "PASS",
+              "contentSha256": "1518e5de19c3f339fd022913f631d1423d41dce178cc98de268b3a71e28c338f",
+              "filesVerified": 36,
+              "installRootsVerified": 3,
+              "legacyCodexEmpty": true
+            },
+            {
+              "id": "confirmed_uninstall_reload",
+              "result": "PASS",
+              "contentSha256": "677527ceac0b2a51d1c226178b975666f7c15ad2e07fc209d82549704897740c",
+              "filesVerified": 0,
+              "installRootsVerified": 3,
+              "legacyCodexEmpty": true
+            }
+          ],
+          "freshBrowserContext": true,
+          "productionOnly": true,
+          "serverIdentitySha256": "ce2e2f574e1c9860b906411b66fa111de7f48bc8a36bf68b55e61117188a7c9a",
+          "visibleVersions": [],
+          "result": "PASS",
+          "mutationsPerformed": true
+        },
+        {
+          "brand": "apporo",
+          "origin": "https://smart.apporo.ai",
+          "cases": [
+            {
+              "id": "production_capability_and_initial_status",
+              "result": "PASS",
+              "initial": {
+                "state": "not-installed",
+                "available": [
+                  "paseo",
+                  "paseo-advisor",
+                  "paseo-committee",
+                  "paseo-handoff",
+                  "paseo-help",
+                  "paseo-plugin"
+                ],
+                "installed": [],
+                "selection": {
+                  "mode": "all"
+                },
+                "ops": [
+                  {
+                    "kind": "add",
+                    "name": "paseo"
+                  },
+                  {
+                    "kind": "add",
+                    "name": "paseo-advisor"
+                  },
+                  {
+                    "kind": "add",
+                    "name": "paseo-committee"
+                  },
+                  {
+                    "kind": "add",
+                    "name": "paseo-handoff"
+                  },
+                  {
+                    "kind": "add",
+                    "name": "paseo-help"
+                  },
+                  {
+                    "kind": "add",
+                    "name": "paseo-plugin"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "draft_cancel_unchanged",
+              "result": "PASS"
+            },
+            {
+              "id": "install_all_actual_hashes_manifest_reload",
+              "result": "PASS",
+              "contentSha256": "1518e5de19c3f339fd022913f631d1423d41dce178cc98de268b3a71e28c338f",
+              "filesVerified": 36,
+              "installRootsVerified": 3,
+              "legacyCodexEmpty": true
+            },
+            {
+              "id": "uninstall_confirmation_cancel",
+              "result": "PASS"
+            },
+            {
+              "id": "controlled_drift_update_cancel",
+              "result": "PASS"
+            },
+            {
+              "id": "confirmed_update_repairs_actual_files",
+              "result": "PASS",
+              "actualHashesRestored": true
+            },
+            {
+              "id": "custom_removal_confirmation_cancel",
+              "result": "PASS"
+            },
+            {
+              "id": "custom_even_selection_save_reload",
+              "result": "PASS",
+              "selection": {
+                "mode": "custom",
+                "skills": [
+                  "paseo",
+                  "paseo-committee",
+                  "paseo-help"
+                ]
+              },
+              "contentSha256": "94e697b042dde8a600136600b97469107ec9547ccecae872f1796aa9c6ffcadb",
+              "filesVerified": 18,
+              "installRootsVerified": 3,
+              "legacyCodexEmpty": true
+            },
+            {
+              "id": "custom_odd_selection_save_reload",
+              "result": "PASS",
+              "selection": {
+                "mode": "custom",
+                "skills": [
+                  "paseo-advisor",
+                  "paseo-handoff",
+                  "paseo-plugin"
+                ]
+              },
+              "contentSha256": "1ab4285b639cbfcf68f178d36f4199f8797b98b62317b4b69b36085768be2241",
+              "filesVerified": 18,
+              "installRootsVerified": 3,
+              "legacyCodexEmpty": true
+            },
+            {
+              "id": "empty_selection_removes_managed_files",
+              "result": "PASS",
+              "selection": {
+                "mode": "custom",
+                "skills": []
+              },
+              "contentSha256": "677527ceac0b2a51d1c226178b975666f7c15ad2e07fc209d82549704897740c",
+              "filesVerified": 0,
+              "installRootsVerified": 3,
+              "legacyCodexEmpty": true
+            },
+            {
+              "id": "choose_all_restores_bundle",
+              "result": "PASS",
+              "contentSha256": "1518e5de19c3f339fd022913f631d1423d41dce178cc98de268b3a71e28c338f",
+              "filesVerified": 36,
+              "installRootsVerified": 3,
+              "legacyCodexEmpty": true
+            },
+            {
+              "id": "confirmed_uninstall_reload",
+              "result": "PASS",
+              "contentSha256": "677527ceac0b2a51d1c226178b975666f7c15ad2e07fc209d82549704897740c",
+              "filesVerified": 0,
+              "installRootsVerified": 3,
+              "legacyCodexEmpty": true
+            }
+          ],
+          "freshBrowserContext": true,
+          "productionOnly": true,
+          "serverIdentitySha256": "ce2e2f574e1c9860b906411b66fa111de7f48bc8a36bf68b55e61117188a7c9a",
+          "visibleVersions": [],
+          "result": "PASS",
+          "mutationsPerformed": true
+        }
+      ],
+      "cleanup": {
+        "result": "PASS",
+        "files": {
+          "byteHashesAndModesRestored": true,
+          "contentSha256": "677527ceac0b2a51d1c226178b975666f7c15ad2e07fc209d82549704897740c",
+          "unmanagedSentinelsPreserved": true,
+          "rootAliasesPreserved": true,
+          "sdkPidGuard": {
+            "revision": "0.17.5-r4-2b20ef5fac0a",
+            "extensionVersion": "0.2.0",
+            "runtimeReady": true,
+            "runtimeDirectory": "/opt/woow-connectors/paseo/runtime/releases/0.17.5-r4-2b20ef5fac0a",
+            "normalRuntimeDirectory": true,
+            "optKitUnmounted": true,
+            "executionUid": 1000,
+            "sdkArtifactUid": 0,
+            "sdkPackages": {
+              "cli": "0.17.5",
+              "client": "0.17.5",
+              "server": "0.17.5",
+              "protocol": "0.17.5"
+            },
+            "installedLockSha256": "2b20ef5fac0a45dfd756d8470222a0d3c8ee9012c7cb318d65c8bba90c469f42",
+            "pidRevision": "0.17.5-r4-2b20ef5fac0a",
+            "pidHomeMatches": true,
+            "pidUid": 1000,
+            "workerRevision": "0.17.5-r4-2b20ef5fac0a",
+            "workerHomeMatches": true,
+            "workerUid": 1000,
+            "pidLockMatchesStatus": true,
+            "deployment": {
+              "release": "agent-connect-r4-fresh",
+              "pod": "agent-connect-r4-fresh-code-server-7f5786786f-2mwqg",
+              "imageReference": "ghcr.io/woowtech/woow-code-server-amd64:main-e087b31@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+              "imageID": "ghcr.io/woowtech/woow-code-server-amd64@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+              "optKitUnmounted": true,
+              "builtImageAcceptance": true,
+              "expectedRuntimeRevision": "0.17.5-r4-2b20ef5fac0a"
+            }
+          }
+        },
+        "officialReachable": true,
+        "selectionSemanticsRestored": true,
+        "originalManagedFilesRestored": true,
+        "ownBackupRemoved": true
+      },
+      "nativeCleanupPrerequisite": {
+        "receipt": "evidence/r4-image-ui/extension-actions-r4.json",
+        "sha256": "dd3499e807ead1a0370ea909fcc7ce72a87886afb86442cd5f8d2ef7a18ed5e9"
+      },
+      "deployment": {
+        "release": "agent-connect-r4-fresh",
+        "pod": "agent-connect-r4-fresh-code-server-7f5786786f-2mwqg",
+        "imageReference": "ghcr.io/woowtech/woow-code-server-amd64:main-e087b31@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+        "imageID": "ghcr.io/woowtech/woow-code-server-amd64@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+        "optUnmounted": true
+      },
+      "runtime": {
+        "revision": "0.17.5-r4-2b20ef5fac0a",
+        "ready": true,
+        "home": "/home/coder",
+        "roots": [
+          "/data/pi-agent/skills",
+          "/home/coder/.claude/skills",
+          "/home/coder/.gemini/config/skills",
+          "/home/coder/.codex/skills"
+        ],
+        "logicalRoots": [
+          "/home/coder/.agents/skills",
+          "/home/coder/.claude/skills",
+          "/home/coder/.gemini/config/skills",
+          "/home/coder/.codex/skills"
+        ],
+        "rootAliases": [
+          {
+            "path": "/home/coder/.agents/skills",
+            "target": "/data/pi-agent/skills",
+            "ino": "7144732",
+            "uid": 1000,
+            "mode": 41471,
+            "targetIno": "7144693",
+            "targetDev": "64512"
+          }
+        ],
+        "processProof": "connector-recorded-pid-revision-and-os-owner",
+        "sourceFileCounts": {
+          "paseo": 1,
+          "paseo-advisor": 1,
+          "paseo-committee": 1,
+          "paseo-handoff": 1,
+          "paseo-help": 1,
+          "paseo-plugin": 1
+        },
+        "sdkPidGuard": {
+          "revision": "0.17.5-r4-2b20ef5fac0a",
+          "extensionVersion": "0.2.0",
+          "runtimeReady": true,
+          "runtimeDirectory": "/opt/woow-connectors/paseo/runtime/releases/0.17.5-r4-2b20ef5fac0a",
+          "normalRuntimeDirectory": true,
+          "optKitUnmounted": true,
+          "executionUid": 1000,
+          "sdkArtifactUid": 0,
+          "sdkPackages": {
+            "cli": "0.17.5",
+            "client": "0.17.5",
+            "server": "0.17.5",
+            "protocol": "0.17.5"
+          },
+          "installedLockSha256": "2b20ef5fac0a45dfd756d8470222a0d3c8ee9012c7cb318d65c8bba90c469f42",
+          "pidRevision": "0.17.5-r4-2b20ef5fac0a",
+          "pidHomeMatches": true,
+          "pidUid": 1000,
+          "workerRevision": "0.17.5-r4-2b20ef5fac0a",
+          "workerHomeMatches": true,
+          "workerUid": 1000,
+          "pidLockMatchesStatus": true,
+          "deployment": {
+            "release": "agent-connect-r4-fresh",
+            "pod": "agent-connect-r4-fresh-code-server-7f5786786f-2mwqg",
+            "imageReference": "ghcr.io/woowtech/woow-code-server-amd64:main-e087b31@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+            "imageID": "ghcr.io/woowtech/woow-code-server-amd64@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+            "optKitUnmounted": true,
+            "builtImageAcceptance": true,
+            "expectedRuntimeRevision": "0.17.5-r4-2b20ef5fac0a"
+          }
+        }
+      },
+      "baseline": {
+        "status": {
+          "state": "not-installed",
+          "available": [
+            "paseo",
+            "paseo-advisor",
+            "paseo-committee",
+            "paseo-handoff",
+            "paseo-help",
+            "paseo-plugin"
+          ],
+          "installed": [],
+          "selection": {
+            "mode": "all"
+          },
+          "ops": [
+            {
+              "kind": "add",
+              "name": "paseo"
+            },
+            {
+              "kind": "add",
+              "name": "paseo-advisor"
+            },
+            {
+              "kind": "add",
+              "name": "paseo-committee"
+            },
+            {
+              "kind": "add",
+              "name": "paseo-handoff"
+            },
+            {
+              "kind": "add",
+              "name": "paseo-help"
+            },
+            {
+              "kind": "add",
+              "name": "paseo-plugin"
+            }
+          ]
+        },
+        "contentSha256": "677527ceac0b2a51d1c226178b975666f7c15ad2e07fc209d82549704897740c",
+        "backupVerified": true,
+        "sdkPidGuard": {
+          "revision": "0.17.5-r4-2b20ef5fac0a",
+          "extensionVersion": "0.2.0",
+          "runtimeReady": true,
+          "runtimeDirectory": "/opt/woow-connectors/paseo/runtime/releases/0.17.5-r4-2b20ef5fac0a",
+          "normalRuntimeDirectory": true,
+          "optKitUnmounted": true,
+          "executionUid": 1000,
+          "sdkArtifactUid": 0,
+          "sdkPackages": {
+            "cli": "0.17.5",
+            "client": "0.17.5",
+            "server": "0.17.5",
+            "protocol": "0.17.5"
+          },
+          "installedLockSha256": "2b20ef5fac0a45dfd756d8470222a0d3c8ee9012c7cb318d65c8bba90c469f42",
+          "pidRevision": "0.17.5-r4-2b20ef5fac0a",
+          "pidHomeMatches": true,
+          "pidUid": 1000,
+          "workerRevision": "0.17.5-r4-2b20ef5fac0a",
+          "workerHomeMatches": true,
+          "workerUid": 1000,
+          "pidLockMatchesStatus": true,
+          "deployment": {
+            "release": "agent-connect-r4-fresh",
+            "pod": "agent-connect-r4-fresh-code-server-7f5786786f-2mwqg",
+            "imageReference": "ghcr.io/woowtech/woow-code-server-amd64:main-e087b31@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+            "imageID": "ghcr.io/woowtech/woow-code-server-amd64@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+            "optKitUnmounted": true,
+            "builtImageAcceptance": true,
+            "expectedRuntimeRevision": "0.17.5-r4-2b20ef5fac0a"
+          }
+        }
+      },
+      "result": "PASS"
+    },
+    "nativeAndSkillsIndependentReview": {
+      "schemaVersion": 1,
+      "fixture": "r4-fresh",
+      "qualification": "R4_FRESH_BUILT_IMAGE_ACCEPTANCE",
+      "result": "PASS",
+      "deployment": {
+        "release": "agent-connect-r4-fresh",
+        "pod": "agent-connect-r4-fresh-code-server-7f5786786f-2mwqg",
+        "imageReference": "ghcr.io/woowtech/woow-code-server-amd64:main-e087b31@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+        "imageID": "ghcr.io/woowtech/woow-code-server-amd64@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+        "optKitUnmounted": true,
+        "builtImageAcceptance": true,
+        "expectedRuntimeRevision": "0.17.5-r4-2b20ef5fac0a"
+      },
+      "runtime": {
+        "revision": "0.17.5-r4-2b20ef5fac0a",
+        "extensionVersion": "0.2.0",
+        "runtimeReady": true,
+        "runtimeDirectory": "/opt/woow-connectors/paseo/runtime/releases/0.17.5-r4-2b20ef5fac0a",
+        "normalRuntimeDirectory": true,
+        "optKitUnmounted": true,
+        "executionUid": 1000,
+        "sdkArtifactUid": 0,
+        "sdkPackages": {
+          "cli": "0.17.5",
+          "client": "0.17.5",
+          "server": "0.17.5",
+          "protocol": "0.17.5"
+        },
+        "installedLockSha256": "2b20ef5fac0a45dfd756d8470222a0d3c8ee9012c7cb318d65c8bba90c469f42",
+        "pidRevision": "0.17.5-r4-2b20ef5fac0a",
+        "pidHomeMatches": true,
+        "pidUid": 1000,
+        "workerRevision": "0.17.5-r4-2b20ef5fac0a",
+        "workerHomeMatches": true,
+        "workerUid": 1000,
+        "pidLockMatchesStatus": true,
+        "deployment": {
+          "release": "agent-connect-r4-fresh",
+          "pod": "agent-connect-r4-fresh-code-server-7f5786786f-2mwqg",
+          "imageReference": "ghcr.io/woowtech/woow-code-server-amd64:main-e087b31@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+          "imageID": "ghcr.io/woowtech/woow-code-server-amd64@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+          "optKitUnmounted": true,
+          "builtImageAcceptance": true,
+          "expectedRuntimeRevision": "0.17.5-r4-2b20ef5fac0a"
+        }
+      },
+      "caseResults": {
+        "nativeUi": {
+          "passed": 5,
+          "failed": 0
+        },
+        "nativeActions": {
+          "passed": 8,
+          "failed": 0
+        },
+        "skills": {
+          "passed": 36,
+          "failed": 0,
+          "notApplicable": 0,
+          "brands": [
+            {
+              "brand": "paseo",
+              "passed": 12,
+              "result": "PASS"
+            },
+            {
+              "brand": "woowtech",
+              "passed": 12,
+              "result": "PASS"
+            },
+            {
+              "brand": "apporo",
+              "passed": 12,
+              "result": "PASS"
+            }
+          ]
+        }
+      },
+      "readonlyCatalog": {
+        "id": "native_readonly_model_catalog_refresh",
+        "result": "PASS",
+        "totalCount": 25,
+        "countsByAgent": {
+          "claude": 16,
+          "codex": 9,
+          "pi": 0,
+          "other": 0
+        },
+        "authenticationTested": false,
+        "conversationTested": false,
+        "newBrowserPages": 0
+      },
+      "modelCalls": 0,
+      "providerLogins": 0,
+      "agentsCreated": 0,
+      "verifyConversationInvoked": false,
+      "skillModelExecutionAcceptance": false,
+      "harnessSha256": {
+        "extension_qa_fixture.py": "1faa864afe502de7909e428086f8dbdb8e4d4cb922a29fb2ead2b4178fcde4b9",
+        "check_extension_ui.py": "252bf90823571e1dbcd7ab7139ac6d0d0586ebe2637b0735f72d7d2db40a6cea",
+        "check_extension_actions.py": "fa0b0bb720ff068d560631401f3dd078916625728222efdcfe5be58d3942109b",
+        "three_clients_skills_qa.py": "67f64a9972915b0b8e5dda1368a01b133a31f44ee0e8f62bd186038b716d578b"
+      },
+      "receipts": [
+        {
+          "file": "evidence/r4-image-ui/extension-ui.json",
+          "sha256": "a97a61ec3cab51c501e43e4972b43a7d429407aa841b93133b6bb21558ed9202"
+        },
+        {
+          "file": "evidence/r4-image-ui/extension-actions-r4.json",
+          "sha256": "dd3499e807ead1a0370ea909fcc7ce72a87886afb86442cd5f8d2ef7a18ed5e9"
+        },
+        {
+          "file": "evidence/r4-image-ui/native-sequence-recovery.json",
+          "sha256": "2b1d2651fa361f6aa08409c1a396741c7d6d08402c70457a293ceaf04ce0de52"
+        },
+        {
+          "file": "evidence/r4-image-skills/4022b65a04d545a78c73829cfdee539b.json",
+          "sha256": "fccd0b575c3e6d8cabb92e4e0db72701871b1a202bcb63e28ecdadf5d557a371"
+        }
+      ],
+      "screenshots": [
+        {
+          "file": "evidence/r4-image-ui/code-server-agent-connect-wide.png",
+          "sha256": "4b01397a3a567fe1f5b15872c185d90593dea8a9f0ef8a74b29c6e764b2d1171",
+          "case": "native_activation_wide"
+        },
+        {
+          "file": "evidence/r4-image-ui/code-server-agent-connect-narrow.png",
+          "sha256": "163ab09f728637b25c76ee1ecf31ccf26e2af209ba3772b344583806735c5b0c",
+          "case": "native_narrow_layout"
+        },
+        {
+          "file": "evidence/r4-image-ui/code-server-vscode-dark.png",
+          "sha256": "678fdd6b310b56f037f77d4ada45c374536d4e8066782988ff750b49fcf68953",
+          "case": "native_theme_dark"
+        },
+        {
+          "file": "evidence/r4-image-ui/code-server-vscode-light.png",
+          "sha256": "74a39f06afec011e4a75ee82f49f88f6c446770859ea68f9d3b6fa0107773402",
+          "case": "native_theme_light"
+        }
+      ],
+      "cleanup": {
+        "result": "PASS",
+        "native": {
+          "result": "PASS",
+          "mutationPath": "native_gui_only",
+          "machinePreferencesOfficial": true,
+          "backendOfficial": true,
+          "running": true,
+          "reachable": true,
+          "configurationPending": false
+        },
+        "userSettings": {
+          "bytesRestored": true,
+          "modeRestored": true,
+          "sha256": "b611c7c2bcbb400486bf56c5039dfb4f068abdf207e8a81ebc6ec690993b2d0b",
+          "mode": 384
+        },
+        "skills": {
+          "result": "PASS",
+          "files": {
+            "byteHashesAndModesRestored": true,
+            "contentSha256": "677527ceac0b2a51d1c226178b975666f7c15ad2e07fc209d82549704897740c",
+            "unmanagedSentinelsPreserved": true,
+            "rootAliasesPreserved": true,
+            "sdkPidGuard": {
+              "revision": "0.17.5-r4-2b20ef5fac0a",
+              "extensionVersion": "0.2.0",
+              "runtimeReady": true,
+              "runtimeDirectory": "/opt/woow-connectors/paseo/runtime/releases/0.17.5-r4-2b20ef5fac0a",
+              "normalRuntimeDirectory": true,
+              "optKitUnmounted": true,
+              "executionUid": 1000,
+              "sdkArtifactUid": 0,
+              "sdkPackages": {
+                "cli": "0.17.5",
+                "client": "0.17.5",
+                "server": "0.17.5",
+                "protocol": "0.17.5"
+              },
+              "installedLockSha256": "2b20ef5fac0a45dfd756d8470222a0d3c8ee9012c7cb318d65c8bba90c469f42",
+              "pidRevision": "0.17.5-r4-2b20ef5fac0a",
+              "pidHomeMatches": true,
+              "pidUid": 1000,
+              "workerRevision": "0.17.5-r4-2b20ef5fac0a",
+              "workerHomeMatches": true,
+              "workerUid": 1000,
+              "pidLockMatchesStatus": true,
+              "deployment": {
+                "release": "agent-connect-r4-fresh",
+                "pod": "agent-connect-r4-fresh-code-server-7f5786786f-2mwqg",
+                "imageReference": "ghcr.io/woowtech/woow-code-server-amd64:main-e087b31@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+                "imageID": "ghcr.io/woowtech/woow-code-server-amd64@sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6",
+                "optKitUnmounted": true,
+                "builtImageAcceptance": true,
+                "expectedRuntimeRevision": "0.17.5-r4-2b20ef5fac0a"
+              }
+            }
+          },
+          "officialReachable": true,
+          "selectionSemanticsRestored": true,
+          "originalManagedFilesRestored": true,
+          "ownBackupRemoved": true
+        },
+        "independentFinalReadOnlyCheck": {
+          "backend": {
+            "selectedTarget": "paseo",
+            "activeTarget": "paseo",
+            "configurationPending": false,
+            "running": true,
+            "reachable": true,
+            "owned": true,
+            "version": "0.17.5"
+          },
+          "machinePreferences": {
+            "Machine": {
+              "values": {
+                "woow.paseo.target": "paseo",
+                "woow.paseo.webUrl": "https://app.paseo.sh/",
+                "woow.paseo.workspace": "/workspace",
+                "woow.paseo.hostName": "code-server"
+              },
+              "noPrivateOffer": true
+            },
+            "User": {
+              "values": {},
+              "noPrivateOffer": true
+            }
+          },
+          "baselineSkillsStatusRestored": true,
+          "rootAliasIdentityMatchesBaseline": true,
+          "userSettingsSha256": "b611c7c2bcbb400486bf56c5039dfb4f068abdf207e8a81ebc6ec690993b2d0b",
+          "userSettingsMode": 384,
+          "sdkRootMode": 493,
+          "sdkRootUid": 0,
+          "ownBackupAbsent": true,
+          "ownSentinelsAbsent": true,
+          "fixedAliasPreserved": true
+        }
+      },
+      "offlineChecks": {
+        "skillsSelfTests": "9/9 PASS",
+        "fixedFixtureProfileChecks": "6/6 PASS",
+        "pythonAstAndNodeSyntax": "PASS"
+      },
+      "r3ReceiptsPreserved": true,
+      "productRepoModifiedByThisTask": false
+    },
+    "commonSourceParity": {
+      "schema": "agent-connect-consumer-source-audit-v1",
+      "checkedAt": "2026-11-27T01:47:41.515716+00:00",
+      "canonicalHead": "e087b314c89bfec8c1331e7c728885c7751ee440",
+      "consumers": [
+        {
+          "repository": "ha-addon",
+          "head": "314a7126a588ffb3f7f859aa038df4f7a5cb9303",
+          "context": "",
+          "sourceRevision": "e087b314c89bfec8c1331e7c728885c7751ee440",
+          "matchedFiles": 159,
+          "receiptSha256": "422daeff80a1d346737282394261fed34f1a7ff45988b2809bc618ab55bf713f",
+          "differences": [],
+          "comparison": "committed_git_blobs"
+        },
+        {
+          "repository": "k3s",
+          "head": "356eed995f6b628cd689e329a9d70ce48d247fd6",
+          "context": "image",
+          "sourceRevision": "e087b314c89bfec8c1331e7c728885c7751ee440",
+          "matchedFiles": 159,
+          "receiptSha256": "422daeff80a1d346737282394261fed34f1a7ff45988b2809bc618ab55bf713f",
+          "differences": [],
+          "comparison": "committed_git_blobs"
+        },
+        {
+          "repository": "paas-image",
+          "head": "2172dd9e70e97ab7f081da9ad8ed2595b4218a4f",
+          "context": "code-server",
+          "sourceRevision": "e087b314c89bfec8c1331e7c728885c7751ee440",
+          "matchedFiles": 159,
+          "receiptSha256": "422daeff80a1d346737282394261fed34f1a7ff45988b2809bc618ab55bf713f",
+          "differences": [],
+          "comparison": "committed_git_blobs"
+        }
+      ],
+      "result": "PASS"
+    },
+    "k3sPaasBuildContextEquivalence": {
+      "schema": "k3s-paas-build-context-comparison-v1",
+      "basis": "committed_git_blobs_all_tracked_context_files",
+      "k3sSource": "356eed995f6b628cd689e329a9d70ce48d247fd6",
+      "paasSource": "2172dd9e70e97ab7f081da9ad8ed2595b4218a4f",
+      "k3sFiles": 631,
+      "paasFiles": 631,
+      "exactMatchFiles": 631,
+      "differences": [],
+      "dockerfileIdentical": true,
+      "dockerignoreIdentical": true,
+      "separateK3sImageBuilt": false,
+      "separateK3sArtifactPublished": false,
+      "result": "EXACT_SOURCE_EQUIVALENCE",
+      "gitModesAndBlobsCompared": true,
+      "modeOrBlobDifferences": [],
+      "allTrackedModesAndContentsEqual": true
+    },
+    "ha": {
+      "amd64": {
+        "repository": "ghcr.io/woowtech/woow-ha-code-server-amd64",
+        "tag": "qa-314a7126a588ffb3f7f859aa038df4f7a5cb9303-45924502578-1",
+        "digest": "sha256:4d531926a6ba35305431cfd267fac66f25edefc3a0451fdcd02ca8b980756a16",
+        "reference": "ghcr.io/woowtech/woow-ha-code-server-amd64:qa-314a7126a588ffb3f7f859aa038df4f7a5cb9303-45924502578-1@sha256:4d531926a6ba35305431cfd267fac66f25edefc3a0451fdcd02ca8b980756a16",
+        "sourceCommit": "314a7126a588ffb3f7f859aa038df4f7a5cb9303",
+        "verifiedBuildVersion": "314a7126a588ffb3f7f859aa038df4f7a5cb9303",
+        "verifiedAddonVersion": "0.1.17",
+        "configDigest": "sha256:750350f5cde1564015ff7558164dd956cd164930872e48d64179c1db97808480",
+        "runtimeRevision": "0.17.5-r4-2b20ef5fac0a",
+        "runtimeRevisionBasis": "reviewed source and image build; amd64 runtimeReady checked by launcher",
+        "architecture": "amd64",
+        "hassArchitecture": "amd64",
+        "os": "linux",
+        "publicPullVerified": true,
+        "entrypoint": [
+          "/init"
+        ],
+        "defaultUser": "",
+        "buildRun": "https://github.com/WOOWTECH/Woow_ha_code_server_add_on/actions/runs/45924502578",
+        "buildJob": "https://github.com/WOOWTECH/Woow_ha_code_server_add_on/actions/runs/45924502578/job/140262679562",
+        "candidateOnlyBuildCommandVerified": true
+      },
+      "arm64": {
+        "repository": "ghcr.io/woowtech/woow-ha-code-server-aarch64",
+        "tag": "qa-314a7126a588ffb3f7f859aa038df4f7a5cb9303-45924502578-1",
+        "digest": "sha256:2ece3ec3fecaebbea2de07383437afa03b0f6fef06dc5a924dd5e2e01776636b",
+        "reference": "ghcr.io/woowtech/woow-ha-code-server-aarch64:qa-314a7126a588ffb3f7f859aa038df4f7a5cb9303-45924502578-1@sha256:2ece3ec3fecaebbea2de07383437afa03b0f6fef06dc5a924dd5e2e01776636b",
+        "sourceCommit": "314a7126a588ffb3f7f859aa038df4f7a5cb9303",
+        "verifiedBuildVersion": "314a7126a588ffb3f7f859aa038df4f7a5cb9303",
+        "verifiedAddonVersion": "0.1.17",
+        "configDigest": "sha256:c85741ba5e7ceb8c4d6218c0d8b999ab30395080301ada8ee60438eb3e3bb25e",
+        "runtimeRevision": "0.17.5-r4-2b20ef5fac0a",
+        "runtimeRevisionBasis": "reviewed source and image build; amd64 runtimeReady checked by launcher",
+        "architecture": "arm64",
+        "hassArchitecture": "aarch64",
+        "os": "linux",
+        "publicPullVerified": true,
+        "entrypoint": [
+          "/init"
+        ],
+        "defaultUser": "",
+        "buildRun": "https://github.com/WOOWTECH/Woow_ha_code_server_add_on/actions/runs/45924502578",
+        "buildJob": "https://github.com/WOOWTECH/Woow_ha_code_server_add_on/actions/runs/45924502578/job/140262679545",
+        "candidateOnlyBuildCommandVerified": true,
+        "runtimeAcceptance": "NOT_EXECUTED_NO_ARM64_HOST"
+      },
+      "initialInstall": {
+        "fixture": "agent-connect-ha-r4-qa",
+        "namespace": "code-server-agent-connect-qa-1126",
+        "sourceCommit": "314a7126a588ffb3f7f859aa038df4f7a5cb9303",
+        "runtimeRevision": "0.17.5-r4-2b20ef5fac0a",
+        "image": "ghcr.io/woowtech/woow-ha-code-server-amd64:qa-314a7126a588ffb3f7f859aa038df4f7a5cb9303-45924502578-1@sha256:4d531926a6ba35305431cfd267fac66f25edefc3a0451fdcd02ca8b980756a16",
+        "imageID": "ghcr.io/woowtech/woow-ha-code-server-amd64@sha256:4d531926a6ba35305431cfd267fac66f25edefc3a0451fdcd02ca8b980756a16",
+        "podUid": "b322e37b-38c0-4d3e-9345-4bddaf9282b6",
+        "replicas": 1,
+        "readyReplicas": 1,
+        "nodeName": "ubuntuserver-59mqj",
+        "rootInitReady": true,
+        "mockSupervisor": true,
+        "realHaSupervisorTested": false,
+        "realHaHardwareTested": false,
+        "providerCredentialsCopied": false,
+        "modelCalls": 0,
+        "separateFreshVolumes": true,
+        "runtimeProbe": {
+          "uid": 0,
+          "home": "/root",
+          "revision": "0.17.5-r4-2b20ef5fac0a",
+          "ready": true,
+          "runtimeOwnerUid": 0,
+          "runtimeDir": "/opt/woow-connectors/paseo/runtime",
+          "dataDir": "/data/pi-agent",
+          "stateDir": "/data/pi-agent/connectors/paseo",
+          "extensions": [
+            "woowtech.omnigent@0.2.0",
+            "woowtech.paseo@0.2.0"
+          ],
+          "settingsReady": true,
+          "credentialsAbsent": true,
+          "workspaceReady": true
+        },
+        "threeClientsExecuted": false,
+        "result": "READY_FOR_CORE47"
+      },
+      "core47Execution": {
+        "attempt": 1,
+        "processExitCode": 0,
+        "timedOut": false,
+        "elapsedSeconds": 355.4,
+        "result": "PASS",
+        "caseCount": 47,
+        "modelCalls": 0,
+        "fixture": "agent-connect-ha-r4-qa",
+        "report": {
+          "runtime": "0.17.5-r4-2b20ef5fac0a",
+          "method": "built-image",
+          "imageAcceptance": true,
+          "image": "ghcr.io/woowtech/woow-ha-code-server-amd64:qa-314a7126a588ffb3f7f859aa038df4f7a5cb9303-45924502578-1@sha256:4d531926a6ba35305431cfd267fac66f25edefc3a0451fdcd02ca8b980756a16",
+          "imageID": "ghcr.io/woowtech/woow-ha-code-server-amd64@sha256:4d531926a6ba35305431cfd267fac66f25edefc3a0451fdcd02ca8b980756a16",
+          "modelCalls": 0,
+          "clients": [
+            {
+              "target": "paseo",
+              "origin": "https://app.paseo.sh",
+              "cases": [
+                {
+                  "id": "profile_lifecycle_and_disabled_restore",
+                  "result": "PASS"
+                },
+                {
+                  "id": "exact_origin_v2_relay_tls_and_security",
+                  "result": "PASS"
+                },
+                {
+                  "id": "fresh_explicit_browser_pair",
+                  "result": "PASS"
+                },
+                {
+                  "id": "authenticated_workspace_and_text_read",
+                  "result": "PASS"
+                },
+                {
+                  "id": "actual_browser_download_proof.txt",
+                  "result": "PASS",
+                  "sha256": "85f2c2280a7b541ddf835eb0757b3d1d021e8f5ed363628b79eb47429405912d"
+                },
+                {
+                  "id": "actual_browser_download_fixture.zip",
+                  "result": "PASS",
+                  "sha256": "3a7b87dc42765dff762f4f6ed9230e37c3d74fded4867c879b4baf05a3ead398"
+                },
+                {
+                  "id": "actual_browser_download_binary.bin",
+                  "result": "PASS",
+                  "sha256": "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880"
+                },
+                {
+                  "id": "paired_context_reload_without_new_offer",
+                  "result": "PASS"
+                },
+                {
+                  "id": "file_created_edited_saved_to_real_workspace",
+                  "result": "PASS"
+                },
+                {
+                  "id": "real_pty_output_without_matching_command_echo",
+                  "result": "PASS"
+                },
+                {
+                  "id": "terminal_and_buffer_retained_after_browser_reload",
+                  "result": "PASS"
+                },
+                {
+                  "id": "owned_terminal_exit_and_cleanup",
+                  "result": "PASS"
+                },
+                {
+                  "id": "same_browser_trust_after_daemon_restart_reads_fresh_server_bytes",
+                  "result": "PASS"
+                },
+                {
+                  "id": "owned_file_ui_delete_confirmed_on_server",
+                  "result": "PASS"
+                },
+                {
+                  "id": "fresh_unpaired_context_cannot_read_fixture",
+                  "result": "PASS"
+                }
+              ],
+              "freshBrowserContext": true,
+              "modelAcceptance": "BLOCKED_ACCOUNT_NOT_SELECTED",
+              "stage": "unpaired_isolation",
+              "runtimeIdentity": {
+                "managed": "0.17.5-r4-2b20ef5fac0a",
+                "recorded": "0.17.5-r4-2b20ef5fac0a",
+                "actual": "0.17.5-r4-2b20ef5fac0a",
+                "ready": true,
+                "runtimeDir": "/opt/woow-connectors/paseo/runtime"
+              },
+              "visibleVersions": [
+                "v0.17.5"
+              ],
+              "serverIdentitySha256": "91c2b9e5573d6367093d0bbbf1f848aba9a6dd4223938365bafae0cd0359c0f4",
+              "result": "PASS_FOR_EXECUTED_CASES",
+              "pageErrors": []
+            },
+            {
+              "target": "woowtech",
+              "origin": "https://smart.woowtech.io",
+              "cases": [
+                {
+                  "id": "pending_target_refuses_private_offer",
+                  "result": "PASS"
+                },
+                {
+                  "id": "profile_lifecycle_and_disabled_restore",
+                  "result": "PASS"
+                },
+                {
+                  "id": "exact_origin_v2_relay_tls_and_security",
+                  "result": "PASS"
+                },
+                {
+                  "id": "fresh_explicit_browser_pair",
+                  "result": "PASS"
+                },
+                {
+                  "id": "authenticated_workspace_and_text_read",
+                  "result": "PASS"
+                },
+                {
+                  "id": "actual_browser_download_proof.txt",
+                  "result": "PASS",
+                  "sha256": "85f2c2280a7b541ddf835eb0757b3d1d021e8f5ed363628b79eb47429405912d"
+                },
+                {
+                  "id": "actual_browser_download_fixture.zip",
+                  "result": "PASS",
+                  "sha256": "3a7b87dc42765dff762f4f6ed9230e37c3d74fded4867c879b4baf05a3ead398"
+                },
+                {
+                  "id": "actual_browser_download_binary.bin",
+                  "result": "PASS",
+                  "sha256": "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880"
+                },
+                {
+                  "id": "paired_context_reload_without_new_offer",
+                  "result": "PASS"
+                },
+                {
+                  "id": "file_created_edited_saved_to_real_workspace",
+                  "result": "PASS"
+                },
+                {
+                  "id": "real_pty_output_without_matching_command_echo",
+                  "result": "PASS"
+                },
+                {
+                  "id": "terminal_and_buffer_retained_after_browser_reload",
+                  "result": "PASS"
+                },
+                {
+                  "id": "owned_terminal_exit_and_cleanup",
+                  "result": "PASS"
+                },
+                {
+                  "id": "same_browser_trust_after_daemon_restart_reads_fresh_server_bytes",
+                  "result": "PASS"
+                },
+                {
+                  "id": "owned_file_ui_delete_confirmed_on_server",
+                  "result": "PASS"
+                },
+                {
+                  "id": "fresh_unpaired_context_cannot_read_fixture",
+                  "result": "PASS"
+                }
+              ],
+              "freshBrowserContext": true,
+              "modelAcceptance": "BLOCKED_ACCOUNT_NOT_SELECTED",
+              "stage": "unpaired_isolation",
+              "runtimeIdentity": {
+                "managed": "0.17.5-r4-2b20ef5fac0a",
+                "recorded": "0.17.5-r4-2b20ef5fac0a",
+                "actual": "0.17.5-r4-2b20ef5fac0a",
+                "ready": true,
+                "runtimeDir": "/opt/woow-connectors/paseo/runtime"
+              },
+              "visibleVersions": [
+                "v0.17.4"
+              ],
+              "serverIdentitySha256": "91c2b9e5573d6367093d0bbbf1f848aba9a6dd4223938365bafae0cd0359c0f4",
+              "result": "PASS_FOR_EXECUTED_CASES",
+              "pageErrors": []
+            },
+            {
+              "target": "apporo",
+              "origin": "https://smart.apporo.ai",
+              "cases": [
+                {
+                  "id": "pending_target_refuses_private_offer",
+                  "result": "PASS"
+                },
+                {
+                  "id": "profile_lifecycle_and_disabled_restore",
+                  "result": "PASS"
+                },
+                {
+                  "id": "exact_origin_v2_relay_tls_and_security",
+                  "result": "PASS"
+                },
+                {
+                  "id": "fresh_explicit_browser_pair",
+                  "result": "PASS"
+                },
+                {
+                  "id": "authenticated_workspace_and_text_read",
+                  "result": "PASS"
+                },
+                {
+                  "id": "actual_browser_download_proof.txt",
+                  "result": "PASS",
+                  "sha256": "85f2c2280a7b541ddf835eb0757b3d1d021e8f5ed363628b79eb47429405912d"
+                },
+                {
+                  "id": "actual_browser_download_fixture.zip",
+                  "result": "PASS",
+                  "sha256": "3a7b87dc42765dff762f4f6ed9230e37c3d74fded4867c879b4baf05a3ead398"
+                },
+                {
+                  "id": "actual_browser_download_binary.bin",
+                  "result": "PASS",
+                  "sha256": "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880"
+                },
+                {
+                  "id": "paired_context_reload_without_new_offer",
+                  "result": "PASS"
+                },
+                {
+                  "id": "file_created_edited_saved_to_real_workspace",
+                  "result": "PASS"
+                },
+                {
+                  "id": "real_pty_output_without_matching_command_echo",
+                  "result": "PASS"
+                },
+                {
+                  "id": "terminal_and_buffer_retained_after_browser_reload",
+                  "result": "PASS"
+                },
+                {
+                  "id": "owned_terminal_exit_and_cleanup",
+                  "result": "PASS"
+                },
+                {
+                  "id": "same_browser_trust_after_daemon_restart_reads_fresh_server_bytes",
+                  "result": "PASS"
+                },
+                {
+                  "id": "owned_file_ui_delete_confirmed_on_server",
+                  "result": "PASS"
+                },
+                {
+                  "id": "fresh_unpaired_context_cannot_read_fixture",
+                  "result": "PASS"
+                }
+              ],
+              "freshBrowserContext": true,
+              "modelAcceptance": "BLOCKED_ACCOUNT_NOT_SELECTED",
+              "stage": "unpaired_isolation",
+              "runtimeIdentity": {
+                "managed": "0.17.5-r4-2b20ef5fac0a",
+                "recorded": "0.17.5-r4-2b20ef5fac0a",
+                "actual": "0.17.5-r4-2b20ef5fac0a",
+                "ready": true,
+                "runtimeDir": "/opt/woow-connectors/paseo/runtime"
+              },
+              "visibleVersions": [
+                "v0.17.4"
+              ],
+              "serverIdentitySha256": "91c2b9e5573d6367093d0bbbf1f848aba9a6dd4223938365bafae0cd0359c0f4",
+              "result": "PASS_FOR_EXECUTED_CASES",
+              "pageErrors": []
+            }
+          ]
+        }
+      },
+      "finalAcceptance": {
+        "result": "PASS",
+        "sourceCommit": "314a7126a588ffb3f7f859aa038df4f7a5cb9303",
+        "candidateRun": "https://github.com/WOOWTECH/Woow_ha_code_server_add_on/actions/runs/45924502578",
+        "bundleSha256": "e8323cc9cb23b35d255f23dd9b685836ec2c370705f0f59190495065e8f6879b",
+        "fixture": "agent-connect-ha-r4-qa",
+        "namespace": "code-server-agent-connect-qa-1126",
+        "nodeName": "ubuntuserver-59mqj",
+        "podUid": "b322e37b-38c0-4d3e-9345-4bddaf9282b6",
+        "deploymentUid": "1eeeb520-94fd-4a84-aac1-1dcc7b82a4c5",
+        "replicas": 1,
+        "readyReplicas": 1,
+        "image": "ghcr.io/woowtech/woow-ha-code-server-amd64:qa-314a7126a588ffb3f7f859aa038df4f7a5cb9303-45924502578-1@sha256:4d531926a6ba35305431cfd267fac66f25edefc3a0451fdcd02ca8b980756a16",
+        "imageID": "ghcr.io/woowtech/woow-ha-code-server-amd64@sha256:4d531926a6ba35305431cfd267fac66f25edefc3a0451fdcd02ca8b980756a16",
+        "imageEntrypoint": [
+          "/init"
+        ],
+        "pid1": {
+          "pid1Comm": "s6-svscan",
+          "pid1Uid": 0
+        },
+        "codeServerRestartCount": 0,
+        "mockSupervisorRunning": true,
+        "mockSupervisorRestartCount": 0,
+        "fixtureInitExitCode": 0,
+        "runtimeRevision": "0.17.5-r4-2b20ef5fac0a",
+        "runtimeReady": true,
+        "rootUid": 0,
+        "runtimeOwnerUid": 0,
+        "providerCredentialsAbsent": true,
+        "core47": {
+          "processExitCode": 0,
+          "caseCount": 47,
+          "profiles": [
+            {
+              "target": "paseo",
+              "cases": 15,
+              "result": "PASS"
+            },
+            {
+              "target": "woowtech",
+              "cases": 16,
+              "result": "PASS"
+            },
+            {
+              "target": "apporo",
+              "cases": 16,
+              "result": "PASS"
+            }
+          ],
+          "attempts": 1,
+          "failures": 0,
+          "history": "evidence/ha-r4-core47-history/attempt-01.json"
+        },
+        "finalStatus": {
+          "selectedTarget": "paseo",
+          "activeTarget": "paseo",
+          "phase": "running",
+          "running": true,
+          "reachable": true,
+          "enabled": true,
+          "configurationPending": false,
+          "providerReloadPending": false
+        },
+        "modelCalls": 0,
+        "accountLogins": 0,
+        "realHaSupervisorTested": false,
+        "realHaCoreTested": false,
+        "realHaHardwareTested": false,
+        "boundary": "Actual HA candidate image running as root through /init with mock Supervisor; Paseo/Smart core47 only. Real HA Supervisor/HA OS/hardware/accounts require a separately designated installation.",
+        "canonical159HashesUnchanged": true,
+        "canonicalSourceRevision": "e087b314c89bfec8c1331e7c728885c7751ee440",
+        "onlyWorkflowCommitted": [
+          ".github/workflows/build.yml"
+        ],
+        "otherFixtureOperations": 0,
+        "stableOrLatestTagsPublished": false,
+        "releaseJob": "skipped",
+        "verificationHistory": "evidence/ha-r4-final-verification-history.json",
+        "architectures": [
+          {
+            "hassArchitecture": "amd64",
+            "nativeArchitecture": "amd64",
+            "digest": "sha256:4d531926a6ba35305431cfd267fac66f25edefc3a0451fdcd02ca8b980756a16",
+            "configDigest": "sha256:750350f5cde1564015ff7558164dd956cd164930872e48d64179c1db97808480",
+            "fullSourceRevisionVerified": "314a7126a588ffb3f7f859aa038df4f7a5cb9303",
+            "candidateOnlyBuildCommandVerified": true
+          },
+          {
+            "hassArchitecture": "aarch64",
+            "nativeArchitecture": "arm64",
+            "digest": "sha256:2ece3ec3fecaebbea2de07383437afa03b0f6fef06dc5a924dd5e2e01776636b",
+            "configDigest": "sha256:c85741ba5e7ceb8c4d6218c0d8b999ab30395080301ada8ee60438eb3e3bb25e",
+            "fullSourceRevisionVerified": "314a7126a588ffb3f7f859aa038df4f7a5cb9303",
+            "candidateOnlyBuildCommandVerified": true
+          }
+        ]
+      },
+      "verificationHistory": [
+        {
+          "attempt": 1,
+          "exitCode": 1,
+          "errorType": "KeyError",
+          "field": "state",
+          "cause": "Verification script assumed CLI public status exposed internal state; use readState read-only for providerReloadPending.",
+          "core47ProcessExitCode": 0,
+          "core47CaseCount": 47,
+          "productFailure": false
+        },
+        {
+          "attempt": 2,
+          "exitCode": 0,
+          "result": "PASS",
+          "providerReloadPendingReadVia": "readState",
+          "core47ProcessExitCode": 0,
+          "core47CaseCount": 47
+        }
+      ]
+    },
+    "paas": {
+      "initialInstall": {
+        "evidenceClass": "PAAS_R4_FRESH_ONLY",
+        "release": "agent-connect-paas-r4-fresh",
+        "node": "ubuntuserver-31zix",
+        "image": "jcr-prod.woowtech.io/woow-paas-docker-local/code-server:20261127.0043-pending-approval@sha256:7478df255155c5fed18371531b9eaac0b907c5f58dd66689ba6950f812481146",
+        "sourceCommit": "2172dd9e70e97ab7f081da9ad8ed2595b4218a4f",
+        "runtime": {
+          "ready": true,
+          "revision": "0.17.5-r4-2b20ef5fac0a",
+          "ownerUid": 0,
+          "providerEnvironmentEmpty": true,
+          "providerAuthFilesAbsent": {
+            "claude": true,
+            "codex": true,
+            "pi": true
+          }
+        },
+        "imageAndPiSeedDigestMatch": true,
+        "podIdentitySha256": "0d1d0a7281a20d02808acd5bb7b43371a4f430019c210dff442c0c34b6d17d99",
+        "separateFreshVolumes": true,
+        "sourceOverlay": false,
+        "providerCredentialsCopied": false,
+        "initialPhase": "not_configured",
+        "initiallyDisabled": true,
+        "fixtureSha256": {
+          "binary.bin": "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880",
+          "proof.txt": "61e6f3158ce78ca230157d752688002164a501531043aba57bb9c2c16647ed3b",
+          "fixture.zip": "24f01b48fbffa601782e68420cf4269c2aa198049e9e531fc85111baffdcf2f8",
+          "README.md": "ff9513d634978ad59ea4f1517ec73cd8a4778fa45048953d89602c8aa7398672"
+        },
+        "bundledExtensionsInstalledNormally": [
+          "woowtech.paseo@0.2.0",
+          "woowtech.omnigent@0.2.0"
+        ],
+        "existingFixturesUnchanged": true,
+        "modelCalls": 0,
+        "core47": "NOT_RUN",
+        "preservingUpgrade": "NOT_TESTED",
+        "skills36": "NOT_TESTED",
+        "nativeHaActualAcceptance": "NOT_TESTED",
+        "arm64ActualAcceptance": "NOT_TESTED",
+        "result": "SEED_VERIFIED"
+      },
+      "threeClients": {
+        "runtime": "0.17.5-r4-2b20ef5fac0a",
+        "method": "built-image",
+        "imageAcceptance": true,
+        "image": "jcr-prod.woowtech.io/woow-paas-docker-local/code-server:20261127.0043-pending-approval@sha256:7478df255155c5fed18371531b9eaac0b907c5f58dd66689ba6950f812481146",
+        "imageID": "jcr-prod.woowtech.io/woow-paas-docker-local/code-server@sha256:7478df255155c5fed18371531b9eaac0b907c5f58dd66689ba6950f812481146",
+        "modelCalls": 0,
+        "clients": [
+          {
+            "target": "paseo",
+            "origin": "https://app.paseo.sh",
+            "cases": [
+              {
+                "id": "profile_lifecycle_and_disabled_restore",
+                "result": "PASS"
+              },
+              {
+                "id": "exact_origin_v2_relay_tls_and_security",
+                "result": "PASS"
+              },
+              {
+                "id": "fresh_explicit_browser_pair",
+                "result": "PASS"
+              },
+              {
+                "id": "authenticated_workspace_and_text_read",
+                "result": "PASS"
+              },
+              {
+                "id": "actual_browser_download_proof.txt",
+                "result": "PASS",
+                "sha256": "61e6f3158ce78ca230157d752688002164a501531043aba57bb9c2c16647ed3b"
+              },
+              {
+                "id": "actual_browser_download_fixture.zip",
+                "result": "PASS",
+                "sha256": "24f01b48fbffa601782e68420cf4269c2aa198049e9e531fc85111baffdcf2f8"
+              },
+              {
+                "id": "actual_browser_download_binary.bin",
+                "result": "PASS",
+                "sha256": "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880"
+              },
+              {
+                "id": "paired_context_reload_without_new_offer",
+                "result": "PASS"
+              },
+              {
+                "id": "file_created_edited_saved_to_real_workspace",
+                "result": "PASS"
+              },
+              {
+                "id": "real_pty_output_without_matching_command_echo",
+                "result": "PASS"
+              },
+              {
+                "id": "terminal_and_buffer_retained_after_browser_reload",
+                "result": "PASS"
+              },
+              {
+                "id": "owned_terminal_exit_and_cleanup",
+                "result": "PASS"
+              },
+              {
+                "id": "same_browser_trust_after_daemon_restart_reads_fresh_server_bytes",
+                "result": "PASS"
+              },
+              {
+                "id": "owned_file_ui_delete_confirmed_on_server",
+                "result": "PASS"
+              },
+              {
+                "id": "fresh_unpaired_context_cannot_read_fixture",
+                "result": "PASS"
+              }
+            ],
+            "freshBrowserContext": true,
+            "modelAcceptance": "BLOCKED_ACCOUNT_NOT_SELECTED",
+            "stage": "unpaired_isolation",
+            "runtimeIdentity": {
+              "managed": "0.17.5-r4-2b20ef5fac0a",
+              "recorded": "0.17.5-r4-2b20ef5fac0a",
+              "actual": "0.17.5-r4-2b20ef5fac0a",
+              "ready": true,
+              "runtimeDir": "/opt/woow-connectors/paseo/runtime"
+            },
+            "visibleVersions": [
+              "v0.17.5"
+            ],
+            "serverIdentitySha256": "936656cecffffce408b1b5c70624380b07941a7d09dbebabb32cd868f343460c",
+            "result": "PASS_FOR_EXECUTED_CASES",
+            "pageErrors": []
+          },
+          {
+            "target": "woowtech",
+            "origin": "https://smart.woowtech.io",
+            "cases": [
+              {
+                "id": "pending_target_refuses_private_offer",
+                "result": "PASS"
+              },
+              {
+                "id": "profile_lifecycle_and_disabled_restore",
+                "result": "PASS"
+              },
+              {
+                "id": "exact_origin_v2_relay_tls_and_security",
+                "result": "PASS"
+              },
+              {
+                "id": "fresh_explicit_browser_pair",
+                "result": "PASS"
+              },
+              {
+                "id": "authenticated_workspace_and_text_read",
+                "result": "PASS"
+              },
+              {
+                "id": "actual_browser_download_proof.txt",
+                "result": "PASS",
+                "sha256": "61e6f3158ce78ca230157d752688002164a501531043aba57bb9c2c16647ed3b"
+              },
+              {
+                "id": "actual_browser_download_fixture.zip",
+                "result": "PASS",
+                "sha256": "24f01b48fbffa601782e68420cf4269c2aa198049e9e531fc85111baffdcf2f8"
+              },
+              {
+                "id": "actual_browser_download_binary.bin",
+                "result": "PASS",
+                "sha256": "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880"
+              },
+              {
+                "id": "paired_context_reload_without_new_offer",
+                "result": "PASS"
+              },
+              {
+                "id": "file_created_edited_saved_to_real_workspace",
+                "result": "PASS"
+              },
+              {
+                "id": "real_pty_output_without_matching_command_echo",
+                "result": "PASS"
+              },
+              {
+                "id": "terminal_and_buffer_retained_after_browser_reload",
+                "result": "PASS"
+              },
+              {
+                "id": "owned_terminal_exit_and_cleanup",
+                "result": "PASS"
+              },
+              {
+                "id": "same_browser_trust_after_daemon_restart_reads_fresh_server_bytes",
+                "result": "PASS"
+              },
+              {
+                "id": "owned_file_ui_delete_confirmed_on_server",
+                "result": "PASS"
+              },
+              {
+                "id": "fresh_unpaired_context_cannot_read_fixture",
+                "result": "PASS"
+              }
+            ],
+            "freshBrowserContext": true,
+            "modelAcceptance": "BLOCKED_ACCOUNT_NOT_SELECTED",
+            "stage": "unpaired_isolation",
+            "runtimeIdentity": {
+              "managed": "0.17.5-r4-2b20ef5fac0a",
+              "recorded": "0.17.5-r4-2b20ef5fac0a",
+              "actual": "0.17.5-r4-2b20ef5fac0a",
+              "ready": true,
+              "runtimeDir": "/opt/woow-connectors/paseo/runtime"
+            },
+            "visibleVersions": [
+              "v0.17.4"
+            ],
+            "serverIdentitySha256": "936656cecffffce408b1b5c70624380b07941a7d09dbebabb32cd868f343460c",
+            "result": "PASS_FOR_EXECUTED_CASES",
+            "pageErrors": []
+          },
+          {
+            "target": "apporo",
+            "origin": "https://smart.apporo.ai",
+            "cases": [
+              {
+                "id": "pending_target_refuses_private_offer",
+                "result": "PASS"
+              },
+              {
+                "id": "profile_lifecycle_and_disabled_restore",
+                "result": "PASS"
+              },
+              {
+                "id": "exact_origin_v2_relay_tls_and_security",
+                "result": "PASS"
+              },
+              {
+                "id": "fresh_explicit_browser_pair",
+                "result": "PASS"
+              },
+              {
+                "id": "authenticated_workspace_and_text_read",
+                "result": "PASS"
+              },
+              {
+                "id": "actual_browser_download_proof.txt",
+                "result": "PASS",
+                "sha256": "61e6f3158ce78ca230157d752688002164a501531043aba57bb9c2c16647ed3b"
+              },
+              {
+                "id": "actual_browser_download_fixture.zip",
+                "result": "PASS",
+                "sha256": "24f01b48fbffa601782e68420cf4269c2aa198049e9e531fc85111baffdcf2f8"
+              },
+              {
+                "id": "actual_browser_download_binary.bin",
+                "result": "PASS",
+                "sha256": "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880"
+              },
+              {
+                "id": "paired_context_reload_without_new_offer",
+                "result": "PASS"
+              },
+              {
+                "id": "file_created_edited_saved_to_real_workspace",
+                "result": "PASS"
+              },
+              {
+                "id": "real_pty_output_without_matching_command_echo",
+                "result": "PASS"
+              },
+              {
+                "id": "terminal_and_buffer_retained_after_browser_reload",
+                "result": "PASS"
+              },
+              {
+                "id": "owned_terminal_exit_and_cleanup",
+                "result": "PASS"
+              },
+              {
+                "id": "same_browser_trust_after_daemon_restart_reads_fresh_server_bytes",
+                "result": "PASS"
+              },
+              {
+                "id": "owned_file_ui_delete_confirmed_on_server",
+                "result": "PASS"
+              },
+              {
+                "id": "fresh_unpaired_context_cannot_read_fixture",
+                "result": "PASS"
+              }
+            ],
+            "freshBrowserContext": true,
+            "modelAcceptance": "BLOCKED_ACCOUNT_NOT_SELECTED",
+            "stage": "unpaired_isolation",
+            "runtimeIdentity": {
+              "managed": "0.17.5-r4-2b20ef5fac0a",
+              "recorded": "0.17.5-r4-2b20ef5fac0a",
+              "actual": "0.17.5-r4-2b20ef5fac0a",
+              "ready": true,
+              "runtimeDir": "/opt/woow-connectors/paseo/runtime"
+            },
+            "visibleVersions": [
+              "v0.17.4"
+            ],
+            "serverIdentitySha256": "936656cecffffce408b1b5c70624380b07941a7d09dbebabb32cd868f343460c",
+            "result": "PASS_FOR_EXECUTED_CASES",
+            "pageErrors": []
+          }
+        ]
+      },
+      "finalVerification": {
+        "result": "PASS",
+        "evidenceClass": "PAAS_R4_FRESH_ONLY",
+        "fixture": "agent-connect-paas-r4-fresh",
+        "processExitCode": 0,
+        "runtime": {
+          "managed": "0.17.5-r4-2b20ef5fac0a",
+          "recorded": "0.17.5-r4-2b20ef5fac0a",
+          "actual": "0.17.5-r4-2b20ef5fac0a",
+          "ready": true,
+          "runtimeDir": "/opt/woow-connectors/paseo/runtime"
+        },
+        "deployment": {
+          "method": "built-image",
+          "imageAcceptance": true,
+          "image": "jcr-prod.woowtech.io/woow-paas-docker-local/code-server:20261127.0043-pending-approval@sha256:7478df255155c5fed18371531b9eaac0b907c5f58dd66689ba6950f812481146",
+          "imageID": "jcr-prod.woowtech.io/woow-paas-docker-local/code-server@sha256:7478df255155c5fed18371531b9eaac0b907c5f58dd66689ba6950f812481146"
+        },
+        "modelCalls": 0,
+        "providerLogins": 0,
+        "core47Count": 47,
+        "profiles": [
+          {
+            "target": "paseo",
+            "cases": 15,
+            "result": "PASS"
+          },
+          {
+            "target": "woowtech",
+            "cases": 16,
+            "result": "PASS"
+          },
+          {
+            "target": "apporo",
+            "cases": 16,
+            "result": "PASS"
+          }
+        ],
+        "finalStatus": {
+          "selectedTarget": "paseo",
+          "activeTarget": "paseo",
+          "phase": "running",
+          "enabled": true,
+          "running": true,
+          "reachable": true,
+          "configurationPending": false,
+          "providerReloadPending": false
+        },
+        "samePvcUpgradeTested": false,
+        "skills36OnThisFixtureTested": false,
+        "nativeEditorUiOnThisFixtureTested": false,
+        "nativeHaSupervisorTested": false,
+        "nativeArm64Tested": false,
+        "stableImagePromoted": false
+      },
+      "additionalImportRun": {
+        "runtime": "0.17.5-r4-2b20ef5fac0a",
+        "method": "built-image",
+        "imageAcceptance": true,
+        "image": "jcr-prod.woowtech.io/woow-paas-docker-local/code-server:20261127.0043-pending-approval@sha256:7478df255155c5fed18371531b9eaac0b907c5f58dd66689ba6950f812481146",
+        "imageID": "jcr-prod.woowtech.io/woow-paas-docker-local/code-server@sha256:7478df255155c5fed18371531b9eaac0b907c5f58dd66689ba6950f812481146",
+        "modelCalls": 0,
+        "clients": [
+          {
+            "target": "paseo",
+            "origin": "https://app.paseo.sh",
+            "cases": [
+              {
+                "id": "profile_lifecycle_and_disabled_restore",
+                "result": "PASS"
+              },
+              {
+                "id": "exact_origin_v2_relay_tls_and_security",
+                "result": "PASS"
+              },
+              {
+                "id": "fresh_explicit_browser_pair",
+                "result": "PASS"
+              },
+              {
+                "id": "authenticated_workspace_and_text_read",
+                "result": "PASS"
+              },
+              {
+                "id": "actual_browser_download_proof.txt",
+                "result": "PASS",
+                "sha256": "61e6f3158ce78ca230157d752688002164a501531043aba57bb9c2c16647ed3b"
+              },
+              {
+                "id": "actual_browser_download_fixture.zip",
+                "result": "PASS",
+                "sha256": "24f01b48fbffa601782e68420cf4269c2aa198049e9e531fc85111baffdcf2f8"
+              },
+              {
+                "id": "actual_browser_download_binary.bin",
+                "result": "PASS",
+                "sha256": "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880"
+              },
+              {
+                "id": "paired_context_reload_without_new_offer",
+                "result": "PASS"
+              },
+              {
+                "id": "file_created_edited_saved_to_real_workspace",
+                "result": "PASS"
+              },
+              {
+                "id": "real_pty_output_without_matching_command_echo",
+                "result": "PASS"
+              },
+              {
+                "id": "terminal_and_buffer_retained_after_browser_reload",
+                "result": "PASS"
+              },
+              {
+                "id": "owned_terminal_exit_and_cleanup",
+                "result": "PASS"
+              },
+              {
+                "id": "same_browser_trust_after_daemon_restart_reads_fresh_server_bytes",
+                "result": "PASS"
+              },
+              {
+                "id": "owned_file_ui_delete_confirmed_on_server",
+                "result": "PASS"
+              },
+              {
+                "id": "fresh_unpaired_context_cannot_read_fixture",
+                "result": "PASS"
+              }
+            ],
+            "freshBrowserContext": true,
+            "modelAcceptance": "BLOCKED_ACCOUNT_NOT_SELECTED",
+            "stage": "unpaired_isolation",
+            "runtimeIdentity": {
+              "managed": "0.17.5-r4-2b20ef5fac0a",
+              "recorded": "0.17.5-r4-2b20ef5fac0a",
+              "actual": "0.17.5-r4-2b20ef5fac0a",
+              "ready": true,
+              "runtimeDir": "/opt/woow-connectors/paseo/runtime"
+            },
+            "visibleVersions": [
+              "v0.17.5"
+            ],
+            "serverIdentitySha256": "936656cecffffce408b1b5c70624380b07941a7d09dbebabb32cd868f343460c",
+            "result": "PASS_FOR_EXECUTED_CASES",
+            "pageErrors": []
+          },
+          {
+            "target": "woowtech",
+            "origin": "https://smart.woowtech.io",
+            "cases": [
+              {
+                "id": "pending_target_refuses_private_offer",
+                "result": "PASS"
+              },
+              {
+                "id": "profile_lifecycle_and_disabled_restore",
+                "result": "PASS"
+              },
+              {
+                "id": "exact_origin_v2_relay_tls_and_security",
+                "result": "PASS"
+              },
+              {
+                "id": "fresh_explicit_browser_pair",
+                "result": "PASS"
+              },
+              {
+                "id": "authenticated_workspace_and_text_read",
+                "result": "PASS"
+              },
+              {
+                "id": "actual_browser_download_proof.txt",
+                "result": "PASS",
+                "sha256": "61e6f3158ce78ca230157d752688002164a501531043aba57bb9c2c16647ed3b"
+              },
+              {
+                "id": "actual_browser_download_fixture.zip",
+                "result": "PASS",
+                "sha256": "24f01b48fbffa601782e68420cf4269c2aa198049e9e531fc85111baffdcf2f8"
+              },
+              {
+                "id": "actual_browser_download_binary.bin",
+                "result": "PASS",
+                "sha256": "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880"
+              },
+              {
+                "id": "paired_context_reload_without_new_offer",
+                "result": "PASS"
+              },
+              {
+                "id": "file_created_edited_saved_to_real_workspace",
+                "result": "PASS"
+              },
+              {
+                "id": "real_pty_output_without_matching_command_echo",
+                "result": "PASS"
+              },
+              {
+                "id": "terminal_and_buffer_retained_after_browser_reload",
+                "result": "PASS"
+              },
+              {
+                "id": "owned_terminal_exit_and_cleanup",
+                "result": "PASS"
+              },
+              {
+                "id": "same_browser_trust_after_daemon_restart_reads_fresh_server_bytes",
+                "result": "PASS"
+              },
+              {
+                "id": "owned_file_ui_delete_confirmed_on_server",
+                "result": "PASS"
+              },
+              {
+                "id": "fresh_unpaired_context_cannot_read_fixture",
+                "result": "PASS"
+              }
+            ],
+            "freshBrowserContext": true,
+            "modelAcceptance": "BLOCKED_ACCOUNT_NOT_SELECTED",
+            "stage": "unpaired_isolation",
+            "runtimeIdentity": {
+              "managed": "0.17.5-r4-2b20ef5fac0a",
+              "recorded": "0.17.5-r4-2b20ef5fac0a",
+              "actual": "0.17.5-r4-2b20ef5fac0a",
+              "ready": true,
+              "runtimeDir": "/opt/woow-connectors/paseo/runtime"
+            },
+            "visibleVersions": [
+              "v0.17.4"
+            ],
+            "serverIdentitySha256": "936656cecffffce408b1b5c70624380b07941a7d09dbebabb32cd868f343460c",
+            "result": "PASS_FOR_EXECUTED_CASES",
+            "pageErrors": []
+          },
+          {
+            "target": "apporo",
+            "origin": "https://smart.apporo.ai",
+            "cases": [
+              {
+                "id": "pending_target_refuses_private_offer",
+                "result": "PASS"
+              },
+              {
+                "id": "profile_lifecycle_and_disabled_restore",
+                "result": "PASS"
+              },
+              {
+                "id": "exact_origin_v2_relay_tls_and_security",
+                "result": "PASS"
+              },
+              {
+                "id": "fresh_explicit_browser_pair",
+                "result": "PASS"
+              },
+              {
+                "id": "authenticated_workspace_and_text_read",
+                "result": "PASS"
+              },
+              {
+                "id": "actual_browser_download_proof.txt",
+                "result": "PASS",
+                "sha256": "61e6f3158ce78ca230157d752688002164a501531043aba57bb9c2c16647ed3b"
+              },
+              {
+                "id": "actual_browser_download_fixture.zip",
+                "result": "PASS",
+                "sha256": "24f01b48fbffa601782e68420cf4269c2aa198049e9e531fc85111baffdcf2f8"
+              },
+              {
+                "id": "actual_browser_download_binary.bin",
+                "result": "PASS",
+                "sha256": "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880"
+              },
+              {
+                "id": "paired_context_reload_without_new_offer",
+                "result": "PASS"
+              },
+              {
+                "id": "file_created_edited_saved_to_real_workspace",
+                "result": "PASS"
+              },
+              {
+                "id": "real_pty_output_without_matching_command_echo",
+                "result": "PASS"
+              },
+              {
+                "id": "terminal_and_buffer_retained_after_browser_reload",
+                "result": "PASS"
+              },
+              {
+                "id": "owned_terminal_exit_and_cleanup",
+                "result": "PASS"
+              },
+              {
+                "id": "same_browser_trust_after_daemon_restart_reads_fresh_server_bytes",
+                "result": "PASS"
+              },
+              {
+                "id": "owned_file_ui_delete_confirmed_on_server",
+                "result": "PASS"
+              },
+              {
+                "id": "fresh_unpaired_context_cannot_read_fixture",
+                "result": "PASS"
+              }
+            ],
+            "freshBrowserContext": true,
+            "modelAcceptance": "BLOCKED_ACCOUNT_NOT_SELECTED",
+            "stage": "unpaired_isolation",
+            "runtimeIdentity": {
+              "managed": "0.17.5-r4-2b20ef5fac0a",
+              "recorded": "0.17.5-r4-2b20ef5fac0a",
+              "actual": "0.17.5-r4-2b20ef5fac0a",
+              "ready": true,
+              "runtimeDir": "/opt/woow-connectors/paseo/runtime"
+            },
+            "visibleVersions": [
+              "v0.17.4"
+            ],
+            "serverIdentitySha256": "936656cecffffce408b1b5c70624380b07941a7d09dbebabb32cd868f343460c",
+            "result": "PASS_FOR_EXECUTED_CASES",
+            "pageErrors": []
+          }
+        ]
+      },
+      "harnessHistory": {
+        "primaryProcessExitCode": 0,
+        "primaryCaseCount": 47,
+        "additionalRunReason": "Final-verification helper import unintentionally executed the QA module main before its import guard was added.",
+        "additionalRunProcessExitCode": 0,
+        "additionalRunCaseCount": 47,
+        "additionalRunResult": "PASS",
+        "uniqueCoverageIncreased": false,
+        "modelCalls": 0,
+        "originalNamedR3ReceiptsRetained": true,
+        "genericReceiptAliasRestoredFromArchivedR3Overlay": true,
+        "productSourceChangedForThisFix": false,
+        "importGuard": {
+          "result": "PASS",
+          "importExternalOperations": 0,
+          "newSha256": "a1e5196319943fa132f0706158bb6792aa5907b19fb160c0239686992d89d363",
+          "beforeGuardSha256": "903bc5b51fd56ec207e0c0eaa34d6e0a861e32759702307f5bcf47d124a5086b",
+          "productSourceChanged": false,
+          "fix": "QA main executes only when launched directly; importing helper functions is inert."
+        }
+      }
+    },
+    "nativeAndSkillsIndependentReviewScope": "The nested productRepoModifiedByThisTask=false and r3ReceiptsPreserved=true refer to the isolated native/skills QA task. Source upgrade changes and later QA import-guard history are recorded separately."
   },
   "remainingGates": [
-    "R4 dependency/compiler compatibility, immutable R3 control, rebuilt images, required HA security comparison and actual image re-validation.",
-    "Authenticated Claude/Codex/Pi conversations, streaming, stop, resume, model switching, skills and real MCP calls: test account not selected.",
-    "HA derivative image and upgrade comparison: CI running.",
-    "No native arm64 runtime host available; arm64 build success is not runtime acceptance.",
-    "No release, existing production tenant rollout or stable/default chart image promotion performed.",
-    "PaaS derivative real browser suite: candidate deployed into separate fresh QA, image pulling.",
-    "Broad Web preferences/navigation and skills management: separate actual runs preparing."
-  ]
+    "Authenticated Claude/Codex/Pi conversations, streaming, stop, resume, model switching and actual skill/MCP calls: test account/instance not selected. Voice/microphone and agent-backed task/schedule execution are not accepted by the zero-model suites.",
+    "Real HA OS/Supervisor/Core/hardware, native Podman/systemd host and native arm64 runtime acceptance require designated test hosts; current real-image execution used amd64 k3s and a mock HA Supervisor.",
+    "Fixed R3 frontend cohorts: Smart production 0.17.4 lacks official 0.17.5 workspace selection UI; N-12 FAIL remains a frontend difference. This is not an R4 frontend retest or a fix by this runtime branch.",
+    "PaaS R4 was tested with fresh PVCs; a PaaS same-PVC image upgrade was not run. The separate canonical R3-to-R4 preserving image upgrade passed.",
+    "Standalone k3s/PaaS source contexts match across 631 tracked file modes and contents; no additional standalone k3s artifact was built or published.",
+    "No merge, Release, existing tenant rollout or stable/default chart image promotion. PaaS production promotion still requires its existing human approval workflow (#808)."
+  ],
+  "r3ExtendedComparativeBaseline": {
+    "initial32PerClient": {
+      "runId": "fresh-web-ui-20261127-r01",
+      "evidenceClass": "R3_BASELINE_NOT_R4",
+      "sourceReceiptSha256": "6b75fa0a56ff91ee5df63cbde1d88a0b48c89ec40dda2e57e24c9ace19920722",
+      "caseDefinitions": [
+        {
+          "id": "I-01",
+          "assertion": "Fresh image, runtime and own host identity"
+        },
+        {
+          "id": "P-01",
+          "assertion": "Fresh unpaired welcome; explicit Connect; exact V2 target offer"
+        },
+        {
+          "id": "N-01",
+          "assertion": "New page; project picker opens and cancels without launch"
+        },
+        {
+          "id": "N-02",
+          "assertion": "History search/no match/clear; no import or session action"
+        },
+        {
+          "id": "N-03",
+          "assertion": "Schedule list or genuine empty state; no create/run"
+        },
+        {
+          "id": "N-04",
+          "assertion": "Owned existing workspace and authenticated Explorer tree"
+        },
+        {
+          "id": "N-05",
+          "assertion": "Workspace new-tab menu agent/terminal choices; dismiss only"
+        },
+        {
+          "id": "N-06",
+          "assertion": "Owned host Overview is Online"
+        },
+        {
+          "id": "N-07",
+          "assertion": "Owned host provider catalog page; no authentication claim"
+        },
+        {
+          "id": "N-08",
+          "assertion": "Owned host terminal profiles page; no profile/PTY creation"
+        },
+        {
+          "id": "N-09",
+          "assertion": "Owned host installed plugins list; no install/toggle/update"
+        },
+        {
+          "id": "N-10",
+          "assertion": "Owned host usage page; no manual refresh or account action"
+        },
+        {
+          "id": "N-11",
+          "assertion": "Already installed Tasks board only; search and clear"
+        },
+        {
+          "id": "N-12",
+          "assertion": "Owned workspace selection count and exit; no bulk mutation"
+        },
+        {
+          "id": "N-13",
+          "assertion": "Existing owned agent tab is rendered, without selection/cold-load"
+        },
+        {
+          "id": "N-14",
+          "assertion": "Settings Editor route and its keybinding control"
+        },
+        {
+          "id": "N-15",
+          "assertion": "Settings Files native panel rows or genuine empty state"
+        },
+        {
+          "id": "N-16",
+          "assertion": "Settings Shortcuts binding controls"
+        },
+        {
+          "id": "N-17",
+          "assertion": "Settings About, observed visible version and loaded script bytes"
+        },
+        {
+          "id": "S-01",
+          "assertion": "General: Send shortcut change/reload/restore/reload"
+        },
+        {
+          "id": "S-02",
+          "assertion": "Appearance: interface font size change/reload/restore/reload"
+        },
+        {
+          "id": "S-03",
+          "assertion": "Sidebar: History visibility change/reload/restore/reload"
+        },
+        {
+          "id": "S-04",
+          "assertion": "Chat: Always expand reasoning change/reload/restore/reload"
+        },
+        {
+          "id": "S-05",
+          "assertion": "Terminal: scrollback lines change/reload/restore/reload"
+        },
+        {
+          "id": "S-06",
+          "assertion": "Files: Explorer hidden files change/reload/restore/reload"
+        },
+        {
+          "id": "K-01",
+          "assertion": "Ctrl+K opens command center; Escape dismisses and restores focus"
+        },
+        {
+          "id": "K-02",
+          "assertion": "Command input typing/arrows/Backspace remains in overlay"
+        },
+        {
+          "id": "K-03",
+          "assertion": "History text input owns typing/Backspace/undo, no route hijack"
+        },
+        {
+          "id": "K-04",
+          "assertion": "Dropdown Escape restores focus; Tab resumes focus navigation"
+        },
+        {
+          "id": "K-05",
+          "assertion": "Shortcut recorder captures Ctrl+K without command-center hijack; Cancel"
+        },
+        {
+          "id": "P-02",
+          "assertion": "Same context reload keeps host trust without a second offer"
+        },
+        {
+          "id": "G-01",
+          "assertion": "No agent/schedule/plugin/terminal/fixture changes and pinned identity"
+        }
+      ],
+      "clients": [
+        {
+          "target": "paseo",
+          "origin": "https://app.paseo.sh",
+          "builds": [
+            {
+              "id": 1,
+              "entryFingerprintSha256": "06a81b0ca9985f9d7a445c5b390bc845f4bd61f15ce7d1b92a3b83fa953822fa",
+              "observedVisibleVersions": [
+                "0.17.5"
+              ],
+              "entryScripts": [
+                {
+                  "path": "/_expo/static/js/web/index-4e549308c95a80bb80f968447a2ec3e6.js",
+                  "sha256": "0634912279594c04a655c08efae5c45606a445490317b962ebd99ac494283e5d",
+                  "bytes": 25428848
+                }
+              ],
+              "loadedScripts": [
+                {
+                  "path": "/_expo/static/js/web/index-4e549308c95a80bb80f968447a2ec3e6.js",
+                  "sha256": "0634912279594c04a655c08efae5c45606a445490317b962ebd99ac494283e5d",
+                  "bytes": 25428848
+                },
+                {
+                  "path": "/_expo/static/js/web/indexeddb-attachment-store-ee9589ebda43b6be1ff56c1e68d2bdd2.js",
+                  "sha256": "25601fddcf737d4a300a23fc51c494522ac393acaf1dd558f60f860da4d3d911",
+                  "bytes": 3232
+                }
+              ]
+            }
+          ],
+          "cases": [
+            {
+              "id": "I-01",
+              "result": "PASS"
+            },
+            {
+              "id": "P-01",
+              "result": "PASS"
+            },
+            {
+              "id": "N-01",
+              "result": "PASS"
+            },
+            {
+              "id": "N-02",
+              "result": "PASS"
+            },
+            {
+              "id": "N-03",
+              "result": "PASS"
+            },
+            {
+              "id": "N-04",
+              "result": "PASS"
+            },
+            {
+              "id": "N-05",
+              "result": "PASS"
+            },
+            {
+              "id": "N-06",
+              "result": "PASS"
+            },
+            {
+              "id": "N-07",
+              "result": "PASS"
+            },
+            {
+              "id": "N-08",
+              "result": "PASS"
+            },
+            {
+              "id": "N-09",
+              "result": "PASS"
+            },
+            {
+              "id": "N-10",
+              "result": "PASS"
+            },
+            {
+              "id": "N-11",
+              "result": "PASS"
+            },
+            {
+              "id": "N-12",
+              "result": "PASS"
+            },
+            {
+              "id": "N-13",
+              "result": "BLOCKED",
+              "errorCode": "EXISTING_AGENT_NOT_AVAILABLE"
+            },
+            {
+              "id": "N-14",
+              "result": "PASS"
+            },
+            {
+              "id": "N-15",
+              "result": "PASS"
+            },
+            {
+              "id": "N-16",
+              "result": "PASS"
+            },
+            {
+              "id": "N-17",
+              "result": "PASS"
+            },
+            {
+              "id": "S-01",
+              "result": "PASS"
+            },
+            {
+              "id": "S-02",
+              "result": "PASS"
+            },
+            {
+              "id": "S-03",
+              "result": "PASS"
+            },
+            {
+              "id": "S-04",
+              "result": "PASS"
+            },
+            {
+              "id": "S-05",
+              "result": "PASS"
+            },
+            {
+              "id": "S-06",
+              "result": "PASS"
+            },
+            {
+              "id": "K-01",
+              "result": "PASS"
+            },
+            {
+              "id": "K-02",
+              "result": "PASS"
+            },
+            {
+              "id": "K-03",
+              "result": "PASS"
+            },
+            {
+              "id": "K-04",
+              "result": "PASS"
+            },
+            {
+              "id": "K-05",
+              "result": "PASS"
+            },
+            {
+              "id": "P-02",
+              "result": "PASS"
+            },
+            {
+              "id": "G-01",
+              "result": "PASS"
+            }
+          ],
+          "caseResults": {
+            "PASS": 31,
+            "BLOCKED": 1
+          },
+          "uncaughtPageErrorCount": 0
+        },
+        {
+          "target": "woowtech",
+          "origin": "https://smart.woowtech.io",
+          "builds": [
+            {
+              "id": 1,
+              "entryFingerprintSha256": "41d2e52d8f10606594ffbaad9f165a7c98825aa82b20e11c919fefd549124f53",
+              "observedVisibleVersions": [
+                "0.17.4",
+                "0.17.5"
+              ],
+              "entryScripts": [
+                {
+                  "path": "/_expo/static/js/web/index-5edec1e62b572d3ca6d23c1a2ea447ba.js",
+                  "sha256": "958babfa01f487162cd7393b57099b3165ed224eb2e85720a92efd20e795775a",
+                  "bytes": 22595052
+                }
+              ],
+              "loadedScripts": [
+                {
+                  "path": "/_expo/static/js/web/index-5edec1e62b572d3ca6d23c1a2ea447ba.js",
+                  "sha256": "958babfa01f487162cd7393b57099b3165ed224eb2e85720a92efd20e795775a",
+                  "bytes": 22595052
+                },
+                {
+                  "path": "/_expo/static/js/web/indexeddb-attachment-store-193a4350d0c045eab2ffc6909a0853fa.js",
+                  "sha256": "e70d0b827b8e253e613e4214b1322fa3633c91dcfc6567dab028908a10aa8425",
+                  "bytes": 3232
+                }
+              ]
+            }
+          ],
+          "cases": [
+            {
+              "id": "I-01",
+              "result": "PASS"
+            },
+            {
+              "id": "P-01",
+              "result": "PASS"
+            },
+            {
+              "id": "N-01",
+              "result": "PASS"
+            },
+            {
+              "id": "N-02",
+              "result": "PASS"
+            },
+            {
+              "id": "N-03",
+              "result": "PASS"
+            },
+            {
+              "id": "N-04",
+              "result": "PASS"
+            },
+            {
+              "id": "N-05",
+              "result": "PASS"
+            },
+            {
+              "id": "N-06",
+              "result": "PASS"
+            },
+            {
+              "id": "N-07",
+              "result": "PASS"
+            },
+            {
+              "id": "N-08",
+              "result": "PASS"
+            },
+            {
+              "id": "N-09",
+              "result": "PASS"
+            },
+            {
+              "id": "N-10",
+              "result": "PASS"
+            },
+            {
+              "id": "N-11",
+              "result": "PASS"
+            },
+            {
+              "id": "N-12",
+              "result": "FAIL",
+              "errorCode": "UI_CASE_FAILED"
+            },
+            {
+              "id": "N-13",
+              "result": "BLOCKED",
+              "errorCode": "EXISTING_AGENT_NOT_AVAILABLE"
+            },
+            {
+              "id": "N-14",
+              "result": "PASS"
+            },
+            {
+              "id": "N-15",
+              "result": "PASS"
+            },
+            {
+              "id": "N-16",
+              "result": "PASS"
+            },
+            {
+              "id": "N-17",
+              "result": "PASS"
+            },
+            {
+              "id": "S-01",
+              "result": "PASS"
+            },
+            {
+              "id": "S-02",
+              "result": "PASS"
+            },
+            {
+              "id": "S-03",
+              "result": "PASS"
+            },
+            {
+              "id": "S-04",
+              "result": "PASS"
+            },
+            {
+              "id": "S-05",
+              "result": "PASS"
+            },
+            {
+              "id": "S-06",
+              "result": "PASS"
+            },
+            {
+              "id": "K-01",
+              "result": "PASS"
+            },
+            {
+              "id": "K-02",
+              "result": "PASS"
+            },
+            {
+              "id": "K-03",
+              "result": "PASS"
+            },
+            {
+              "id": "K-04",
+              "result": "PASS"
+            },
+            {
+              "id": "K-05",
+              "result": "PASS"
+            },
+            {
+              "id": "P-02",
+              "result": "PASS"
+            },
+            {
+              "id": "G-01",
+              "result": "PASS"
+            }
+          ],
+          "caseResults": {
+            "PASS": 30,
+            "FAIL": 1,
+            "BLOCKED": 1
+          },
+          "uncaughtPageErrorCount": 0
+        },
+        {
+          "target": "apporo",
+          "origin": "https://smart.apporo.ai",
+          "builds": [
+            {
+              "id": 1,
+              "entryFingerprintSha256": "56737ab80683396e7bca7ec56d867a2dd8b246a713b11b6df6f332b90afdefe5",
+              "observedVisibleVersions": [
+                "0.17.4",
+                "0.17.5"
+              ],
+              "entryScripts": [
+                {
+                  "path": "/_expo/static/js/web/index-020bc9cd937992d7944fe165d379aa14.js",
+                  "sha256": "165bb6032c9420841d90985c08290e805dd8fbb7c0d82d51612a201a708bd70a",
+                  "bytes": 22595152
+                }
+              ],
+              "loadedScripts": [
+                {
+                  "path": "/_expo/static/js/web/index-020bc9cd937992d7944fe165d379aa14.js",
+                  "sha256": "165bb6032c9420841d90985c08290e805dd8fbb7c0d82d51612a201a708bd70a",
+                  "bytes": 22595152
+                },
+                {
+                  "path": "/_expo/static/js/web/indexeddb-attachment-store-193a4350d0c045eab2ffc6909a0853fa.js",
+                  "sha256": "e70d0b827b8e253e613e4214b1322fa3633c91dcfc6567dab028908a10aa8425",
+                  "bytes": 3232
+                }
+              ]
+            }
+          ],
+          "cases": [
+            {
+              "id": "I-01",
+              "result": "PASS"
+            },
+            {
+              "id": "P-01",
+              "result": "PASS"
+            },
+            {
+              "id": "N-01",
+              "result": "PASS"
+            },
+            {
+              "id": "N-02",
+              "result": "PASS"
+            },
+            {
+              "id": "N-03",
+              "result": "PASS"
+            },
+            {
+              "id": "N-04",
+              "result": "PASS"
+            },
+            {
+              "id": "N-05",
+              "result": "PASS"
+            },
+            {
+              "id": "N-06",
+              "result": "PASS"
+            },
+            {
+              "id": "N-07",
+              "result": "PASS"
+            },
+            {
+              "id": "N-08",
+              "result": "PASS"
+            },
+            {
+              "id": "N-09",
+              "result": "PASS"
+            },
+            {
+              "id": "N-10",
+              "result": "PASS"
+            },
+            {
+              "id": "N-11",
+              "result": "BLOCKED",
+              "errorCode": "TASKS_NOT_INSTALLED"
+            },
+            {
+              "id": "N-12",
+              "result": "FAIL",
+              "errorCode": "UI_CASE_FAILED"
+            },
+            {
+              "id": "N-13",
+              "result": "BLOCKED",
+              "errorCode": "EXISTING_AGENT_NOT_AVAILABLE"
+            },
+            {
+              "id": "N-14",
+              "result": "PASS"
+            },
+            {
+              "id": "N-15",
+              "result": "PASS"
+            },
+            {
+              "id": "N-16",
+              "result": "PASS"
+            },
+            {
+              "id": "N-17",
+              "result": "PASS"
+            },
+            {
+              "id": "S-01",
+              "result": "PASS"
+            },
+            {
+              "id": "S-02",
+              "result": "PASS"
+            },
+            {
+              "id": "S-03",
+              "result": "PASS"
+            },
+            {
+              "id": "S-04",
+              "result": "PASS"
+            },
+            {
+              "id": "S-05",
+              "result": "PASS"
+            },
+            {
+              "id": "S-06",
+              "result": "PASS"
+            },
+            {
+              "id": "K-01",
+              "result": "PASS"
+            },
+            {
+              "id": "K-02",
+              "result": "PASS"
+            },
+            {
+              "id": "K-03",
+              "result": "PASS"
+            },
+            {
+              "id": "K-04",
+              "result": "PASS"
+            },
+            {
+              "id": "K-05",
+              "result": "PASS"
+            },
+            {
+              "id": "P-02",
+              "result": "PASS"
+            },
+            {
+              "id": "G-01",
+              "result": "PASS"
+            }
+          ],
+          "caseResults": {
+            "PASS": 29,
+            "BLOCKED": 2,
+            "FAIL": 1
+          },
+          "uncaughtPageErrorCount": 0
+        }
+      ],
+      "modelCalls": 0,
+      "newAgentCreation": 0,
+      "inheritedPasses": false
+    },
+    "focusedFollowupPreservingNotExecuted": {
+      "runId": "fresh-web-ui-r3-baseline-20261127-r03",
+      "evidenceClass": "R3_BASELINE_NOT_R4",
+      "sourceReceiptSha256": "f1db2c17019abce1d66b6d84841a27dffea5c8cfc07f74415eab0af0e6c057cb",
+      "caseDefinitions": [
+        {
+          "id": "I-01",
+          "assertion": "Fresh image, runtime and own host identity"
+        },
+        {
+          "id": "P-01",
+          "assertion": "Fresh unpaired welcome; explicit Connect; exact V2 target offer"
+        },
+        {
+          "id": "N-01",
+          "assertion": "New page; project picker opens and cancels without launch"
+        },
+        {
+          "id": "N-02",
+          "assertion": "History search/no match/clear; no import or session action"
+        },
+        {
+          "id": "N-03",
+          "assertion": "Schedule list or genuine empty state; no create/run"
+        },
+        {
+          "id": "N-04",
+          "assertion": "Owned existing workspace and authenticated Explorer tree"
+        },
+        {
+          "id": "N-05",
+          "assertion": "Workspace new-tab menu agent/terminal choices; dismiss only"
+        },
+        {
+          "id": "N-06",
+          "assertion": "Owned host Overview is Online"
+        },
+        {
+          "id": "N-07",
+          "assertion": "Owned host provider catalog page; no authentication claim"
+        },
+        {
+          "id": "N-08",
+          "assertion": "Owned host terminal profiles page; no profile/PTY creation"
+        },
+        {
+          "id": "N-09",
+          "assertion": "Owned host installed plugins list; no install/toggle/update"
+        },
+        {
+          "id": "N-10",
+          "assertion": "Owned host usage page; no manual refresh or account action"
+        },
+        {
+          "id": "N-11",
+          "assertion": "Already installed Tasks board only; search and clear"
+        },
+        {
+          "id": "N-12",
+          "assertion": "Owned workspace selection count and exit; no bulk mutation"
+        },
+        {
+          "id": "N-13",
+          "assertion": "Existing owned agent tab is rendered, without selection/cold-load"
+        },
+        {
+          "id": "N-14",
+          "assertion": "Settings Editor route and its keybinding control"
+        },
+        {
+          "id": "N-15",
+          "assertion": "Settings Files native panel rows or genuine empty state"
+        },
+        {
+          "id": "N-16",
+          "assertion": "Settings Shortcuts binding controls"
+        },
+        {
+          "id": "N-17",
+          "assertion": "Settings About, observed visible version and loaded script bytes"
+        },
+        {
+          "id": "S-01",
+          "assertion": "General: Send shortcut change/reload/restore/reload"
+        },
+        {
+          "id": "S-02",
+          "assertion": "Appearance: interface font size change/reload/restore/reload"
+        },
+        {
+          "id": "S-03",
+          "assertion": "Sidebar: History visibility change/reload/restore/reload"
+        },
+        {
+          "id": "S-04",
+          "assertion": "Chat: Always expand reasoning change/reload/restore/reload"
+        },
+        {
+          "id": "S-05",
+          "assertion": "Terminal: scrollback lines change/reload/restore/reload"
+        },
+        {
+          "id": "S-06",
+          "assertion": "Files: Explorer hidden files change/reload/restore/reload"
+        },
+        {
+          "id": "K-01",
+          "assertion": "Ctrl+K opens command center; Escape dismisses and restores focus"
+        },
+        {
+          "id": "K-02",
+          "assertion": "Command input typing/arrows/Backspace remains in overlay"
+        },
+        {
+          "id": "K-03",
+          "assertion": "History text input owns typing/Backspace/undo, no route hijack"
+        },
+        {
+          "id": "K-04",
+          "assertion": "Dropdown Escape restores focus; Tab resumes focus navigation"
+        },
+        {
+          "id": "K-05",
+          "assertion": "Shortcut recorder captures Ctrl+K without command-center hijack; Cancel"
+        },
+        {
+          "id": "P-02",
+          "assertion": "Same context reload keeps host trust without a second offer"
+        },
+        {
+          "id": "G-01",
+          "assertion": "No agent/schedule/plugin/terminal/fixture changes and pinned identity"
+        }
+      ],
+      "clients": [
+        {
+          "target": "paseo",
+          "origin": "https://app.paseo.sh",
+          "builds": [
+            {
+              "id": 1,
+              "entryFingerprintSha256": "06a81b0ca9985f9d7a445c5b390bc845f4bd61f15ce7d1b92a3b83fa953822fa",
+              "observedVisibleVersions": [
+                "0.17.5"
+              ],
+              "entryScripts": [
+                {
+                  "path": "/_expo/static/js/web/index-4e549308c95a80bb80f968447a2ec3e6.js",
+                  "sha256": "0634912279594c04a655c08efae5c45606a445490317b962ebd99ac494283e5d",
+                  "bytes": 25428848
+                }
+              ],
+              "loadedScripts": [
+                {
+                  "path": "/_expo/static/js/web/index-4e549308c95a80bb80f968447a2ec3e6.js",
+                  "sha256": "0634912279594c04a655c08efae5c45606a445490317b962ebd99ac494283e5d",
+                  "bytes": 25428848
+                }
+              ]
+            }
+          ],
+          "cases": [
+            {
+              "id": "I-01",
+              "result": "PASS"
+            },
+            {
+              "id": "P-01",
+              "result": "PASS"
+            },
+            {
+              "id": "N-01",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-02",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-03",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-04",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-05",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-06",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-07",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-08",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-09",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-10",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-11",
+              "result": "PASS"
+            },
+            {
+              "id": "N-12",
+              "result": "PASS"
+            },
+            {
+              "id": "N-13",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-14",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-15",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-16",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-17",
+              "result": "PASS"
+            },
+            {
+              "id": "S-01",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "S-02",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "S-03",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "S-04",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "S-05",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "S-06",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "K-01",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "K-02",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "K-03",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "K-04",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "K-05",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "P-02",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "G-01",
+              "result": "PASS"
+            }
+          ],
+          "caseResults": {
+            "PASS": 6,
+            "NOT_EXECUTED": 26
+          },
+          "uncaughtPageErrorCount": 0
+        },
+        {
+          "target": "woowtech",
+          "origin": "https://smart.woowtech.io",
+          "builds": [
+            {
+              "id": 1,
+              "entryFingerprintSha256": "41d2e52d8f10606594ffbaad9f165a7c98825aa82b20e11c919fefd549124f53",
+              "observedVisibleVersions": [
+                "0.17.4"
+              ],
+              "entryScripts": [
+                {
+                  "path": "/_expo/static/js/web/index-5edec1e62b572d3ca6d23c1a2ea447ba.js",
+                  "sha256": "958babfa01f487162cd7393b57099b3165ed224eb2e85720a92efd20e795775a",
+                  "bytes": 22595052
+                }
+              ],
+              "loadedScripts": [
+                {
+                  "path": "/_expo/static/js/web/index-5edec1e62b572d3ca6d23c1a2ea447ba.js",
+                  "sha256": "958babfa01f487162cd7393b57099b3165ed224eb2e85720a92efd20e795775a",
+                  "bytes": 22595052
+                }
+              ]
+            }
+          ],
+          "cases": [
+            {
+              "id": "I-01",
+              "result": "PASS"
+            },
+            {
+              "id": "P-01",
+              "result": "PASS"
+            },
+            {
+              "id": "N-01",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-02",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-03",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-04",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-05",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-06",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-07",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-08",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-09",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-10",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-11",
+              "result": "PASS"
+            },
+            {
+              "id": "N-12",
+              "result": "FAIL",
+              "errorCode": "UI_CASE_FAILED"
+            },
+            {
+              "id": "N-13",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-14",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-15",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-16",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-17",
+              "result": "PASS"
+            },
+            {
+              "id": "S-01",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "S-02",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "S-03",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "S-04",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "S-05",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "S-06",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "K-01",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "K-02",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "K-03",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "K-04",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "K-05",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "P-02",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "G-01",
+              "result": "PASS"
+            }
+          ],
+          "caseResults": {
+            "PASS": 5,
+            "NOT_EXECUTED": 26,
+            "FAIL": 1
+          },
+          "uncaughtPageErrorCount": 0
+        },
+        {
+          "target": "apporo",
+          "origin": "https://smart.apporo.ai",
+          "builds": [
+            {
+              "id": 1,
+              "entryFingerprintSha256": "56737ab80683396e7bca7ec56d867a2dd8b246a713b11b6df6f332b90afdefe5",
+              "observedVisibleVersions": [
+                "0.17.4"
+              ],
+              "entryScripts": [
+                {
+                  "path": "/_expo/static/js/web/index-020bc9cd937992d7944fe165d379aa14.js",
+                  "sha256": "165bb6032c9420841d90985c08290e805dd8fbb7c0d82d51612a201a708bd70a",
+                  "bytes": 22595152
+                }
+              ],
+              "loadedScripts": [
+                {
+                  "path": "/_expo/static/js/web/index-020bc9cd937992d7944fe165d379aa14.js",
+                  "sha256": "165bb6032c9420841d90985c08290e805dd8fbb7c0d82d51612a201a708bd70a",
+                  "bytes": 22595152
+                }
+              ]
+            }
+          ],
+          "cases": [
+            {
+              "id": "I-01",
+              "result": "PASS"
+            },
+            {
+              "id": "P-01",
+              "result": "PASS"
+            },
+            {
+              "id": "N-01",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-02",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-03",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-04",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-05",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-06",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-07",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-08",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-09",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-10",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-11",
+              "result": "PASS"
+            },
+            {
+              "id": "N-12",
+              "result": "FAIL",
+              "errorCode": "UI_CASE_FAILED"
+            },
+            {
+              "id": "N-13",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-14",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-15",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-16",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "N-17",
+              "result": "PASS"
+            },
+            {
+              "id": "S-01",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "S-02",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "S-03",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "S-04",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "S-05",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "S-06",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "K-01",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "K-02",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "K-03",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "K-04",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "K-05",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "P-02",
+              "result": "NOT_EXECUTED"
+            },
+            {
+              "id": "G-01",
+              "result": "PASS"
+            }
+          ],
+          "caseResults": {
+            "PASS": 5,
+            "NOT_EXECUTED": 26,
+            "FAIL": 1
+          },
+          "uncaughtPageErrorCount": 0
+        }
+      ],
+      "modelCalls": 0,
+      "newAgentCreation": 0,
+      "inheritedPasses": false
+    },
+    "n12Diagnosis": {
+      "schema": "agent-connect-n12-public-v1",
+      "evidenceClass": "R3_BASELINE_NOT_R4",
+      "caseId": "N-12",
+      "executedScope": "Existing owned workspace: primary-modifier selection, visible count and exit; no archive, cross-row range or new agent.",
+      "uiRunId": "fresh-web-ui-r3-baseline-20261127-r03",
+      "uiReceiptSha256": "f1db2c17019abce1d66b6d84841a27dffea5c8cfc07f74415eab0af0e6c057cb",
+      "diagnosis": "FEATURE_ABSENT_FROM_SMART_PRODUCTION_0_17_4",
+      "clients": [
+        {
+          "target": "paseo",
+          "visibleAppVersion": "0.17.5",
+          "scriptPath": "/_expo/static/js/web/index-4e549308c95a80bb80f968447a2ec3e6.js",
+          "scriptSha256": "0634912279594c04a655c08efae5c45606a445490317b962ebd99ac494283e5d",
+          "scriptBytes": 25428848,
+          "uiResult": "PASS",
+          "selectionHandlerPresent": true,
+          "resultPreserved": true,
+          "publicScriptUrl": "https://app.paseo.sh/_expo/static/js/web/index-4e549308c95a80bb80f968447a2ec3e6.js"
+        },
+        {
+          "target": "woowtech",
+          "visibleAppVersion": "0.17.4",
+          "scriptPath": "/_expo/static/js/web/index-5edec1e62b572d3ca6d23c1a2ea447ba.js",
+          "scriptSha256": "958babfa01f487162cd7393b57099b3165ed224eb2e85720a92efd20e795775a",
+          "scriptBytes": 22595052,
+          "uiResult": "FAIL",
+          "selectionHandlerPresent": false,
+          "resultPreserved": true,
+          "publicScriptUrl": "https://smart.woowtech.io/_expo/static/js/web/index-5edec1e62b572d3ca6d23c1a2ea447ba.js"
+        },
+        {
+          "target": "apporo",
+          "visibleAppVersion": "0.17.4",
+          "scriptPath": "/_expo/static/js/web/index-020bc9cd937992d7944fe165d379aa14.js",
+          "scriptSha256": "165bb6032c9420841d90985c08290e805dd8fbb7c0d82d51612a201a708bd70a",
+          "scriptBytes": 22595152,
+          "uiResult": "FAIL",
+          "selectionHandlerPresent": false,
+          "resultPreserved": true,
+          "publicScriptUrl": "https://smart.apporo.ai/_expo/static/js/web/index-020bc9cd937992d7944fe165d379aa14.js"
+        }
+      ],
+      "modelOperationsRequested": 0,
+      "newAgentCreationRequested": 0,
+      "newUiRetestPerformed": false,
+      "compiledHandlerDiagnostic": {
+        "branchAssertions": 14,
+        "browserAcceptanceCases": 0
+      },
+      "portableHarnessNote": "Use ControlOrMeta. Borrowed helper hardcodes Meta; R03 Linux Control was correct and Smart Shift also failed.",
+      "suggestedFrontendFeatureCommits": [
+        "e52bb6e3c4eb5519ea20a7f02220f65a1d34933c",
+        "ba45634eeeda0bb60512466fed2294be87ecaa97"
+      ],
+      "sourceCommitAttributionLimit": "Smart production df7ae619 is declared handoff provenance, not a source-map/build attestation. Candidate 0.17.5 source is not the production build.",
+      "nativeHaActualAcceptance": "NOT_TESTED",
+      "arm64ActualAcceptance": "NOT_TESTED",
+      "r4AcceptanceFromThisEvidence": "NOT_TESTED"
+    },
+    "skillsManagement": {
+      "evidenceClass": "R3_BASELINE_NOT_R4",
+      "result": "PASS_36",
+      "modelCalls": 0,
+      "sourceReceiptSha256": "fa6c05408676fba686e34c2be310181fcb482d1c5ffe8a91a109513d49c7490a",
+      "cleanup": "PASS"
+    }
+  },
+  "artifactIndex": [
+    {
+      "sourceReceipt": "evidence/r4-image-fresh-three-clients.json",
+      "sha256": "2d32430789849e352fdcbb3f8deb6eb6a65d4d1cec303a1c0c77fe0620634bd3",
+      "embeddedJsonPointer": "/r4/freshBuiltImageThreeClients",
+      "resolution": "Embedded in this public JSON; original workspace path is provenance, not a repository file link.",
+      "exactReconstruction": "Python json.dumps(value, indent=2) + chr(10), UTF-8 (round-trip verified)"
+    },
+    {
+      "sourceReceipt": "evidence/r4-image-upgrade-main-ccd0dfd0-b23d-4498-9acb-5d6edb9206dd.json",
+      "sha256": "6049ab1711835bd61990bd3ac04023d7f5282157854f8232f198d799d742d1de",
+      "embeddedJsonPointer": "/r4/preservingImageUpgrade",
+      "resolution": "Embedded in this public JSON; original workspace path is provenance, not a repository file link.",
+      "exactReconstruction": "Python json.dumps(value, indent=2) + chr(10), UTF-8 (round-trip verified)"
+    },
+    {
+      "sourceReceipt": "evidence/r4-image-initial-install.json",
+      "sha256": "e707d55b65a6a9fb7e08b367b7cd76f4e4ba64cc494681e1c6333a9d50e664f6",
+      "embeddedJsonPointer": "/r4/freshBuiltImageInitialInstall",
+      "resolution": "Embedded in this public JSON; original workspace path is provenance, not a repository file link.",
+      "exactReconstruction": "Python json.dumps(value, indent=2) + chr(10), UTF-8 (round-trip verified)"
+    },
+    {
+      "sourceReceipt": "evidence/r4-image-ui/extension-ui.json",
+      "sha256": "a97a61ec3cab51c501e43e4972b43a7d429407aa841b93133b6bb21558ed9202",
+      "embeddedJsonPointer": "/r4/freshBuiltImageNativeUi",
+      "resolution": "Embedded in this public JSON; original workspace path is provenance, not a repository file link.",
+      "exactReconstruction": "Python json.dumps(value, indent=2) + chr(10), UTF-8 (round-trip verified)"
+    },
+    {
+      "sourceReceipt": "evidence/r4-image-ui/extension-actions-r4.json",
+      "sha256": "dd3499e807ead1a0370ea909fcc7ce72a87886afb86442cd5f8d2ef7a18ed5e9",
+      "embeddedJsonPointer": "/r4/freshBuiltImageNativeActions",
+      "resolution": "Embedded in this public JSON; original workspace path is provenance, not a repository file link.",
+      "exactReconstruction": "Python json.dumps(value, indent=2) + chr(10), UTF-8 (round-trip verified)"
+    },
+    {
+      "sourceReceipt": "evidence/r4-image-ui/native-sequence-recovery.json",
+      "sha256": "2b1d2651fa361f6aa08409c1a396741c7d6d08402c70457a293ceaf04ce0de52",
+      "embeddedJsonPointer": "/r4/nativeSettingsRecovery",
+      "resolution": "Embedded in this public JSON; original workspace path is provenance, not a repository file link.",
+      "exactReconstruction": "Python json.dumps(value, indent=2) + chr(10), UTF-8 (round-trip verified)"
+    },
+    {
+      "sourceReceipt": "evidence/r4-image-skills/4022b65a04d545a78c73829cfdee539b.json",
+      "sha256": "fccd0b575c3e6d8cabb92e4e0db72701871b1a202bcb63e28ecdadf5d557a371",
+      "embeddedJsonPointer": "/r4/freshBuiltImageSkillsManagement",
+      "resolution": "Embedded in this public JSON; original workspace path is provenance, not a repository file link.",
+      "exactReconstruction": "Python json.dumps(value, indent=2) + chr(10), UTF-8 (round-trip verified)"
+    },
+    {
+      "sourceReceipt": "evidence/ha-r4-image-initial-install.json",
+      "sha256": "42df6679e753bcb0083ec6009783efc3d7b9bb22dee8ba1024e5bec73a75073b",
+      "embeddedJsonPointer": "/r4/ha/initialInstall",
+      "resolution": "Embedded public JSON; original workspace path is provenance.",
+      "exactReconstruction": "Python json.dumps(value, indent=2) + chr(10), UTF-8 (round-trip verified)"
+    },
+    {
+      "sourceReceipt": "evidence/ha-r4-core47-history/attempt-01.json",
+      "sha256": "6f678d0fcb0e7f74bd186a210ec06b2ac9bb10f31e638c2dba0537c6f7cadb9a",
+      "embeddedJsonPointer": "/r4/ha/core47Execution",
+      "resolution": "Embedded public JSON; original workspace path is provenance.",
+      "exactReconstruction": "Python json.dumps(value, indent=2) + chr(10), UTF-8 (round-trip verified)"
+    },
+    {
+      "sourceReceipt": "evidence/ha-r4-root-three-clients.json",
+      "sha256": "f86c7edd3c6fc2d4f5213ef2430f14845bf44a5ed712dfa803dd915fc6958f53",
+      "embeddedJsonPointer": "/r4/ha/core47Execution/report",
+      "resolution": "Embedded public JSON; original workspace path is provenance.",
+      "exactReconstruction": "Python json.dumps(value, indent=2) + chr(10), UTF-8 (round-trip verified)"
+    },
+    {
+      "sourceReceipt": "evidence/ha-r4-root-core47.json",
+      "sha256": "cf44f8704132bc2bda4eadbeb88831405f460c53b4b96b7425a9f83ba1273aa9",
+      "embeddedJsonPointer": "/r4/ha/finalAcceptance",
+      "resolution": "Embedded public JSON; original workspace path is provenance.",
+      "exactReconstruction": "Python json.dumps(value, indent=2) + chr(10), UTF-8 (round-trip verified)"
+    },
+    {
+      "sourceReceipt": "evidence/ha-r4-final-verification-history.json",
+      "sha256": "44465f1334196e77aac9c228be40b89861bb39b4283e1b3bda9e1e7063567a80",
+      "embeddedJsonPointer": "/r4/ha/verificationHistory",
+      "resolution": "Embedded public JSON; original workspace path is provenance.",
+      "exactReconstruction": "Python json.dumps(value, indent=2) + chr(10), UTF-8 (round-trip verified)"
+    },
+    {
+      "sourceReceipt": "evidence/paas-r4-fresh-initial-install.json",
+      "sha256": "07b81972b4d8c30c9a6889ed701f21c8c03001cb2e7066d99290088789ea92ca",
+      "embeddedJsonPointer": "/r4/paas/initialInstall",
+      "resolution": "Embedded public JSON; original workspace path is provenance.",
+      "exactReconstruction": "Python json.dumps(value, indent=2) + chr(10), UTF-8 (round-trip verified)"
+    },
+    {
+      "sourceReceipt": "evidence/paas-r4-fresh-three-clients.json",
+      "sha256": "1a85a668b52fe3f55af31a8ab252eae416d3c7b86d294aeb838ef8b34ec97150",
+      "embeddedJsonPointer": "/r4/paas/threeClients",
+      "resolution": "Embedded public JSON; original workspace path is provenance.",
+      "exactReconstruction": "Python json.dumps(value, indent=2) + chr(10), UTF-8 (round-trip verified)"
+    },
+    {
+      "sourceReceipt": "evidence/paas-r4-fresh-final-verification.json",
+      "sha256": "b0934e0955fbd41dc089c6d9c27f44178adeeb67e00bbbdaaa7e4540bd412058",
+      "embeddedJsonPointer": "/r4/paas/finalVerification",
+      "resolution": "Embedded public JSON; original workspace path is provenance.",
+      "exactReconstruction": "Python json.dumps(value, indent=2) + chr(10), UTF-8 (round-trip verified)"
+    },
+    {
+      "sourceReceipt": "evidence/paas-r4-fresh-additional-import-run.json",
+      "sha256": "1a85a668b52fe3f55af31a8ab252eae416d3c7b86d294aeb838ef8b34ec97150",
+      "embeddedJsonPointer": "/r4/paas/additionalImportRun",
+      "resolution": "Embedded public JSON; original workspace path is provenance.",
+      "exactReconstruction": "Python json.dumps(value, indent=2) + chr(10), UTF-8 (round-trip verified)"
+    },
+    {
+      "sourceReceipt": "evidence/paas-r4-qa-import-history.json",
+      "sha256": "3d070c67db3378430e5bf9fc370bddf101ea1089fca34be1aa16bd7e5ec90f88",
+      "embeddedJsonPointer": "/r4/paas/harnessHistory",
+      "resolution": "Embedded public JSON; original workspace path is provenance.",
+      "exactReconstruction": "Python json.dumps(value, indent=2) + chr(10), UTF-8 (round-trip verified)"
+    }
+  ],
+  "artifactAvailabilityNote": "Original evidence/ paths are provenance identifiers. Use embeddedJsonPointer to resolve published receipts. Two reviewed R4 screenshots are published in this directory; dark/light captures are retained locally and are not public links."
 }

@@ -2,9 +2,10 @@
 
 **WIP：尚未完成全面驗收、發布正式版本或更新既有租戶。**
 
-**R3 候選已撤回核可，R4 已完成本機驗證，等待成品重建與重驗。** HA 成品比較掃描發現
+**R3 候選已撤回核可；R4 成品已完成建置、全新安裝三站 47 項與保留資料的升級測試。** HA 成品比較掃描發現
 esbuild 內嵌舊 Go binary 新增 19 項漏洞（1 Critical、18 High）。R4 固定 esbuild `0.28.2`
 與 Go `1.26.5` binary，實際 SDK 編譯相容性及 360 項 runtime／49 項擴充測試通過。
+R4 的 HA 必要升級比較及漏洞比較已通過。
 下文 R3 成品結果是升級對照，不能列為 R4 或正式發布的通過證據。
 [R3 比對結果](https://github.com/WOOWTECH/Woow_ha_code_server_add_on/actions/runs/45913001509/job/140230408318)、
 [已關閉的 R3 核可單](https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/issues/806)。
@@ -39,7 +40,58 @@ esbuild 內嵌舊 Go binary 新增 19 項漏洞（1 Critical、18 High）。R4 �
 
 每站使用全新瀏覽器 context；沒有把其他 session 的 preview 或歷史測試算作本次通過。
 
+## 來源與發布狀態
+
+本次共用來源 159 個檔案在 Podman、HA、k3s、PaaS build context 逐檔同步。
+另核對 standalone k3s 與 PaaS 的整個 build context：固定來源快照的 631 個受 Git 管理檔案
+內容與模式完全相同，包含 Dockerfile 及 .dockerignore；這是來源等價證據，不是額外發布過一份 k3s 成品。
+GitHub 的三個來源另有 Gitea Git pull mirror；mirror 同步 Git refs，不包含 Release 附件。
+四個變更都保留為 Draft PR，尚未合併或發布正式版本。
+
+| 平台 | 本輪來源 | 成品／部署狀態 |
+|---|---|---|
+| Podman 套件 | [GitHub PR #28](https://github.com/WOOWTECH/Woow_podman_code_server_package/pull/28) | 套件 4.139.1-10、VSIX 0.2.0；R4 候選已實測 |
+| HA add-on | [GitHub PR #31](https://github.com/WOOWTECH/Woow_ha_code_server_add_on/pull/31) | add-on 0.1.17 候選；使用唯一 QA tag，尚未發布穩定版 |
+| standalone k3s | [GitHub PR #14](https://github.com/WOOWTECH/Woow_k3s_code_server_package/pull/14) | 共用 R4 來源已同步；既有 Chart／正式映像預設值尚未推進 |
+| PaaS code-server | [Gitea PR #805](https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/pulls/805) | 候選 20261127.0043-pending-approval；既有人工核可門檻仍有效 |
+
+同事應選擇驗收表列出的候選映像，核對 digest 與 runtime，依各平台 README 建立獨立測試部署。
+三站操作見 [Agent Connect 操作說明](https://github.com/WOOWTECH/Woow_podman_code_server_package/blob/feat/code-server-agent-connect-20261126/CONNECTORS.md)。
+PaaS 的候選 tag 可用於隔離測試；不能視為正式預設映像已更新。
+
 ## 本輪證據範圍
+
+### R4 成品實測
+
+| 成品／流程 | 已確認的結果 | 限制 |
+|---|---|---|
+| Podman 套件的 amd64 映像，全新資料卷 | 三站 47／47 通過 | 實際執行於隔離 k3s；沒有原生 Podman 主機測試 |
+| 同一資料卷的 R3 → R4 映像升級 | 通過；同一瀏覽器免重新配對，兩次容器重建後資料與停止狀態保留 | 只操作本輪測試部署 |
+| amd64／arm64 建置及 manifest／來源標籤 | 兩架構通過 | 沒有 arm64 原生執行節點 |
+| HA 實際映像 root／模擬 Supervisor | 真實 `/init` 啟動及三站 47／47 通過；必要升級比較與漏洞比較通過 | 真實 HA Supervisor／HA OS／硬體尚未驗收 |
+| PaaS R4 實際候選映像，全新資料卷 | 三站 47／47 通過，仍為 pending-approval | 本輪為 fresh 測試；此 PaaS fixture 同卷升級未執行，未更新正式租戶 |
+| R4 原生面板／操作 | 5 項介面、8 項實際操作通過；另讀取模型目錄 25 筆 | 模型認證、對話仍未驗收 |
+| R4 Skills 管理 | 三站各 12 項，36／36 通過；檔案、權限、aliases 與設定還原通過 | 尚未驗證模型實際執行技能／MCP |
+
+R4 成品來源固定為 `e087b314c89bfec8c1331e7c728885c7751ee440`，
+amd64 digest 為 `sha256:32421d32e188a7f769762f61b901a5e77fe73e992672d276d31d85fd02175cf6`。
+全新安裝沒有 `/opt/woow-connectors` 來源 overlay；managed、state 及執行中 process 均核對為
+`0.17.5-r4-2b20ef5fac0a`。Paseo 15 項、Woowtech 16 項、Apporo 16 項均實際執行，沒有模型呼叫。
+
+R3 → R4 升級使用同一組 PVC、配對金鑰、server ID、既有工作區、VSIX 與設定。
+第一次重建驗證 enabled 自動恢復，接著明確 Stop、第二次重建並觀察超過 35 秒仍停止，
+最後明確 Start。相同瀏覽器先後讀到三份新寫入的伺服器內容，沒有第二次配對，測試 marker 已清理。
+[R4 成品建置](https://github.com/WOOWTECH/Woow_podman_code_server_package/actions/runs/45918086296)、
+[HA 必要比較](https://github.com/WOOWTECH/Woow_ha_code_server_add_on/actions/runs/45924496884)、
+[PaaS 候選建置](https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/actions/runs/50171)、
+[PaaS 正式升版核可單](https://git-prod.woowtech.io/woow-paas/paas-odoo-ci/issues/808)。
+
+PaaS 全新成品獨立核對 R4 SDK、映像／pi-seed digest、正常 VSIX 安裝及空白 provider 登入狀態；
+三站 47 項全部通過，最終恢復官方 target、running／reachable，兩項 pending 均為 false。
+最終核對曾因 QA helper 匯入入口觸發額外一輪；該輪也為 47／47，與首次結果分別保存，
+沒有重算為新的覆蓋範圍。已修正 QA 匯入入口，沒有為此修改產品；R3 對照保留。
+
+### R3 對照與遷移證據
 
 隔離測試使用獨立 namespace、資料卷、密碼、工作區與瀏覽器。
 初次升級在舊 PaaS 映像上掛載本次來源，驗證相同路徑的 runtime 準備及切換。
@@ -95,16 +147,36 @@ R4 compiler 相容檢查使用實際 SDK plugin compiler 與 OpenCode bridge 編
 可由正式 loader 載入，default arrow 或先宣告 `const` 再 default export 則失敗；
 R3、R4 結果一致。本次沒有改寫該 SDK compiler／loader，不能將這些形式列為已支援。
 
-原生面板已通過啟用、三站選擇、鍵盤操作、214px 面板無水平溢出、44px 控制項，
+R3 原生面板已通過啟用、三站選擇、鍵盤操作、214px 面板無水平溢出、44px 控制項，
 以及實際 VS Code 明／暗主題；成品映像上的五項介面與八項原生操作也均通過。
 原生操作涵蓋保存設定、待套用警示、拒絕未套用配對、Stop／Start、明確新配對與實際檔案讀取。
-首次操作測試混淆建置產物的 root 擁有者與執行程序的 coder 身分，已修正測試假設並保留失敗紀錄，
+R3 首次操作測試混淆建置產物的 root 擁有者與執行程序的 coder 身分，已修正測試假設並保留失敗紀錄，
 沒有為此修改產品。只讀模型目錄取得 Claude 16、Codex 9、Pi 0 筆，尚未驗證認證。
 
-[一般面板截圖](code-server-agent-connect-wide-20261126.png)／
-[214px 面板截圖](code-server-agent-connect-narrow-20261126.png)。
+### R4 原生面板與 Skills 管理
+
+R4 全新成品獨立重驗介面 5／5、原生操作 8／8、三站 Skills 管理 36／36，全部通過。
+實際 SDK／daemon generation 為 R4，執行身分 coder UID 1000、預建 SDK 擁有者 root UID 0；
+結束後核對原設定 bytes／模式、SDK 模式、managed files／aliases 與 Skills 選擇恢復，沒有模型呼叫。
+25 筆只讀模型目錄仍不代表登入成功。
+
+[R4 一般面板截圖](code-server-agent-connect-wide-r4-20261127.png)／
+[R4 214px 面板截圖](code-server-agent-connect-narrow-r4-20261127.png)。
 設定套用、完整生命週期及舊配對重連分別保留紀錄；
 已保存的主機名稱不能當作連線成功證據。模型目錄也不等於模型已登入或已回覆。
+
+### 正式前端的已知差異
+
+另以 R3 對照主機完成每站 32 項 Web 導覽與偏好流程。Paseo 31 項通過、1 項需既有
+agent 而未驗收；Smart 兩站的 workspace 多選案例 N-12 失敗。已核對三站實際載入的 JS
+SHA256：官方 0.17.5 含 selection handler、store、checkbox 與選取計數；Smart 正式版 0.17.4
+尚未包含這些功能。Linux 的 Control 正確，改試 Meta／Shift 也無法補出不存在的介面。
+這是本輪固定前端版本的差異；本分支沒有發布 Smart Web 前端，不會把它列為 Agent Connect 已修復。
+[多選差異診斷](agent-connect-n12-r3-public.md) 保留當輪 JS hashes、範圍及最小處理建議。
+Apporo 初次 Tasks 導覽未完成，後續聚焦重驗已通過，初次紀錄仍保留。
+
+R3 的 Skills 管理另完成三站各 12 項，共 36 項：安裝、更新、解除安裝及狀態傳播，並核對
+實際檔案、模式、已知 aliases 與選擇設定，最後恢復原狀。這不等於模型實際使用技能或 MCP。
 
 ## 同事實測流程
 
@@ -143,4 +215,5 @@ Codex、Pi 各自填一份結果；即時模型目錄可讀取不代表帳號可
 | AUTH-01 | 使用未登入或額度不足的測試狀態 | 顯示可理解的錯誤，不回報模型驗收成功 |
 
 目前以上案例均為 **等待指定測試帳號**，尚未呼叫模型或登入 provider。
+真實語音／麥克風、需 agent 的 Tasks／排程執行也尚未驗收；本輪僅測 Tasks 搜尋及排程頁面，不含建立或執行。
 如某個 provider 沒有第二個可用模型，MODEL-04 記錄為未驗收並保留原因。
