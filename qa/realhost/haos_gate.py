@@ -191,7 +191,9 @@ def wait_core(timeout=2400):
     deadline, report, core_up_since = time.monotonic() + timeout, 0, None
     while time.monotonic() < deadline:
         door = front_door()
-        if door.get('onboardingList') or door.get('status') == 401:
+        # Only HA Core answers the onboarding step list (200, also once onboarded); the Supervisor landing page that
+        # serves port 80 while Core is still being installed answers 401, which must not count as ready.
+        if door.get('onboardingList'):
             return round(time.monotonic() - started)
         if time.monotonic() - started >= report:
             progress = guest_progress()
