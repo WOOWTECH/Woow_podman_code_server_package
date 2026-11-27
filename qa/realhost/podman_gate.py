@@ -150,8 +150,15 @@ async def legacy_pair_across_upgrade(do_upgrade):
                 offer = host.okay(host.cli('pair'))
                 await suite.connect_offer(page, offer['url'], 'https://app.paseo.sh')
                 offer = None
-                await page.get_by_text(NAME, exact=True).first.wait_for(timeout=60000)
-                checks.add('legacy_daemon_paired_with_official_client', legacyDaemonVersion=legacy_version)
+                # Same bar as the k3s legacy-migration receipt: the offer is accepted and the shell opens. The
+                # legacy (main) daemon may not advertise the display name; the name is required after the upgrade.
+                try:
+                    await page.get_by_text(NAME, exact=True).first.wait_for(timeout=15000)
+                    name_shown = True
+                except Exception:
+                    name_shown = False
+                checks.add('legacy_daemon_paired_with_official_client', legacyDaemonVersion=legacy_version,
+                           legacyDisplayNameShown=name_shown)
                 paired = True
             except Exception as error:
                 # The legacy daemon is main's, not this branch's: record it and still run the upgrade.

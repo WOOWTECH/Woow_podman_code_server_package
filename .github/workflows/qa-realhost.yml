@@ -5,6 +5,11 @@ name: qa-realhost
 on:
   push:
     branches: ['qa/realhost-20261127']
+    paths:
+      - qa/realhost/podman_gate.py
+      - qa/realhost/suite.py
+      - qa/realhost/common.py
+      - .github/workflows/qa-realhost.yml
 permissions:
   contents: read
 concurrency:
