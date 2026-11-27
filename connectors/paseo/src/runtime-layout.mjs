@@ -9,6 +9,7 @@ import {applyBrandIdentityPatch,brandIdentityPatchReady,BRAND_IDENTITY_PATCH_ID,
 import {applySmartTasksPatch,smartTasksPatchReady,validateSmartTasksSource,SMART_TASKS_PATCH_ID} from './smart-tasks-patch.mjs';
 import {applyMcpRefreshPatch,mcpRefreshPatchReady,MCP_REFRESH_PATCH_ID} from './mcp-refresh-patch.mjs';
 import {applyClaudeRootPatch,claudeRootPatchReady,CLAUDE_ROOT_PATCH_ID} from './claude-root-patch.mjs';
+import {esbuildRuntimeReady} from './esbuild-runtime.mjs';
 export const PASEO_VERSION='0.17.5';
 // Managed releases before this one ran either Paseo 0.17.4 or 0.11.2; the pre-release runtimeDir layout used 0.11.2.
 export const LEGACY_PASEO_VERSION='0.11.2';
@@ -19,7 +20,7 @@ const manifest=fs.readFileSync(path.join(template,'package.json'));
 const lock=fs.readFileSync(path.join(template,'package-lock.json'));
 const lockedPackages=JSON.parse(lock).packages;
 const lockSha256=createHash('sha256').update(lock).digest('hex');
-export const RUNTIME_REVISION=PASEO_VERSION+'-r3-'+lockSha256.slice(0,12);
+export const RUNTIME_REVISION=PASEO_VERSION+'-r4-'+lockSha256.slice(0,12);
 export const runtimeDirectory=loc=>path.join(loc.runtimeDir,'releases',RUNTIME_REVISION);
 // Essential executable, SDK, configuration and supervisor entrypoints extracted
 // from official npm archives whose SHA-512 matched the unchanged managed lock.
@@ -91,7 +92,12 @@ const MCP_0175_R2=Object.freeze({patchId:'9d00cdb1f37426bf732e9fa4c02dc491c04f84
  'node_modules/@getpaseo/protocol/dist/messages.js':'f8f1f28c528c4f7b2e85d9f5b38d3d4f32a7b71288417580e9551d7e43f33f9e',
  'node_modules/@getpaseo/server/dist/server/server/agent/providers/claude/agent.js':'6f56bf2aee54221707b40ea35bcc201525190d6e88a20c0414f465c1ba088569',
 }});
+// Exact code-server R3 artifacts captured before the esbuild dependency update.
+// This independent record includes both manifests, all essential files and all
+// five patch receipts/payloads. It must never follow the current patch recipes.
+const CONTROL_0175_R3=JSON.parse(fs.readFileSync(new URL('./runtime-control-0175-r3.json',import.meta.url)));
 const priorReleases=[
+ {version:'0.17.5',generation:'r3',sha:'8664f2c3f8f58c15b8ec264fec9b69c3bc443192efd60365212e532c811f4ce2',frozen:CONTROL_0175_R3,recordedRevision:true},
  {version:'0.17.5',generation:'r2',sha:LOCK_0175_R1,pid:PID_0174_R1,brand:BRAND_0175_R1,tasks:TASKS_0174_R2,mcp:MCP_0175_R2,recordedRevision:true},
  {version:'0.17.5',generation:'r1',sha:LOCK_0175_R1,pid:PID_0174_R1,brand:BRAND_0175_R1,tasks:TASKS_0174_R2,recordedRevision:true},
  {version:'0.17.4',generation:'r2',sha:LOCK_0174_R1,pid:PID_0174_R1,brand:BRAND_0174_R1,tasks:TASKS_0174_R2,recordedRevision:true},
@@ -118,13 +124,22 @@ export function codeServerLegacyRuntimeDirectory(loc) {
   return root;
  }catch{return null;}
 }
-function verifiedPrior(loc,{revision,sha,version,pid,brand,tasks,mcp}) {
+function verifiedPrior(loc,{revision,sha,version,pid,brand,tasks,mcp,frozen}) {
  // Never follow state-provided paths or scan arbitrary versions.
  const root=path.join(loc.runtimeDir,'releases',revision);
  try {
   const receiptFile=path.join(root,'.pi-paseo-runtime.json');assertSafePath(receiptFile);
   const receipt=JSON.parse(fs.readFileSync(receiptFile));
   if(receipt.revision!==revision||receipt.lockSha256!==sha)return null;
+  if(frozen){
+   if(frozen.revision!==revision||frozen.version!==version)return null;
+   for(const [key,expected] of Object.entries(frozen.receipt))if(receipt[key]!==expected)return null;
+   for(const [relative,expected] of Object.entries(frozen.files)){
+    const file=path.join(root,relative),stat=assertSafePath(file);
+    if(!stat?.isFile()||stat.size===0||createHash('sha256').update(fs.readFileSync(file)).digest('hex')!==expected)return null;
+   }
+   return root;
+  }
   for(const pkg of ['cli','server']){
    const file=path.join(root,'node_modules/@getpaseo',pkg,'package.json');assertSafePath(file);
    if(JSON.parse(fs.readFileSync(file)).version!==version)return null;
@@ -169,6 +184,7 @@ export function previousRuntimeDirectory(loc,{unrecordedOnly=false}={}) {
 export function runtimeReady(loc) {
  try {
   const root=runtimeDirectory(loc);
+  if(!esbuildRuntimeReady(root,lockedPackages))return false;
   for(const [name,bytes] of [['package.json',manifest],['package-lock.json',lock]]) {
    const file=path.join(root,name);if(!assertSafePath(file)?.isFile())return false;
    if(!fs.readFileSync(file).equals(bytes))return false;

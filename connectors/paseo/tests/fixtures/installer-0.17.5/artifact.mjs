@@ -6,6 +6,7 @@ import {gunzipSync} from 'node:zlib';
 import {seedNpmOutput as seedPatchInputs} from './seed.mjs';
 import {copyMcpRefreshFixture} from '../../mcp-refresh-fixture.mjs';
 import {CLAUDE_ROOT_PATH,ORIGINAL_CLAUDE_SHA256} from '../../../src/claude-root-patch.mjs';
+import {esbuildFiles} from '../../../src/esbuild-runtime.mjs';
 
 // These files were extracted from local official npm tarballs only after each
 // archive's SHA-512 matched runtime-manifest/package-lock.json. No dummy modules.
@@ -19,6 +20,18 @@ export const entrypointFiles=Object.entries(entrypointPackages).flatMap(([pkg,{f
 const mcpInputs=JSON.parse(gunzipSync(fs.readFileSync(new URL('./mcp-inputs.json.gz',import.meta.url))));
 assert.equal(mcpInputs.integrity,entrypointPackages.server.integrity);
 export function seedNpmOutput(root) {
+  // Keep native executables out of the source/consumer fixture bundle. Offline
+  // installer tests use the explicitly prepared, hash-verified R4 SDK; copy its
+  // binary before hardlinking only the two disposable destination paths.
+  const compilerRoot=process.env.WOOW_PASEO_TEST_RUNTIME;
+  assert.ok(compilerRoot,'WOOW_PASEO_TEST_RUNTIME must point at the prepared R4 SDK');
+  for(const [relative,expected] of Object.entries(esbuildFiles())) {
+    const source=path.join(compilerRoot,relative),bytes=fs.readFileSync(source);
+    assert.equal(createHash('sha256').update(bytes).digest('hex'),expected,relative);
+    const target=path.join(root,relative);fs.mkdirSync(path.dirname(target),{recursive:true});
+    if(relative.startsWith('node_modules/@esbuild/'))fs.linkSync(path.join(root,'node_modules/esbuild/bin/esbuild'),target);
+    else fs.copyFileSync(source,target);
+  }
   seedPatchInputs(root);
   for(const {relative,bytes} of entrypointFiles) {
     const file=path.join(root,relative);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,bytes);

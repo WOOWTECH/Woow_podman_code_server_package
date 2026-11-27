@@ -17,6 +17,8 @@ import {CLAUDE_ROOT_PATH} from '../src/claude-root-patch.mjs';
 import {copyMcpRefreshFixture} from './mcp-refresh-fixture.mjs';
 import {serverIntegrity} from './fixtures/installer-0.17.5/seed.mjs';
 import {seedNpmOutput,entrypointPackages,entrypointFiles} from './fixtures/installer-0.17.5/artifact.mjs';
+import {seedR3Output} from './fixtures/installer-0.17.5/r3-control.mjs';
+import {esbuildFiles} from '../src/esbuild-runtime.mjs';
 
 const connector=fileURLToPath(new URL('../',import.meta.url));
 const moduleUrl=new URL('../src/runtime-installer.mjs',import.meta.url).href;
@@ -47,12 +49,14 @@ async function waitFor(fn) {
   assert.fail('timed out waiting for installer fixture');
 }
 
-test('installer fixtures match the unchanged managed lock and revision',()=>{
+test('installer fixtures retain official SDK inputs while R4 pins the patched esbuild dependency',()=>{
   const lock=fs.readFileSync(new URL('../runtime-manifest/package-lock.json',import.meta.url));
-  assert.equal(RUNTIME_REVISION,'0.17.5-r3-8664f2c3f8f5');
+  assert.equal(RUNTIME_REVISION,'0.17.5-r4-2b20ef5fac0a');
   assert.equal(MCP_REFRESH_PATCH_ID,'9d00cdb1f37426bf732e9fa4c02dc491c04f845eb1efd4b63e649f91687c3571');
   assert.equal(PASEO_VERSION,'0.17.5');
-  assert.equal(sha(lock).slice(0,12),'8664f2c3f8f5');
+  assert.equal(sha(lock).slice(0,12),'2b20ef5fac0a');
+  assert.equal(JSON.parse(lock).packages['node_modules/esbuild'].version,'0.28.2');
+  assert.equal(JSON.parse(fs.readFileSync(new URL('../runtime-manifest/package.json',import.meta.url))).overrides.esbuild,'0.28.2');
   assert.equal(JSON.parse(lock).packages['node_modules/@getpaseo/server'].integrity,serverIntegrity);
   for(const [pkg,{integrity}] of Object.entries(entrypointPackages))assert.equal(JSON.parse(lock).packages['node_modules/@getpaseo/'+pkg].integrity,integrity,pkg);
   assert.equal(fs.existsSync(path.join(connector,'runtime/package.json')),false);
@@ -60,14 +64,14 @@ test('installer fixtures match the unchanged managed lock and revision',()=>{
 });
 
 test('the exact pre-root-fix R2 generation remains verifiable only for control',async t=>{
-  const f=fixture(t);await installRuntime(f.base,offline);
+  const f=fixture(t);
   const revision='0.17.5-r2-8664f2c3f8f5';
   const previous=path.join(f.base,'releases',revision);
-  const receiptFile=path.join(f.final,'.pi-paseo-runtime.json');
+  seedR3Output(previous);
+  const receiptFile=path.join(previous,'.pi-paseo-runtime.json');
   const receipt=JSON.parse(fs.readFileSync(receiptFile));receipt.revision=revision;delete receipt.claudeRootPatchId;
   fs.writeFileSync(receiptFile,JSON.stringify(receipt));
-  fs.writeFileSync(path.join(f.final,CLAUDE_ROOT_PATH),gunzipSync(fs.readFileSync(new URL('./fixtures/installer-0.17.5/claude-agent.js.gz',import.meta.url))));
-  fs.renameSync(f.final,previous);
+  fs.writeFileSync(path.join(previous,CLAUDE_ROOT_PATH),gunzipSync(fs.readFileSync(new URL('./fixtures/installer-0.17.5/claude-agent.js.gz',import.meta.url))));
   assert.equal(priorRuntimeDirectory(f.loc,revision),previous);
   assert.notEqual(runtimeDirectory(f.loc),previous);
   for(const relative of [CLAUDE_ROOT_PATH,refreshRecipes[0].path]){
@@ -142,6 +146,46 @@ test('ready generation reuse invokes no npm and changes no contents, modes, inod
   assert.deepEqual(snapshot(f.base),before);
 });
 
+test('compiler readiness accepts npm hardlinks without altering either binary',async t=>{
+  const f=fixture(t);await installRuntime(f.base,offline);
+  const generic=path.join(f.final,'node_modules/esbuild/bin/esbuild');
+  const native=path.join(f.final,`node_modules/@esbuild/${process.platform}-${process.arch}/bin/esbuild`);
+  assert.equal(fs.statSync(generic).ino,fs.statSync(native).ino);
+  assert.equal(fs.statSync(generic).nlink,2);
+  assert.equal(runtimeReady(f.loc),true);
+  assert.equal((await installRuntime(f.base,offline)).reused,true);
+});
+
+for(const relative of Object.keys(esbuildFiles()))for(const failure of ['missing','empty','tampered','symlink'])for(const phase of ['before publication','on reuse'])test(`${failure} compiler ${relative} rejects ${phase}`,async t=>{
+  const f=fixture(t);
+  const damage=root=>{
+    const file=path.join(root,relative);
+    if(failure==='missing')fs.unlinkSync(file);
+    else if(failure==='empty')fs.writeFileSync(file,'');
+    else if(failure==='tampered')fs.appendFileSync(file,'tampered');
+    else {
+      const target=path.join(f.root,'authentic-compiler');fs.copyFileSync(file,target);
+      fs.unlinkSync(file);fs.symlinkSync(target,file);
+    }
+  };
+  if(phase==='before publication') {
+    await assert.rejects(installRuntime(f.base,{...offline,runNpm:root=>{seedNpmOutput(root);damage(root);}}),{code:'AGENT_CONNECT_RUNTIME_VALIDATION_FAILED'});
+    assert.equal(fs.existsSync(f.final),false);assert.deepEqual(stages(f.base),[]);
+  }else {
+    await installRuntime(f.base,offline);damage(f.final);const before=snapshot(f.base);
+    await assert.rejects(installRuntime(f.base,{...offline,runNpm:()=>assert.fail('npm on damaged compiler')}),{code:'RUNTIME_RELEASE_CONFLICT'});
+    assert.deepEqual(snapshot(f.base),before);
+  }
+});
+
+test('a non-executable compiler is not ready and is never repaired in place',async t=>{
+  const f=fixture(t);await installRuntime(f.base,offline);
+  fs.chmodSync(path.join(f.final,'node_modules/esbuild/bin/esbuild'),0o600);
+  assert.equal(runtimeReady(f.loc),false);const before=snapshot(f.base);
+  await assert.rejects(installRuntime(f.base,offline),{code:'RUNTIME_RELEASE_CONFLICT'});
+  assert.deepEqual(snapshot(f.base),before);
+});
+
 for(const [name,damage] of [
   ['missing receipt ID',root=>{const file=path.join(root,'.pi-paseo-runtime.json'),value=JSON.parse(fs.readFileSync(file));delete value.mcpRefreshPatchId;fs.writeFileSync(file,JSON.stringify(value));}],
   ['wrong receipt ID',root=>{const file=path.join(root,'.pi-paseo-runtime.json'),value=JSON.parse(fs.readFileSync(file));value.mcpRefreshPatchId='other';fs.writeFileSync(file,JSON.stringify(value));}],
@@ -203,13 +247,12 @@ for(const kind of ['directory','symlink'])for(const phase of ['before publicatio
   }
 });
 
-test('r2 installs alongside an exact control-only r1 without changing it',async t=>{
+test('R4 installs alongside an exact control-only r1 without changing it',async t=>{
   const f=fixture(t),revision='0.17.5-r1-8664f2c3f8f5';
-  await installRuntime(f.base,offline);
-  const prior=path.join(f.base,'releases',revision);fs.renameSync(f.final,prior);
+  const prior=path.join(f.base,'releases',revision);seedR3Output(prior);
   const receiptFile=path.join(prior,'.pi-paseo-runtime.json'),receipt=JSON.parse(fs.readFileSync(receiptFile));
   copyMcpRefreshFixture(prior,prior);fs.unlinkSync(path.join(prior,MCP_REFRESH_HELPER_PATH));
-  receipt.revision=revision;delete receipt.mcpRefreshPatchId;fs.writeFileSync(receiptFile,JSON.stringify(receipt));
+  receipt.revision=revision;delete receipt.mcpRefreshPatchId;delete receipt.claudeRootPatchId;fs.writeFileSync(receiptFile,JSON.stringify(receipt));
   const before=snapshot(prior);
   assert.equal(runtimeReady(f.loc),false);
   assert.equal(priorRuntimeDirectory(f.loc,revision),prior);

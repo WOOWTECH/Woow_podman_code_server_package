@@ -219,7 +219,8 @@ secret pairing URL. Set `WOOW_PASEO_WEB_PLAN` to that absolute path. Example sha
 
 ```json
 {
-  "pairUrl": "https://app.paseo.sh/#AUTHORIZED-PAIRING-FRAGMENT",
+  "target": "paseo",
+  "pairUrl": "https://app.paseo.sh/#offer=PRIVATE_V2_OFFER",
   "workspace": "/workspace/connector-qa",
   "allowModelCalls": true,
   "turnTimeoutMs": 180000,
@@ -234,6 +235,11 @@ secret pairing URL. Set `WOOW_PASEO_WEB_PLAN` to that absolute path. Example sha
 Use `"mode":"pair"` with just `pairUrl` and `workspace` for a no-model pairing and
 directory test. Full mode requires all three providers, two distinct models each,
 and `allowModelCalls:true`; it does not silently choose cheaper/other models.
+`target` defaults to `paseo`; set it explicitly to `woowtech` or `apporo` for
+that client's separately generated offer. The URL, V2 relay and TLS policy must
+match the selected target. Configure the daemon for that target first; never
+edit or transfer an offer to another origin. Download plans use the same
+`target` field and require a workspace URL at its matching origin.
 For a focused retry after fixing one provider, `runProviders:["claude"]` limits
 execution while retaining the full catalog plan. Its result names the requested
 providers and must not be presented as a new complete three-provider run.
