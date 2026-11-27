@@ -115,8 +115,15 @@ def wait_for(predicate, timeout, interval=5, code='WAIT_TIMEOUT'):
 
 
 def front_door():
-    """What answers on the forwarded port 8123: status code and kind, never the body."""
+    """What answers on the forwarded port: status code and kind, never the body. Before onboarding only HA Core
+    answers the onboarding step list; once onboarded that view is gone (404) and the authenticated API is the check."""
     try:
+        if AUTH.get('token'):
+            request = urllib.request.Request(BASE + '/api/', headers={'User-Agent': 'agent-connect-realhost-qa',
+                                                                      'Authorization': 'Bearer ' + AUTH['token']})
+            with urllib.request.urlopen(request, timeout=20) as response:
+                body = json.loads(response.read() or b'{}')
+                return {'status': response.status, 'apiRunning': body.get('message') == 'API running.'}
         request = urllib.request.Request(BASE + '/api/onboarding', headers={'User-Agent': 'agent-connect-realhost-qa'})
         with urllib.request.urlopen(request, timeout=20) as response:
             kind = response.headers.get('Content-Type', '').split(';')[0]
@@ -193,7 +200,7 @@ def wait_core(timeout=2400):
         door = front_door()
         # Only HA Core answers the onboarding step list (200, also once onboarded); the Supervisor landing page that
         # serves port 80 while Core is still being installed answers 401, which must not count as ready.
-        if door.get('onboardingList'):
+        if door.get('onboardingList') or door.get('apiRunning'):
             return round(time.monotonic() - started)
         if time.monotonic() - started >= report:
             progress = guest_progress()
