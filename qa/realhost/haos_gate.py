@@ -123,8 +123,27 @@ def front_door():
                     'onboardingList': kind == 'application/json' and isinstance(json.loads(body), list)}
     except urllib.error.HTTPError as error:
         return {'status': error.code}
+    except urllib.error.URLError as error:
+        return {'error': 'URLError', 'reason': type(error.reason).__name__, 'detail': suite.redact(error.reason)[:120]}
     except Exception as error:
-        return {'error': type(error).__name__}
+        return {'error': type(error).__name__, 'detail': suite.redact(error)[:120]}
+
+
+def inside_view():
+    """Is Core listening inside the guest, and does it answer locally? (separates Core from the port forward)"""
+    view = {}
+    for name, script in [
+            ('listeners', "ss -ltn 2>/dev/null | grep -E ':8123|:80 ' | head -5 || netstat -ltn 2>/dev/null | grep 8123 | head -5"),
+            ('hostCurl', "curl -s -m 10 -o /dev/null -w '%{http_code}' http://127.0.0.1:8123/api/onboarding 2>&1 || echo curl-failed"),
+            ('hostCurlIface', "curl -s -m 10 -o /dev/null -w '%{http_code}' http://10.0.2.15:8123/api/onboarding 2>&1 || echo curl-failed"),
+            ('coreCurl', "docker exec homeassistant curl -s -m 10 -o /dev/null -w '%{http_code}' http://127.0.0.1:8123/api/onboarding 2>&1 || echo exec-failed"),
+            ('firewall', "nft list ruleset 2>/dev/null | grep -c -E 'drop|reject' || iptables -S 2>/dev/null | grep -c -E 'DROP|REJECT'")]:
+        try:
+            _, out, err = guest.sh(script, check=False, timeout=60)
+            view[name] = suite.redact((out or err).decode(errors='replace').strip())[:300]
+        except Exception as error:
+            view[name] = type(error).__name__
+    return view
 
 
 def guest_progress():
@@ -148,7 +167,7 @@ def guest_progress():
 
 
 def diagnostics():
-    facts = {'frontDoor': front_door(), 'guest': guest_progress()}
+    facts = {'frontDoor': front_door(), 'guest': guest_progress(), 'inside': inside_view()}
     try:
         _, out, _ = guest.sh('docker logs --tail 50 hassio_supervisor 2>&1', check=False, timeout=60)
         facts['supervisorLogTail'] = [suite.redact(l, common.SECRETS)[:240] for l in out.decode(errors='replace').splitlines()[-50:]]
@@ -167,14 +186,20 @@ def diagnostics():
 def wait_core(timeout=2400):
     started = time.monotonic()
     wait_for(guest.ping, 900, code='QGA_NOT_RESPONDING')
-    deadline, report = time.monotonic() + timeout, 0
+    deadline, report, core_up_since = time.monotonic() + timeout, 0, None
     while time.monotonic() < deadline:
         door = front_door()
         if door.get('onboardingList') or door.get('status') == 401:
             return round(time.monotonic() - started)
         if time.monotonic() - started >= report:
-            say('waiting_for_core', elapsed=round(time.monotonic() - started), frontDoor=door, guest=guest_progress())
-            report += 300
+            progress = guest_progress()
+            if core_up_since is None and 'homeassistant:Up' in progress.get('containers', []):
+                core_up_since = time.monotonic()
+            say('waiting_for_core', elapsed=round(time.monotonic() - started), frontDoor=door, guest=progress,
+                inside=inside_view() if core_up_since else None)
+            report += 60 if core_up_since else 120
+        if core_up_since and time.monotonic() - core_up_since > 420:
+            raise AssertionError('FRONT_DOOR_UNREACHABLE_WHILE_CORE_UP')
         time.sleep(10)
     raise AssertionError('HA_CORE_NOT_READY')
 
